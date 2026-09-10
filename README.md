@@ -6,6 +6,16 @@
 
 MarkNote 是一个**文件优先**的 Markdown 编辑器：不建私有笔记库，直接读写设备上任意目录的 `.md` 文件。在文件管理器里点击 `.md` 文件即可选择用 MarkNote 打开，改完自动保存回原位置。
 
+## 截图
+
+<p>
+  <img src="docs/screenshots/list.png" width="19%" alt="最近文件">
+  <img src="docs/screenshots/editor.png" width="19%" alt="编辑器">
+  <img src="docs/screenshots/preview.png" width="19%" alt="预览：图片与表格">
+  <img src="docs/screenshots/dark.png" width="19%" alt="深色模式">
+  <img src="docs/screenshots/landscape.png" width="19%" alt="横屏双栏">
+</p>
+
 ## 功能（v0.8.0）
 
 - **设置页**：首页顶栏齿轮进入（宽屏显示在右栏）；主题模式（跟随系统/浅色/深色）、编辑器与预览字号独立调节（小/标准/大）、自动保存开关（关闭后顶栏出现手动保存按钮，有未保存修改时高亮）、关于版本信息
