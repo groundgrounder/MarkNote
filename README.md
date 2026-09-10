@@ -1,12 +1,6 @@
 # MarkNote
 
-轻量 Android Markdown 编辑器 · 面向真实文件 · Kotlin + Jetpack Compose + Material 3
-
-## 定位
-
-MarkNote 是一个**文件优先**的 Markdown 编辑器：不建私有笔记库，直接读写设备上任意目录的 `.md` 文件。在文件管理器里点击 `.md` 文件即可选择用 MarkNote 打开，改完自动保存回原位置。
-
-## 截图
+轻量 Android Markdown 编辑器 · 文件优先 · Kotlin + Jetpack Compose + Material 3
 
 <p>
   <img src="docs/screenshots/list.png" width="19%" alt="最近文件">
@@ -16,24 +10,84 @@ MarkNote 是一个**文件优先**的 Markdown 编辑器：不建私有笔记库
   <img src="docs/screenshots/landscape.png" width="19%" alt="横屏双栏">
 </p>
 
-## 功能（v0.8.0）
+MarkNote 是一个**文件优先**的 Markdown 编辑器：不建私有笔记库，直接读写设备上任意目录的 `.md` 文件。在文件管理器里点击 `.md` 文件即可选择用 MarkNote 打开，改完自动保存回原位置。
 
-- **设置页**：首页顶栏齿轮进入（宽屏显示在右栏）；主题模式（跟随系统/浅色/深色）、编辑器与预览字号独立调节（小/标准/大）、自动保存开关（关闭后顶栏出现手动保存按钮，有未保存修改时高亮）、关于版本信息
-- **文件管理器直接打开**：注册 `text/markdown` / `text/plain` / `.md` / `.markdown` 扩展名的 VIEW/EDIT intent-filter，系统"打开方式"中可选 MarkNote（singleTask，重复打开复用同一实例）
-- **SAF 读写任意目录**：基于 Storage Access Framework，系统文档选择器打开/新建文件，无需任何存储权限；编辑内容自动写回原文件位置
-- **最近打开列表**：打开过的文件持久化记录（含权限持久化 takePersistableUriPermission），重启应用后可直接继续编辑；可从列表移除（不删文件），不可访问的文件有明确提示
-- **可收起的左侧栏**：双栏模式下最近文件栏可一键收起为窄条（保留展开入口），编辑空间最大化
-- **宽屏大纲右侧面板**：横屏/平板下大纲从右侧滑出，与左侧栏风格统一；窄屏为底部弹层
-- **符号化工具栏**：H1/H2/B/I/S + 引用/列表/链接/代码/分割线图标，键盘上方常驻，支持选中文字包裹
-- **平板/横屏双栏**：宽屏（≥840dp）自动切换为左栏最近文件 + 右栏编辑器同屏布局（windowSizeClass 驱动，旋转实时切换）
-- **大屏限宽居中**：编辑器与预览内容最大宽度 840dp，超宽屏两侧留白
-- **字数统计**：顶栏标题下实时显示「N 字 · M 行」
-- **搜索替换**：命中计数（n/m）、上/下一个循环跳转高亮、单个替换、全部替换
-- **编辑区语法高亮**：纯正则轻量实现（VisualTransformation），标题/加粗/斜体/删除线/引用/代码/链接/列表标记实时着色
-- **一键预览**：右上角切换，Markwon 渲染（含删除线、GFM 表格扩展），链接可点击跳转
-- **图片显示**：预览支持相对路径图片（`![](img/a.png)`）——首次打开含图文档时按引导条授权文档所在文件夹即可，授权长期有效；同时支持 `content://`、`file://` 与 base64 内嵌图（`data:image/...`）；大图自动降采样防 OOM
-- **自动保存**：输入停顿 800ms 写回原文件，返回/切预览前强制落盘
-- **Material You**：Android 12+ 动态壁纸取色，浅色/深色跟随系统，边到边布局
+## 下载
+
+在 [Releases](https://github.com/groundgrounder/MarkNote/releases) 页下载最新 APK（`MarkNote-vX.Y.Z.apk`），minSdk 26（Android 8.0+）。
+
+## 功能
+
+**文件**
+
+- 文件管理器直接打开：注册 `text/markdown` / `text/plain` / `.md` / `.markdown` 的 VIEW/EDIT intent，系统「打开方式」可选 MarkNote（singleTask，重复打开复用同一实例）
+- SAF 读写任意目录：系统文档选择器打开/新建，无需存储权限，编辑内容自动写回原位置
+- 最近打开列表：含权限持久化，重启后可继续编辑；可移除条目（不删文件），失效文件有明确提示
+- 自动保存：输入停顿 800ms 落盘，返回/切预览前强制保存；可改为手动保存（顶栏保存按钮在有未保存修改时高亮）
+
+**编辑**
+
+- 编辑区语法高亮：纯正则轻量实现，标题/加粗/斜体/删除线/引用/代码/链接/列表标记实时着色
+- 符号化工具栏：H1/H2/B/I/S + 引用/列表/链接/代码/分割线，键盘上方常驻，支持选中文字包裹
+- 搜索替换：命中计数（n/m）、循环跳转高亮、单个/全部替换
+- 大纲导航：横屏/平板从右侧滑出面板，窄屏为底部弹层，点击跳转
+- 字数统计：顶栏实时显示「N 字 · M 行」
+
+**预览**
+
+- 一键切换，Markwon 渲染；支持 GFM 表格（表头/斑马纹/列对齐）、删除线、可点击链接
+- 图片显示：相对路径图片首次按引导条授权文档所在文件夹即可（授权长期有效）；支持 `content://`、`file://`、base64 内嵌图；大图自动降采样防 OOM
+
+**界面与适配**
+
+- Material You：Android 12+ 动态取色，浅色/深色可跟随系统或手动锁定，边到边布局
+- 平板/横屏双栏：宽屏（≥840dp）自动切换为左栏文件列表 + 右栏编辑器，旋转实时切换；侧栏可收起为窄条
+- 设置页：主题模式、编辑器与预览字号独立调节、自动保存开关
+
+## 技术栈
+
+| 项 | 选型 |
+|---|---|
+| 语言 | Kotlin 2.0 |
+| UI | Jetpack Compose + Material 3（边到边、LargeTopAppBar） |
+| Markdown 渲染 | Markwon 4.6.2（core + ext-strikethrough + ext-tables + image），经 AndroidView 嵌入 |
+| 架构 | MVVM（ViewModel + Compose State），单 Activity + 轻量状态导航 |
+| 存储 | SAF + SharedPreferences（最近列表与设置），免存储权限 |
+| 兼容 | minSdk 26 / targetSdk 35 |
+
+## 构建
+
+```bash
+./gradlew assembleDebug        # 需要 JDK 17+ 与 Android SDK（local.properties 配置 sdk.dir）
+```
+
+产物：`app/build/outputs/apk/debug/app-debug.apk`。也可以直接用 Android Studio 打开本目录。
+
+已配置 GitHub Actions：push 到 main 自动构建并上传 APK 构件；打 `v*` 标签自动创建 Release 并附带 APK。
+
+## 目录结构
+
+```
+app/src/main/java/com/marknote/app/
+├── MainActivity.kt              # 入口 + 外部打开 intent + 轻量导航
+├── data/
+│   ├── DocumentRepository.kt    # SAF 文档读写 + 最近列表 + 图片文件夹授权
+│   └── SettingsRepository.kt    # 设置项（SharedPreferences + Compose 状态）
+└── ui/
+    ├── theme/Theme.kt           # M3 动态取色主题（支持手动锁定浅/深）
+    ├── files/                   # 最近打开列表页 + ViewModel
+    ├── settings/                # 设置页
+    └── editor/                  # 编辑器页、工具栏、语法高亮、大纲、Markwon 预览
+```
+
+## 图标
+
+自适应图标（Adaptive Icon）：Markdown「M↓」记号，白色 M + 琥珀色下箭头（#FFD54F），深靛蓝底（#4A5ACF）；支持 Android 13+ 主题图标（monochrome）。各密度 PNG 由 `tools/render_icon.py` 生成。
+
+## 路线（规划）
+
+- v1.1：「另存为」、图片插入
+- v2.0：WebDAV 同步、自定义主题、多标签编辑
 
 <details>
 <summary>历史版本</summary>
@@ -52,6 +106,10 @@ MarkNote 是一个**文件优先**的 Markdown 编辑器：不建私有笔记库
 - 横屏/平板修复：侧栏列表底部留白 176dp，文件卡片不再被「新建/打开文件」悬浮按钮遮挡；大纲长标题单行省略号截断，不再挤压面板
 - 宽屏交互修复：设置页打开时点击左侧文件（或从文件管理器外部打开），右栏现在会正确从设置切回编辑器
 - 设置页底部避让手势导航条
+
+### v0.7.0
+
+- 新增设置页：主题模式（跟随系统/浅色/深色）、编辑器与预览字号独立调节（小/标准/大）、自动保存开关、关于版本信息
 
 ### v0.6.2
 
@@ -83,48 +141,3 @@ MarkNote 是一个**文件优先**的 Markdown 编辑器：不建私有笔记库
 - 纯源码编辑 + 切换预览、Markwon 渲染、文件管理、自动保存、Material You 主题
 
 </details>
-
-## 图标
-
-自适应图标（Adaptive Icon）：Markdown「M↓」记号，白色 M + 琥珀色下箭头（#FFD54F），深靛蓝底（#4A5ACF）。矢量前景 + 纯色背景，支持 Android 13+ 主题图标（monochrome 自动单色化）；各密度 legacy PNG 与 Play Store 512 图由 `tools/render_icon.py` 重新生成。
-
-## 技术栈
-
-| 项 | 选型 |
-|---|---|
-| 语言 | Kotlin 2.0 |
-| UI | Jetpack Compose + Material 3（边到边、LargeTopAppBar） |
-| Markdown 渲染 | Markwon 4.6.2（core + ext-strikethrough），经 AndroidView 嵌入 |
-| 架构 | MVVM（ViewModel + Compose State），单 Activity + 轻量状态导航 |
-| 存储 | SAF（Storage Access Framework）+ SharedPreferences 最近列表，免存储权限 |
-| 兼容 | minSdk 26 / targetSdk 35 |
-
-## 目录结构
-
-```
-app/src/main/java/com/marknote/app/
-├── MainActivity.kt              # 入口 + 外部打开 intent + 轻量导航
-├── data/
-│   ├── DocumentRepository.kt    # SAF 文档读写 + 最近打开列表
-│   └── SettingsRepository.kt    # 设置项（SharedPreferences + Compose 状态）
-└── ui/
-    ├── theme/Theme.kt           # M3 动态取色主题（支持手动锁定浅/深）
-    ├── files/                   # 最近打开列表页 + ViewModel
-    ├── settings/                # 设置页
-    └── editor/                  # 编辑器页、工具栏、语法高亮、大纲、Markwon 预览
-```
-
-## 构建
-
-```bash
-./gradlew assembleDebug        # 需要 JDK 17+ 与 Android SDK（local.properties 配置 sdk.dir）
-```
-
-产物：`app/build/outputs/apk/debug/app-debug.apk`
-
-也可以直接用 Android Studio 打开本目录。
-
-## 路线（规划）
-
-- v1.1：导出 HTML/PDF、「另存为」、图片插入
-- v2.0：WebDAV 同步、自定义主题、多标签编辑
