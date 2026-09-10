@@ -1,0 +1,52 @@
+name: Android CI
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: 构建 Debug APK
+        run: ./gradlew assembleDebug --no-daemon
+
+      - name: 上传 APK 构件
+        uses: actions/upload-artifact@v4
+        with:
+          name: marknote-debug-apk
+          path: app/build/outputs/apk/debug/app-debug.apk
+
+  release:
+    # 仅打 v* tag 时发 Release，附带 APK
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: marknote-debug-apk
+
+      - name: 重命名为带版本号的文件名
+        run: mv app-debug.apk "MarkNote-${{ github.ref_name }}.apk"
+
+      - name: 创建 Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: "MarkNote-${{ github.ref_name }}.apk"
+          generate_release_notes: true
