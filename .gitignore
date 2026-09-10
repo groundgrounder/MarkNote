@@ -1,0 +1,20 @@
+# 构建产物
+.gradle/
+.kotlin/
+build/
+*/build/
+
+# 本机配置（含本机 SDK 路径，勿上传）
+local.properties
+
+# IDE
+.idea/
+*.iml
+.cxx/
+
+# 系统文件
+.DS_Store
+
+# 打包签名（如有）
+*.jks
+*.keystore

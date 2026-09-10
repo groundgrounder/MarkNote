@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- MarkNote 图标前景：Markdown「M↓」记号，108x108 视口，图形收在中心 66dp 安全区内 -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- M -->
+    <path
+        android:pathData="M30,70 L30,38 L42,56 L54,38 L54,70"
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="7"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:fillColor="#00000000" />
+
+    <!-- ↓（强调色，monochrome 主题图标下自动统一为单色） -->
+    <path
+        android:pathData="M71,38 L71,61"
+        android:strokeColor="#FFD54F"
+        android:strokeWidth="7"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000" />
+    <path
+        android:pathData="M63,54 L71,64 L79,54"
+        android:strokeColor="#FFD54F"
+        android:strokeWidth="7"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:fillColor="#00000000" />
+</vector>
