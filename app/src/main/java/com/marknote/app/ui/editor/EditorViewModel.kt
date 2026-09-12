@@ -81,6 +81,18 @@ class EditorViewModel(
     var isLoaded by mutableStateOf(false)
         private set
 
+    /** 读取失败（无权限 / 文件已被移动删除）：编辑器显示错误态，而不是伪装成空文档 */
+    var loadFailed by mutableStateOf(false)
+        private set
+
+    /** 只能读不能写（例如从文件管理器「打开方式」进来的只读授权），保存不会生效 */
+    var readOnly by mutableStateOf(false)
+        private set
+
+    /** 最近一次保存是否失败（无写权限或文件已不在） */
+    var saveFailed by mutableStateOf(false)
+        private set
+
     /** 上次已落盘的内容，用于判断是否有未保存修改 */
     private var lastSavedText = ""
 
@@ -88,11 +100,27 @@ class EditorViewModel(
     private val saveMutex = Mutex()
 
     init {
+        load()
+    }
+
+    /**
+     * 读取文档。read 返回 null 表示读取失败（权限失效/文件不存在），
+     * 此时不进入可编辑状态，避免把空内容当成文档正文回写覆盖原文件。
+     */
+    fun load() {
         viewModelScope.launch {
             val text = repository.read(uri)
+            if (text == null) {
+                isLoaded = false
+                loadFailed = true
+                return@launch
+            }
             lastSavedText = text
             content = TextFieldValue(text, TextRange(text.length))
             isLoaded = true
+            loadFailed = false
+            saveFailed = false
+            readOnly = !repository.canWrite(uri)
         }
     }
 
@@ -150,12 +178,20 @@ class EditorViewModel(
         get() = content.text != lastSavedText
 
     fun save() {
+        // 读取失败时绝不能写：否则会把空白内容覆盖到原文件上
+        if (!isLoaded) return
         val text = content.text
         if (text == lastSavedText) return
-        lastSavedText = text
         viewModelScope.launch {
             saveMutex.withLock {
-                repository.save(uri, text)
+                if (repository.save(uri, text)) {
+                    lastSavedText = text
+                    saveFailed = false
+                    readOnly = false
+                } else {
+                    // 写盘失败（无写权限 / 文件已不在）：保留未保存状态并提示用户
+                    saveFailed = true
+                }
             }
         }
     }

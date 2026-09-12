@@ -3,15 +3,18 @@ package com.marknote.app.ui.editor
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import android.net.Uri
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
@@ -26,12 +29,14 @@ import androidx.compose.material.icons.automirrored.outlined.FormatListBulleted
 import androidx.compose.material.icons.automirrored.outlined.Toc
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material.icons.outlined.ErrorOutline
 import androidx.compose.material.icons.outlined.Image
 import androidx.compose.material.icons.outlined.KeyboardArrowDown
 import androidx.compose.material.icons.outlined.KeyboardArrowUp
 import androidx.compose.material.icons.outlined.Save
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Visibility
+import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -60,12 +65,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.OffsetMapping
 import androidx.compose.ui.text.input.TransformedText
 import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.marknote.app.data.DocumentRepository
 import com.marknote.app.data.SettingsRepository
+import com.marknote.app.ui.common.OpenDocumentWithInitialUri
 import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -77,9 +84,26 @@ fun EditorScreen(
     displayName: String,
     onBack: () -> Unit,
     isExpanded: Boolean = false,
+    onRelocated: (String) -> Unit = {},
 ) {
     val viewModel: EditorViewModel = viewModel(key = "editor-$uriString") {
         EditorViewModel(repository, uriString)
+    }
+
+    // 重新授权：内容读不出来（权限失效）或只读打开时，用系统文档选择器重选该文件。
+    // 选择器返回的 Uri 一定能持久化，因此重选一次后可长期编辑；授权后替换最近列表里的旧条目。
+    val regrantUri = remember(uriString) { Uri.parse(uriString) }
+    val regrantLauncher = rememberLauncherForActivityResult(
+        remember(regrantUri) { OpenDocumentWithInitialUri(regrantUri) },
+    ) { picked ->
+        if (picked != null) {
+            repository.persistPermission(picked)
+            repository.replaceRecent(uriString, picked)
+            onRelocated(picked.toString())
+        }
+    }
+    val regrant: () -> Unit = {
+        regrantLauncher.launch(arrayOf("text/markdown", "text/plain", "*/*"))
     }
 
     // 自动保存：内容变化后停顿 800ms 落盘（可在设置中关闭，改为手动保存）
@@ -95,6 +119,8 @@ fun EditorScreen(
     }
 
     val title = displayName.removeSuffix(".md").removeSuffix(".markdown")
+    // 读取失败时只提供错误提示，不进入编辑/预览（避免空内容被误写回原文件）
+    val usable = viewModel.isLoaded
 
     // 语法高亮：内容或主题变化时重算
     val colorScheme = MaterialTheme.colorScheme
@@ -157,11 +183,13 @@ fun EditorScreen(
                             maxLines = 1,
                             style = MaterialTheme.typography.titleMedium,
                         )
-                        Text(
-                            text = "$charCount 字 · $lineCount 行",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
+                        if (usable) {
+                            Text(
+                                text = "$charCount 字 · $lineCount 行",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
                     }
                 },
                 navigationIcon = {
@@ -173,7 +201,7 @@ fun EditorScreen(
                     }
                 },
                 actions = {
-                    if (!viewModel.isPreview) {
+                    if (usable && !viewModel.isPreview) {
                         // 手动保存：关闭自动保存时显示；有未保存修改时高亮
                         if (!settings.autoSave) {
                             IconButton(onClick = { viewModel.save() }) {
@@ -201,18 +229,20 @@ fun EditorScreen(
                             )
                         }
                     }
-                    IconButton(onClick = { viewModel.togglePreview() }) {
-                        Icon(
-                            imageVector = if (viewModel.isPreview) Icons.Outlined.Edit
-                            else Icons.Outlined.Visibility,
-                            contentDescription = if (viewModel.isPreview) "编辑" else "预览",
-                        )
+                    if (usable) {
+                        IconButton(onClick = { viewModel.togglePreview() }) {
+                            Icon(
+                                imageVector = if (viewModel.isPreview) Icons.Outlined.Edit
+                                else Icons.Outlined.Visibility,
+                                contentDescription = if (viewModel.isPreview) "编辑" else "预览",
+                            )
+                        }
                     }
                 },
             )
         },
         bottomBar = {
-            if (!viewModel.isPreview) {
+            if (usable && !viewModel.isPreview) {
                 MarkdownToolbar(
                     onAction = viewModel::applyAction,
                     modifier = Modifier
@@ -232,7 +262,13 @@ fun EditorScreen(
             modifier = Modifier.weight(1f),
             contentAlignment = Alignment.TopCenter,
         ) {
-        if (viewModel.isPreview) {
+        if (!usable) {
+            DocumentUnavailable(
+                onRegrant = regrant,
+                onRetry = viewModel::load,
+                onBack = onBack,
+            )
+        } else if (viewModel.isPreview) {
             Column(
                 modifier = Modifier
                     .widthIn(max = 840.dp)
@@ -285,6 +321,18 @@ fun EditorScreen(
                     .widthIn(max = 840.dp)
                     .fillMaxWidth(),
             ) {
+                // 只能读 / 写盘失败：明确提示，避免用户以为改动已保存
+                if (viewModel.readOnly || viewModel.saveFailed) {
+                    DocumentNotice(
+                        message = if (viewModel.saveFailed) {
+                            "保存失败：没有写入这个文件的权限"
+                        } else {
+                            "只读打开：没有写入权限，修改不会被保存"
+                        },
+                        actionLabel = "重新授权",
+                        onAction = regrant,
+                    )
+                }
                 if (searchOpen) {
                     SearchPanel(
                         query = query,
@@ -373,6 +421,81 @@ fun EditorScreen(
             },
             onDismiss = { showOutline = false },
         )
+    }
+}
+
+/** 顶部提示条：只读打开 / 保存失败时告知改动没有落盘，并给出重新授权入口 */
+@Composable
+private fun DocumentNotice(
+    message: String,
+    actionLabel: String,
+    onAction: () -> Unit,
+) {
+    Surface(
+        color = MaterialTheme.colorScheme.errorContainer,
+        contentColor = MaterialTheme.colorScheme.onErrorContainer,
+        shape = MaterialTheme.shapes.medium,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp, vertical = 8.dp),
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.padding(start = 16.dp, end = 4.dp),
+        ) {
+            Icon(
+                Icons.Outlined.ErrorOutline,
+                contentDescription = null,
+                modifier = Modifier.width(18.dp),
+            )
+            Text(
+                text = message,
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(horizontal = 12.dp, vertical = 8.dp),
+            )
+            TextButton(onClick = onAction) { Text(actionLabel) }
+        }
+    }
+}
+
+/** 读取失败时的整页提示：权限已失效，或文件被移动/删除 */
+@Composable
+private fun DocumentUnavailable(
+    onRegrant: () -> Unit,
+    onRetry: () -> Unit,
+    onBack: () -> Unit,
+) {
+    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.padding(32.dp),
+        ) {
+            Icon(
+                Icons.Outlined.ErrorOutline,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.error,
+            )
+            Spacer(Modifier.height(12.dp))
+            Text("无法打开该文件", style = MaterialTheme.typography.titleMedium)
+            Spacer(Modifier.height(8.dp))
+            Text(
+                text = "MarkNote 已经没有这个文件的访问权限，或者文件已被移动、删除。\n" +
+                    "从其他应用（文件管理器「打开方式」、聊天记录等）打开的文件，" +
+                    "系统通常不会给出长期权限，退出应用后就会失效。\n" +
+                    "用「重新授权」在系统文件选择器里重新选一次同一个文件，之后就能一直编辑。",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+            )
+            Spacer(Modifier.height(20.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(onClick = onRegrant) { Text("重新授权") }
+                TextButton(onClick = onRetry) { Text("重试") }
+                TextButton(onClick = onBack) { Text("返回") }
+            }
+        }
     }
 }
 

@@ -219,10 +219,11 @@ private fun DocumentCard(
             )
             Spacer(Modifier.height(6.dp))
             Text(
-                text = if (doc.accessible) {
-                    doc.snippet.ifEmpty { "（空文档）" }
-                } else {
-                    "文件暂不可访问，可能已被移动或删除"
+                text = when {
+                    !doc.accessible ->
+                        "文件暂不可访问：可能已被移动或删除，或访问权限已失效。点按可重新授权。"
+                    doc.snippet.isNotEmpty() -> doc.snippet
+                    else -> "（空文档）"
                 },
                 style = MaterialTheme.typography.bodyMedium,
                 color = if (doc.accessible) {

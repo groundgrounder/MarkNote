@@ -4,6 +4,7 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.Box
@@ -16,11 +17,13 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Menu
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.VerticalDivider
 import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
 import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
@@ -40,6 +43,7 @@ import androidx.compose.ui.unit.dp
 import com.marknote.app.data.DocumentRepository
 import com.marknote.app.data.SettingsRepository
 import com.marknote.app.data.ThemeMode
+import com.marknote.app.ui.common.OpenDocumentWithInitialUri
 import com.marknote.app.ui.editor.EditorScreen
 import com.marknote.app.ui.files.FileListScreen
 import com.marknote.app.ui.settings.SettingsScreen
@@ -116,14 +120,41 @@ fun MarkNoteApp(
         listRefreshTick++
     }
 
+    /** 重新授权/换文件后切换当前文档（最近列表里旧条目已被替换，需要刷新） */
+    val openDocument: (String) -> Unit = { uri ->
+        currentDoc = uri
+        showSettings = false
+        listRefreshTick++
+    }
+
+    // 外部 Uri 拿不到长期权限时待处理的重新授权目标（弹窗引导用户重选一次）
+    var pendingRegrant by remember { mutableStateOf<String?>(null) }
+
     // 外部打开：持久化权限、记入最近列表、直接进编辑器
     LaunchedEffect(externalUri) {
         val uri = externalUri ?: return@LaunchedEffect
-        repository.persistPermission(uri)
+        val persisted = repository.persistPermission(uri)
         repository.addToRecents(uri)
         currentDoc = uri.toString()
         showSettings = false
+        // 拿不到长期权限（文件管理器「打开方式」、聊天记录分享等来源常见）：
+        // 授权只在本进程内有效，退出应用后就打不开了，立刻提示用户重新授权
+        if (!persisted) pendingRegrant = uri.toString()
         onExternalUriConsumed()
+    }
+
+    // 重新授权：用系统文档选择器重选同一个文件，换来可持久化的授权
+    val regrantTarget = pendingRegrant
+    val regrantLauncher = rememberLauncherForActivityResult(
+        remember(regrantTarget) { OpenDocumentWithInitialUri(regrantTarget?.let(Uri::parse)) },
+    ) { picked ->
+        val old = regrantTarget
+        if (picked != null && old != null) {
+            repository.persistPermission(picked)
+            repository.replaceRecent(old, picked)
+            openDocument(picked.toString())
+        }
+        pendingRegrant = null
     }
 
     // 文件名查询走 ContentProvider（主线程 IPC），缓存避免每次重组都查
@@ -138,10 +169,7 @@ fun MarkNoteApp(
                 Box(Modifier.width(360.dp)) {
                     FileListScreen(
                         repository = repository,
-                        onOpenDocument = { uri ->
-                            currentDoc = uri
-                            showSettings = false
-                        },
+                        onOpenDocument = openDocument,
                         onOpenSettings = { showSettings = true },
                         onCollapse = { sidebarVisible = false },
                         refreshTick = listRefreshTick,
@@ -180,6 +208,7 @@ fun MarkNoteApp(
                         displayName = currentDocName,
                         onBack = closeEditor,
                         isExpanded = true,
+                        onRelocated = openDocument,
                     )
                 }
             }
@@ -193,10 +222,7 @@ fun MarkNoteApp(
             )
             doc == null -> FileListScreen(
                 repository = repository,
-                onOpenDocument = { uri ->
-                    currentDoc = uri
-                    showSettings = false
-                },
+                onOpenDocument = openDocument,
                 onOpenSettings = { showSettings = true },
                 refreshTick = listRefreshTick,
             )
@@ -206,8 +232,36 @@ fun MarkNoteApp(
                 uriString = doc,
                 displayName = currentDocName,
                 onBack = closeEditor,
+                onRelocated = openDocument,
             )
         }
+    }
+
+    // 外部来源的 Uri 拿不到长期权限时，第一时间说明后果并引导重新授权，
+    // 否则用户会在「退出应用后重新进入」时才发现文件打不开。
+    if (regrantTarget != null) {
+        AlertDialog(
+            onDismissRequest = { pendingRegrant = null },
+            title = { Text("这个文件无法长期访问") },
+            text = {
+                Text(
+                    "该文件是其他应用分享给 MarkNote 的，系统没有授予长期访问权限，" +
+                        "退出应用后将无法再打开或保存它。\n\n" +
+                        "点「重新授权」，在系统文件选择器里重新选一次这个文件，" +
+                        "之后就能一直编辑。",
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        regrantLauncher.launch(arrayOf("text/markdown", "text/plain", "*/*"))
+                    },
+                ) { Text("重新授权") }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingRegrant = null }) { Text("暂时编辑") }
+            },
+        )
     }
 }
 
