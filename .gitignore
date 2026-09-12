@@ -15,6 +15,9 @@ local.properties
 # 系统文件
 .DS_Store
 
+# 本项目的工作区数据（截图、记忆等），不进版本库
+.workbuddy/
+
 # 打包签名（如有）
 *.jks
 *.keystore

@@ -24,6 +24,7 @@ MarkNote 是一个**文件优先**的 Markdown 编辑器：不建私有笔记库
 
 - 文件管理器直接打开：注册 `text/markdown` / `text/plain` / `.md` / `.markdown` 的 VIEW/EDIT intent，系统「打开方式」可选 MarkNote（singleTask，重复打开复用同一实例）
 - SAF 读写任意目录：系统文档选择器打开/新建，无需存储权限，编辑内容自动写回原位置
+- 保持原编码：UTF-8（含/不含 BOM）与 GB18030/GBK 都能正确读出，保存时按打开时的编码写回，不会把 GBK 文件悄悄转成 UTF-8
 - 最近打开列表：含权限持久化，重启后可继续编辑；可移除条目（不删文件），失效文件在列表中直接标红并可一键「重新授权」
 - 权限来源提示：文件管理器「打开方式」、聊天记录等外部应用传入的文件，系统常常不给长期权限（FileProvider / MediaStore 不支持持久化授权），应用会在打开时立即说明并引导用系统选择器重选一次，换取长期授权
 - 只读打开会提示：没有写权限时编辑器顶部提示「修改不会被保存」，不会静默丢失改动
@@ -123,6 +124,7 @@ app/src/main/java/com/marknote/app/
 ├── MarkNoteApplication.kt       # 让 applicationContext 的资源跟随应用内语言
 ├── data/
 │   ├── DocumentRepository.kt    # SAF 文档读写 + 最近列表 + 图片文件夹授权
+│   ├── TextEncoding.kt          # 编码探测（BOM / UTF-8 / GB18030），保证文件编码不被改写
 │   ├── SettingsRepository.kt    # 设置项（SharedPreferences + Compose 状态）
 │   └── AppLanguage.kt           # 语言枚举 / 持久化（含系统按应用语言同步）/ Context 本地化包装
 └── ui/
@@ -146,6 +148,16 @@ app/src/main/java/com/marknote/app/
 
 <details>
 <summary>历史版本</summary>
+
+### v1.0.0
+
+- 首个正式版：功能集合、界面语言处理与文件格式行为至此定型
+- 读取时探测编码、写回时沿用同一编码：UTF-8（含/不含 BOM）、UTF-16LE/BE 与 GB18030/GBK 都能正确读出，GBK 笔记保存后仍是 GBK，不再被悄悄转成 UTF-8（旧版本只要编辑一次就会把非 UTF-8 文件改坏）
+- UTF-8 BOM 在读取时剥离、写回时补回，带 BOM 的文件首行标题现在也能正常进大纲并高亮
+- 没有未保存改动时，重新打开文档会重新读盘，其他应用做的修改不再被内存里的旧内容覆盖
+- 保存时在写锁内重新取一次当前文本，慢速的首次保存不会再写入旧内容、把编辑器永久留在「有未保存改动」状态
+- 全量替换的计数改为与 `String.replace` 一致（非重叠），此前重叠匹配会被重复计数
+- ContentProvider 查询（文件名获取、权限持久化）移出主线程，字数/行数统计改为记忆化，不再每次重组都重算
 
 ### v0.11.0
 

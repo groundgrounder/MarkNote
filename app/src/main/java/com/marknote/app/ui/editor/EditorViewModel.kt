@@ -18,6 +18,7 @@ import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.marknote.app.R
+import com.marknote.app.data.DocumentEncoding
 import com.marknote.app.data.DocumentRepository
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
@@ -126,6 +127,12 @@ class EditorViewModel(
     /** 上次已落盘的内容，用于判断是否有未保存修改 */
     private var lastSavedText = ""
 
+    /**
+     * 本文档的编码：读取时探测出来，写回时沿用同一种。
+     * 不能写死 UTF-8 —— 否则打开 GBK 文件会乱码，保存还会把原文件整体改写掉。
+     */
+    private var encoding = DocumentEncoding.UTF8
+
     /** 串行化写盘：防止连续编辑时多个保存协程并发写同一文件造成旧内容覆盖新内容 */
     private val saveMutex = Mutex()
 
@@ -139,18 +146,42 @@ class EditorViewModel(
      */
     fun load() {
         viewModelScope.launch {
-            val text = repository.read(uri)
-            if (text == null) {
+            val document = repository.readDocument(uri)
+            if (document == null) {
                 isLoaded = false
                 loadFailed = true
                 return@launch
             }
-            lastSavedText = text
-            content = TextFieldValue(text, TextRange(text.length))
+            encoding = document.encoding
+            lastSavedText = document.text
+            content = TextFieldValue(document.text, TextRange(document.text.length))
             isLoaded = true
             loadFailed = false
             saveFailed = false
             readOnly = !repository.canWrite(uri)
+        }
+    }
+
+    /**
+     * 编辑器重新进入组合时调用：只要没有未保存的改动，就重新读一次盘。
+     *
+     * 为什么需要：ViewModel 挂在 Activity 的 ViewModelStore 上，关掉编辑器并不会销毁它，
+     * 重新打开同一份文档会命中同一个实例（init 里的 load 只跑过一次）。若文件在这期间被
+     * 别的应用或同步工具改过，编辑器会一直显示旧内容，而用户只要再敲一个字，自动保存就会
+     * 把整篇旧文本写回去，外部改动被静默覆盖。这里补一次同步。
+     *
+     * 有未保存改动（或读取失败）时一律不覆盖，宁可让用户看到自己没存下的内容。
+     */
+    fun syncFromDiskIfClean() {
+        if (!isLoaded || hasUnsavedChanges) return
+        viewModelScope.launch {
+            val document = repository.readDocument(uri) ?: return@launch
+            // 磁盘上还是同一份内容：什么都不动，避免打断光标与滚动位置
+            if (document.text == content.text) return@launch
+            encoding = document.encoding
+            lastSavedText = document.text
+            val cursor = content.selection.start.coerceAtMost(document.text.length)
+            content = TextFieldValue(document.text, TextRange(cursor))
         }
     }
 
@@ -179,15 +210,24 @@ class EditorViewModel(
         content = TextFieldValue(replaced, TextRange(s + newText.length))
     }
 
-    /** 全部替换（字面量匹配），返回替换次数 */
+    /**
+     * 全部替换（字面量匹配），返回替换次数。
+     *
+     * 计数按**非重叠**推进，与 `String.replace` 的实际行为一致：否则 `"aaaa"` 里替换
+     * `"aa"` 会被算成 3 次，而实际只替换了 2 处。
+     */
     fun replaceAll(query: String, replacement: String): Int {
+        val text = content.text
         if (query.isEmpty()) return 0
         var count = 0
-        var i = content.text.indexOf(query)
-        while (i >= 0) { count++; i = content.text.indexOf(query, i + 1) }
+        var i = text.indexOf(query)
+        while (i >= 0) {
+            count++
+            i = text.indexOf(query, i + query.length)
+        }
         if (count > 0) {
-            val newText = content.text.replace(query, replacement)
-            content = TextFieldValue(newText, TextRange(newText.length.coerceAtMost(content.selection.start)))
+            val newText = text.replace(query, replacement)
+            content = TextFieldValue(newText, TextRange(content.selection.start.coerceAtMost(newText.length)))
         }
         return count
     }
@@ -210,11 +250,15 @@ class EditorViewModel(
     fun save() {
         // 读取失败时绝不能写：否则会把空白内容覆盖到原文件上
         if (!isLoaded) return
-        val text = content.text
-        if (text == lastSavedText) return
+        if (content.text == lastSavedText) return
         viewModelScope.launch {
             saveMutex.withLock {
-                if (repository.save(uri, text)) {
+                // 锁内重新取一次内容：等锁期间用户可能又改了，如果照搬进入 save() 时捕获的
+                // 快照，先发起的保存后拿到锁时就会用旧文本覆盖新文本（并把旧文本标成
+                // 已保存，磁盘内容与编辑器长期不一致）。
+                val text = content.text
+                if (text == lastSavedText) return@withLock
+                if (repository.saveDocument(uri, text, encoding)) {
                     lastSavedText = text
                     saveFailed = false
                     readOnly = false

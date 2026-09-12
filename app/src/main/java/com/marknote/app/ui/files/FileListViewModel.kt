@@ -8,7 +8,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.marknote.app.data.DocumentMeta
 import com.marknote.app.data.DocumentRepository
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class FileListViewModel(private val repository: DocumentRepository) : ViewModel() {
 
@@ -30,12 +32,22 @@ class FileListViewModel(private val repository: DocumentRepository) : ViewModel(
         }
     }
 
-    /** 打开一个 Uri（来自系统选择器或外部 intent）：持久化权限 + 记入最近列表 */
+    /**
+     * 打开一个 Uri（来自系统选择器或外部 intent）：持久化权限 + 记入最近列表。
+     *
+     * 先切到编辑器，再在后台补登记：persistPermission 与 addToRecents 都要跟 provider 打交道
+     * （后者内部会查 ContentProvider 取显示名），放在点击回调里同步做会拖住主线程。
+     * 授权在本进程内已经生效（选择器刚授过），所以先打开不影响编辑器读写。
+     */
     fun onDocumentPicked(uri: Uri, onOpen: (String) -> Unit) {
-        repository.persistPermission(uri)
-        repository.addToRecents(uri)
-        refresh()
         onOpen(uri.toString())
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) {
+                repository.persistPermission(uri)
+                repository.addToRecents(uri)
+            }
+            refresh()
+        }
     }
 
     /** 从最近列表移除（不删除文件） */

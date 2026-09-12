@@ -24,6 +24,7 @@ Grab the latest APK (`MarkNote-vX.Y.Z.apk`) from [Releases](https://github.com/g
 
 - Open straight from a file manager: registers VIEW/EDIT intents for `text/markdown` / `text/plain` / `.md` / `.markdown`, so MarkNote appears in the system "Open with" sheet (singleTask — reopening reuses the same instance)
 - Read/write any folder via SAF: open or create with the system document picker, no storage permission needed, edits are written back to the original file
+- Encoding preserved: UTF-8 (with or without BOM) and GB18030/GBK are read correctly, and edits are written back in the encoding the file came in with — a GBK note is never silently converted to UTF-8
 - Recent files with persisted permission: keep editing after a restart; entries can be removed without touching the file; unavailable files are marked in red with a one-tap "Re-authorize"
 - Permission source warning: files handed over by other apps (file manager "Open with", chat history, …) usually cannot be granted persistent access — FileProvider and MediaStore do not support it. MarkNote says so immediately and walks you through re-picking the same file in the system picker to obtain a lasting grant
 - Read-only notice: without write access the editor shows "changes will not be saved" instead of silently dropping your edits
@@ -123,6 +124,7 @@ app/src/main/java/com/marknote/app/
 ├── MarkNoteApplication.kt       # makes applicationContext resources follow the in-app language
 ├── data/
 │   ├── DocumentRepository.kt    # SAF document I/O + recent list + image folder grants
+│   ├── TextEncoding.kt          # charset detection (BOM / UTF-8 / GB18030) so files keep their encoding
 │   ├── SettingsRepository.kt    # settings (SharedPreferences + Compose state)
 │   └── AppLanguage.kt           # language enum / persistence (incl. system per-app language sync) / context wrapper
 └── ui/
@@ -146,6 +148,16 @@ Adaptive icon: the Markdown "M↓" mark — a white M with an amber down arrow (
 
 <details>
 <summary>Version history</summary>
+
+### v1.0.0
+
+- First stable release: the feature set, UI language handling and file-format behaviour are settled from here on
+- Encoding is detected on read and reused on write: UTF-8 (with or without BOM), UTF-16LE/BE and GB18030/GBK all read correctly, and a GBK note is saved back as GBK instead of being silently converted to UTF-8 (previously a single edit mangled any non-UTF-8 file)
+- A UTF-8 BOM is stripped on read and restored on write, so the first heading of a BOM-prefixed file is now parsed into the outline and highlighted like any other
+- Reopening a document re-reads it from disk when there are no unsaved changes, so edits made in another app are no longer overwritten by a stale in-memory copy
+- Saving re-checks the current text inside the write lock, so a slow first save can no longer land old content and leave the editor permanently dirty
+- Replace-all counts matches the same way `String.replace` does (non-overlapping); overlapping matches used to be counted twice
+- Provider queries (file name lookup, permission persistence) moved off the main thread, and the word/line count is memoized instead of recomputed on every recomposition
 
 ### v0.11.0
 

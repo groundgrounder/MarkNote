@@ -47,40 +47,51 @@ class DocumentRepository(private val context: Context) {
     // ---------- 读写 ----------
 
     /**
-     * 读取文档全文。读取失败（无权限 / 文件已被移动删除）返回 null，
+     * 读取文档全文，并探测出它的编码。读取失败（无权限 / 文件已被移动删除）返回 null，
      * 与「文件存在但内容为空」区分开——否则编辑器会把无权限误显示成空文档。
+     *
+     * 返回的 [DecodedText] 同时带着写回时要用的编码：markdown 不一定是 UTF-8，把 GBK 文件
+     * 按 UTF-8 读进来再按 UTF-8 写回去，会把原文件整体改写成乱码。详见 [TextEncoding]。
      */
-    suspend fun read(uri: Uri): String? = withContext(Dispatchers.IO) {
+    suspend fun readDocument(uri: Uri): DecodedText? = withContext(Dispatchers.IO) {
         runCatching {
             context.contentResolver.openInputStream(uri)?.use { input ->
-                input.readBytes().toString(Charsets.UTF_8)
+                TextEncoding.decode(input.readBytes())
             }
         }.getOrNull()
     }
 
-    /** 同步读前 limit 字节，用于列表摘要与可访问性探测；失败返回 null */
+    /**
+     * 同步读前 limit 字节，用于列表摘要与可访问性探测；失败返回 null。
+     * 走 [TextEncoding.decodeTruncated] 而不是直接按 UTF-8 解，否则非 UTF-8 文档的摘要
+     * 会和编辑器里显示的内容对不上。
+     */
     fun probe(uri: Uri, limit: Int = 512): String? = runCatching {
         context.contentResolver.openInputStream(uri)?.use { input ->
             val buf = ByteArray(limit)
             val n = input.read(buf)
-            if (n > 0) String(buf, 0, n, Charsets.UTF_8) else ""
+            if (n > 0) TextEncoding.decodeTruncated(buf.copyOf(n)).text else ""
         }
     }.getOrNull()
 
-    /** 写回原文档位置（"wt" 截断模式，部分 provider 不支持时回退 "w"）；返回是否写成功 */
-    suspend fun save(uri: Uri, content: String): Boolean = withContext(Dispatchers.IO) {
-        runCatching {
-            val bytes = content.toByteArray(Charsets.UTF_8)
-            val truncated = runCatching {
-                context.contentResolver.openOutputStream(uri, "wt")?.use { it.write(bytes) } != null
+    /**
+     * 按 [encoding] 写回原文档位置（"wt" 截断模式，部分 provider 不支持时回退 "w"）；
+     * 返回是否写成功。编码必须沿用读取时探测出来的那一种，否则会破坏非 UTF-8 的文件。
+     */
+    suspend fun saveDocument(uri: Uri, content: String, encoding: DocumentEncoding): Boolean =
+        withContext(Dispatchers.IO) {
+            runCatching {
+                val bytes = TextEncoding.encode(content, encoding)
+                val truncated = runCatching {
+                    context.contentResolver.openOutputStream(uri, "wt")?.use { it.write(bytes) } != null
+                }.getOrDefault(false)
+                if (truncated) {
+                    true
+                } else {
+                    context.contentResolver.openOutputStream(uri, "w")?.use { it.write(bytes) } != null
+                }
             }.getOrDefault(false)
-            if (truncated) {
-                true
-            } else {
-                context.contentResolver.openOutputStream(uri, "w")?.use { it.write(bytes) } != null
-            }
-        }.getOrDefault(false)
-    }
+        }
 
     /**
      * 查询文档显示名。优先问 provider；查不到（已没有权限）时回退到最近列表里

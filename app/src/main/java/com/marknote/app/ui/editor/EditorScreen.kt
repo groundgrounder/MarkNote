@@ -93,6 +93,13 @@ fun EditorScreen(
         EditorViewModel(repository, uriString)
     }
 
+    // ViewModel 挂在 Activity 上、关掉编辑器不会销毁它，重开同一份文档会命中同一个实例，
+    // 于是 init 里的读取不会重跑。这里在每次进入编辑器时补一次同步：磁盘内容若已被外部
+    // 改过且本地没有未保存改动，就用磁盘版本刷新，避免旧内容被自动保存写回去。
+    LaunchedEffect(uriString) {
+        viewModel.syncFromDiskIfClean()
+    }
+
     // 重新授权：内容读不出来（权限失效）或只读打开时，用系统文档选择器重选该文件。
     // 选择器返回的 Uri 一定能持久化，因此重选一次后可长期编辑；授权后替换最近列表里的旧条目。
     val regrantUri = remember(uriString) { Uri.parse(uriString) }
@@ -207,8 +214,8 @@ fun EditorScreen(
     // 显示用的命中序号：内容变化后命中数可能变少，避免 n/m 里的 n 越界
     val clampedMatchIndex = matchIndex.coerceIn(0, (matches.size - 1).coerceAtLeast(0))
 
-    // 字数统计
-    val (charCount, lineCount) = viewModel.stats()
+    // 字数统计：每次重组都遍历全文太浪费（光标移动、搜索、滚动都会触发重组），按内容缓存
+    val (charCount, lineCount) = remember(viewModel.content.text) { viewModel.stats() }
 
     Scaffold(
         topBar = {

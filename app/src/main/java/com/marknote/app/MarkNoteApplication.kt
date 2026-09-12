@@ -45,4 +45,17 @@ class MarkNoteApplication : Application() {
         }
         return localizedResources!!
     }
+
+    /**
+     * 系统配置变化（深浅色、字体缩放、密度、系统语言……）时丢掉本地化资源缓存。
+     *
+     * 缓存的键只有语言标签，本身感知不到这些变化；不在这里清掉的话，选定某个应用内语言之后，
+     * 系统再改这些配置时 applicationContext 拿到的仍是旧 Configuration 下的资源
+     * （仓库层取字符串看不出来，但任何带 night / density 等限定符的资源都会取错）。
+     */
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        localizedResources = null
+        localizedTag = null
+    }
 }

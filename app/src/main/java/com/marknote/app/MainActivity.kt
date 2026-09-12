@@ -52,6 +52,8 @@ import com.marknote.app.ui.editor.EditorScreen
 import com.marknote.app.ui.files.FileListScreen
 import com.marknote.app.ui.settings.SettingsScreen
 import com.marknote.app.ui.theme.MarkNoteTheme
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 class MainActivity : ComponentActivity() {
 
@@ -150,8 +152,13 @@ fun MarkNoteApp(
     // 外部打开：持久化权限、记入最近列表、直接进编辑器
     LaunchedEffect(externalUri) {
         val uri = externalUri ?: return@LaunchedEffect
-        val persisted = repository.persistPermission(uri)
-        repository.addToRecents(uri)
+        // 这两步都要跨进程问 provider（addToRecents 内部会查 ContentProvider 取显示名），
+        // 放在 IO 线程做，避免主线程被 provider 的响应时间拖住
+        val persisted = withContext(Dispatchers.IO) {
+            val granted = repository.persistPermission(uri)
+            repository.addToRecents(uri)
+            granted
+        }
         currentDoc = uri.toString()
         showSettings = false
         // 拿不到长期权限（文件管理器「打开方式」、聊天记录分享等来源常见）：
@@ -174,9 +181,13 @@ fun MarkNoteApp(
         pendingRegrant = null
     }
 
-    // 文件名查询走 ContentProvider（主线程 IPC），缓存避免每次重组都查
-    val currentDocName = remember(currentDoc) {
-        currentDoc?.let { repository.displayName(Uri.parse(it)) } ?: ""
+    // 文件名要问 ContentProvider（跨进程 IPC）。放在组合里同步查会拖住主线程（切文档时
+    // 尤其明显），所以改为挂到 currentDoc 上异步取；取到之前沿用上一个名字，避免标题闪空。
+    var currentDocName by remember { mutableStateOf("") }
+    LaunchedEffect(currentDoc) {
+        currentDocName = currentDoc?.let { doc ->
+            withContext(Dispatchers.IO) { repository.displayName(Uri.parse(doc)) }
+        }.orEmpty()
     }
 
     if (isExpanded) {
