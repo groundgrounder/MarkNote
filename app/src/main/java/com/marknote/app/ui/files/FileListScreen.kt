@@ -45,10 +45,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.marknote.app.R
 import com.marknote.app.data.DocumentMeta
 import com.marknote.app.data.DocumentRepository
 
@@ -88,6 +90,9 @@ fun FileListScreen(
 
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
 
+    // 新建文件的默认名要在 composable 作用域内取好，onClick 里不能调 stringResource
+    val untitledName = stringResource(R.string.untitled_md)
+
     Scaffold(
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = {
@@ -96,13 +101,16 @@ fun FileListScreen(
                 scrollBehavior = scrollBehavior,
                 actions = {
                     IconButton(onClick = onOpenSettings) {
-                        Icon(Icons.Outlined.Settings, contentDescription = "设置")
+                        Icon(
+                            Icons.Outlined.Settings,
+                            contentDescription = stringResource(R.string.settings),
+                        )
                     }
                     if (onCollapse != null) {
                         IconButton(onClick = onCollapse) {
                             Icon(
                                 Icons.AutoMirrored.Outlined.MenuOpen,
-                                contentDescription = "收起侧栏",
+                                contentDescription = stringResource(R.string.collapse_sidebar),
                             )
                         }
                     }
@@ -115,11 +123,11 @@ fun FileListScreen(
                 verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
                 SmallFloatingActionButton(
-                    onClick = { createLauncher.launch("未命名.md") },
+                    onClick = { createLauncher.launch(untitledName) },
                     containerColor = MaterialTheme.colorScheme.secondaryContainer,
                     contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
                 ) {
-                    Icon(Icons.Filled.Add, contentDescription = "新建文件")
+                    Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.new_file))
                 }
                 SmallFloatingActionButton(
                     onClick = {
@@ -128,7 +136,10 @@ fun FileListScreen(
                     containerColor = MaterialTheme.colorScheme.secondaryContainer,
                     contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
                 ) {
-                    Icon(Icons.Outlined.FolderOpen, contentDescription = "打开文件")
+                    Icon(
+                        Icons.Outlined.FolderOpen,
+                        contentDescription = stringResource(R.string.open_file),
+                    )
                 }
             }
         },
@@ -186,16 +197,20 @@ fun FileListScreen(
     pendingRemove?.let { doc ->
         AlertDialog(
             onDismissRequest = { pendingRemove = null },
-            title = { Text("从列表移除") },
-            text = { Text("将「${doc.name}」从最近打开列表中移除，不会删除设备上的文件。") },
+            title = { Text(stringResource(R.string.remove_from_list)) },
+            text = {
+                Text(stringResource(R.string.remove_dialog_message, doc.name))
+            },
             confirmButton = {
                 TextButton(onClick = {
                     pendingRemove = null
                     viewModel.remove(doc.uri)
-                }) { Text("移除") }
+                }) { Text(stringResource(R.string.remove)) }
             },
             dismissButton = {
-                TextButton(onClick = { pendingRemove = null }) { Text("取消") }
+                TextButton(onClick = { pendingRemove = null }) {
+                    Text(stringResource(R.string.cancel))
+                }
             },
         )
     }
@@ -220,10 +235,9 @@ private fun DocumentCard(
             Spacer(Modifier.height(6.dp))
             Text(
                 text = when {
-                    !doc.accessible ->
-                        "文件暂不可访问：可能已被移动或删除，或访问权限已失效。点按可重新授权。"
+                    !doc.accessible -> stringResource(R.string.list_item_unavailable)
                     doc.snippet.isNotEmpty() -> doc.snippet
-                    else -> "（空文档）"
+                    else -> stringResource(R.string.empty_document)
                 },
                 style = MaterialTheme.typography.bodyMedium,
                 color = if (doc.accessible) {
@@ -249,7 +263,7 @@ private fun DocumentCard(
                 IconButton(onClick = onRemove) {
                     Icon(
                         Icons.Outlined.Close,
-                        contentDescription = "从列表移除",
+                        contentDescription = stringResource(R.string.remove_from_list),
                         tint = MaterialTheme.colorScheme.outline,
                     )
                 }
@@ -262,10 +276,13 @@ private fun DocumentCard(
 private fun EmptyState(modifier: Modifier = Modifier) {
     Box(modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text("还没有打开过文件", style = MaterialTheme.typography.titleMedium)
+            Text(
+                stringResource(R.string.empty_list_title),
+                style = MaterialTheme.typography.titleMedium,
+            )
             Spacer(Modifier.height(8.dp))
             Text(
-                "点击「打开文件」选择设备上的 Markdown 文档\n也可以在文件管理器里用 MarkNote 直接打开 .md 文件",
+                text = stringResource(R.string.empty_list_hint),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,

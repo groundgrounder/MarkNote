@@ -61,6 +61,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.OffsetMapping
@@ -71,6 +72,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.marknote.app.R
 import com.marknote.app.data.DocumentRepository
 import com.marknote.app.data.SettingsRepository
 import com.marknote.app.ui.common.OpenDocumentWithInitialUri
@@ -220,7 +222,7 @@ fun EditorScreen(
                         )
                         if (usable) {
                             Text(
-                                text = "$charCount 字 · $lineCount 行",
+                                text = stringResource(R.string.stats_format, charCount, lineCount),
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
@@ -232,7 +234,10 @@ fun EditorScreen(
                         viewModel.save()
                         onBack()
                     }) {
-                        Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "返回")
+                        Icon(
+                            Icons.AutoMirrored.Outlined.ArrowBack,
+                            contentDescription = stringResource(R.string.back),
+                        )
                     }
                 },
                 actions = {
@@ -241,7 +246,7 @@ fun EditorScreen(
                         IconButton(onClick = { viewModel.save() }) {
                             Icon(
                                 Icons.Outlined.Save,
-                                contentDescription = "保存",
+                                contentDescription = stringResource(R.string.save),
                                 tint = if (viewModel.hasUnsavedChanges) {
                                     MaterialTheme.colorScheme.primary
                                 } else {
@@ -256,19 +261,24 @@ fun EditorScreen(
                             searchOpen = !searchOpen
                             if (!searchOpen) { query = ""; replacement = "" }
                         }) {
-                            Icon(Icons.Outlined.Search, contentDescription = "搜索")
+                            Icon(
+                                Icons.Outlined.Search,
+                                contentDescription = stringResource(R.string.search),
+                            )
                         }
                         IconButton(onClick = { showOutline = true }) {
                             Icon(
                                 Icons.AutoMirrored.Outlined.Toc,
-                                contentDescription = "大纲",
+                                contentDescription = stringResource(R.string.outline),
                             )
                         }
                         IconButton(onClick = { viewModel.togglePreview() }) {
                             Icon(
                                 imageVector = if (viewModel.isPreview) Icons.Outlined.Edit
                                 else Icons.Outlined.Visibility,
-                                contentDescription = if (viewModel.isPreview) "编辑" else "预览",
+                                contentDescription = stringResource(
+                                    if (viewModel.isPreview) R.string.edit else R.string.preview,
+                                ),
                             )
                         }
                     }
@@ -354,14 +364,14 @@ fun EditorScreen(
                                 modifier = Modifier.width(18.dp),
                             )
                             Text(
-                                "文档中的图片需要授权所在文件夹才能显示",
+                                stringResource(R.string.image_folder_hint),
                                 style = MaterialTheme.typography.bodySmall,
                                 modifier = Modifier
                                     .weight(1f)
                                     .padding(horizontal = 12.dp),
                             )
                             TextButton(onClick = { treeLauncher.launch(null) }) {
-                                Text("去授权")
+                                Text(stringResource(R.string.grant_image_folder))
                             }
                         }
                     }
@@ -388,12 +398,11 @@ fun EditorScreen(
                 // 只能读 / 写盘失败：明确提示，避免用户以为改动已保存
                 if (viewModel.readOnly || viewModel.saveFailed) {
                     DocumentNotice(
-                        message = if (viewModel.saveFailed) {
-                            "保存失败：没有写入这个文件的权限"
-                        } else {
-                            "只读打开：没有写入权限，修改不会被保存"
-                        },
-                        actionLabel = "重新授权",
+                        message = stringResource(
+                            if (viewModel.saveFailed) R.string.notice_save_failed
+                            else R.string.notice_read_only,
+                        ),
+                        actionLabel = stringResource(R.string.regrant),
                         onAction = regrant,
                     )
                 }
@@ -443,7 +452,7 @@ fun EditorScreen(
                         fontFamily = FontFamily.Monospace,
                         fontSize = settings.editorFontSp.sp,
                     ),
-                    placeholder = { Text("开始用 Markdown 写作…") },
+                    placeholder = { Text(stringResource(R.string.editor_placeholder)) },
                     visualTransformation = highlightTransformation,
                     colors = TextFieldDefaults.colors(
                         focusedContainerColor = Color.Transparent,
@@ -541,22 +550,22 @@ private fun DocumentUnavailable(
                 tint = MaterialTheme.colorScheme.error,
             )
             Spacer(Modifier.height(12.dp))
-            Text("无法打开该文件", style = MaterialTheme.typography.titleMedium)
+            Text(
+                stringResource(R.string.document_unavailable_title),
+                style = MaterialTheme.typography.titleMedium,
+            )
             Spacer(Modifier.height(8.dp))
             Text(
-                text = "MarkNote 已经没有这个文件的访问权限，或者文件已被移动、删除。\n" +
-                    "从其他应用（文件管理器「打开方式」、聊天记录等）打开的文件，" +
-                    "系统通常不会给出长期权限，退出应用后就会失效。\n" +
-                    "用「重新授权」在系统文件选择器里重新选一次同一个文件，之后就能一直编辑。",
+                text = stringResource(R.string.document_unavailable_message),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
             )
             Spacer(Modifier.height(20.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(onClick = onRegrant) { Text("重新授权") }
-                TextButton(onClick = onRetry) { Text("重试") }
-                TextButton(onClick = onBack) { Text("返回") }
+                Button(onClick = onRegrant) { Text(stringResource(R.string.regrant)) }
+                TextButton(onClick = onRetry) { Text(stringResource(R.string.retry)) }
+                TextButton(onClick = onBack) { Text(stringResource(R.string.back)) }
             }
         }
     }
@@ -637,7 +646,7 @@ private fun SearchPanel(
                 TextField(
                     value = query,
                     onValueChange = onQueryChange,
-                    placeholder = { Text("搜索") },
+                    placeholder = { Text(stringResource(R.string.search)) },
                     singleLine = true,
                     modifier = Modifier.weight(1f),
                     colors = TextFieldDefaults.colors(
@@ -653,13 +662,22 @@ private fun SearchPanel(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 IconButton(onClick = onPrev, enabled = matchCount > 0) {
-                    Icon(Icons.Outlined.KeyboardArrowUp, contentDescription = "上一个")
+                    Icon(
+                        Icons.Outlined.KeyboardArrowUp,
+                        contentDescription = stringResource(R.string.previous_match),
+                    )
                 }
                 IconButton(onClick = onNext, enabled = matchCount > 0) {
-                    Icon(Icons.Outlined.KeyboardArrowDown, contentDescription = "下一个")
+                    Icon(
+                        Icons.Outlined.KeyboardArrowDown,
+                        contentDescription = stringResource(R.string.next_match),
+                    )
                 }
                 IconButton(onClick = onClose) {
-                    Icon(Icons.Outlined.Close, contentDescription = "关闭搜索")
+                    Icon(
+                        Icons.Outlined.Close,
+                        contentDescription = stringResource(R.string.close_search),
+                    )
                 }
             }
             // 预览是只读视图，没有"替换"这回事，只留查找与上下跳转
@@ -671,7 +689,7 @@ private fun SearchPanel(
                     TextField(
                         value = replacement,
                         onValueChange = onReplacementChange,
-                        placeholder = { Text("替换为") },
+                        placeholder = { Text(stringResource(R.string.replace_placeholder)) },
                         singleLine = true,
                         modifier = Modifier.weight(1f),
                         colors = TextFieldDefaults.colors(
@@ -682,10 +700,10 @@ private fun SearchPanel(
                         ),
                     )
                     TextButton(onClick = onReplace, enabled = matchCount > 0) {
-                        Text("替换")
+                        Text(stringResource(R.string.replace))
                     }
                     TextButton(onClick = onReplaceAll, enabled = matchCount > 0) {
-                        Text("全部")
+                        Text(stringResource(R.string.replace_all))
                     }
                 }
             }
@@ -703,7 +721,7 @@ private fun OutlineSheet(
 ) {
     ModalBottomSheet(onDismissRequest = onDismiss) {
         Text(
-            text = "大纲",
+            text = stringResource(R.string.outline),
             style = MaterialTheme.typography.titleMedium,
             modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
         )
@@ -728,12 +746,15 @@ private fun OutlinePanel(
                     .padding(start = 24.dp, end = 4.dp),
             ) {
                 Text(
-                    text = "大纲",
+                    text = stringResource(R.string.outline),
                     style = MaterialTheme.typography.titleMedium,
                     modifier = Modifier.weight(1f),
                 )
                 IconButton(onClick = onClose) {
-                    Icon(Icons.Outlined.Close, contentDescription = "关闭大纲")
+                    Icon(
+                        Icons.Outlined.Close,
+                        contentDescription = stringResource(R.string.close_outline),
+                    )
                 }
             }
             HorizontalDivider()
@@ -749,7 +770,7 @@ private fun OutlineList(
 ) {
     if (outline.isEmpty()) {
         Text(
-            text = "还没有标题，用 # 开头写一行即可生成大纲",
+            text = stringResource(R.string.outline_empty),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp),
@@ -791,11 +812,13 @@ private fun MarkdownToolbar(
     Surface(modifier = modifier.fillMaxWidth()) {
         Column {
             HorizontalDivider()
+            // 动作文案随界面语言变化，在 composable 作用域内现取
+            val actions = markdownActions()
             LazyRow(
                 contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp),
                 horizontalArrangement = Arrangement.spacedBy(4.dp),
             ) {
-                items(markdownActions) { action ->
+                items(actions) { action ->
                     IconButton(onClick = { onAction(action) }) {
                         if (action.icon != null) {
                             Icon(

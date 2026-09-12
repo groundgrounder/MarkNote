@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">MarkNote</string>
+
+    <!-- 最近使ったファイル -->
+    <string name="settings">設定</string>
+    <string name="collapse_sidebar">サイドバーを折りたたむ</string>
+    <string name="expand_sidebar">サイドバーを展開</string>
+    <string name="new_file">新規ファイル</string>
+    <string name="open_file">ファイルを開く</string>
+    <string name="untitled_md">無題.md</string>
+    <string name="remove_from_list">リストから削除</string>
+    <string name="remove_dialog_message">「%1$s」を最近使ったリストから削除しますか？端末上のファイルは削除されません。</string>
+    <string name="remove">削除</string>
+    <string name="cancel">キャンセル</string>
+    <string name="list_item_unavailable">ファイルにアクセスできません。移動・削除されたか、権限が失効した可能性があります。タップすると再許可できます。</string>
+    <string name="empty_document">（空のドキュメント）</string>
+    <string name="empty_list_title">まだファイルを開いていません</string>
+    <string name="empty_list_hint">「ファイルを開く」をタップして端末内の Markdown ドキュメントを選択\nファイルマネージャーから MarkNote で .md ファイルを直接開くこともできます</string>
+
+    <!-- 空の状態と外部からの起動 -->
+    <string name="empty_editor_hint">左側から最近のファイルを開くか、「ファイルを開く」をタップ</string>
+    <string name="no_persistent_access_title">このファイルは長期的にアクセスできません</string>
+    <string name="no_persistent_access_message">他のアプリから共有されたファイルには長期権限がないため、MarkNote を終了すると開けなくなります。再許可すれば引き続き編集できます。</string>
+    <string name="edit_temporarily">一時的に編集</string>
+
+    <!-- エディタ -->
+    <string name="back">戻る</string>
+    <string name="save">保存</string>
+    <string name="search">検索</string>
+    <string name="outline">アウトライン</string>
+    <string name="edit">編集</string>
+    <string name="preview">プレビュー</string>
+    <string name="close_outline">アウトラインを閉じる</string>
+    <string name="outline_empty">見出しがありません。# で行を始めるとアウトラインが生成されます</string>
+    <string name="editor_placeholder">Markdown で書き始めましょう…</string>
+    <string name="stats_format">%1$d 文字 · %2$d 行</string>
+    <string name="regrant">再許可</string>
+    <string name="grant_image_folder">許可する</string>
+    <string name="image_folder_hint">このドキュメント内の画像を表示するには、そのフォルダーの許可が必要です</string>
+    <string name="notice_save_failed">保存に失敗しました：このファイルへの書き込み権限がありません</string>
+    <string name="notice_read_only">読み取り専用で開いています：書き込み権限がないため、変更は保存されません</string>
+    <string name="document_unavailable_title">このファイルを開けません</string>
+    <string name="document_unavailable_message">MarkNote はこのファイルへのアクセス権を失ったか、ファイルが移動・削除されました。\n他のアプリ（ファイルマネージャーの「アプリで開く」、チャットなど）から開いたファイルは、通常、長期権限が付与されないため、アプリを終了すると失効します。\n「再許可」でシステムのファイル選択画面から同じファイルをもう一度選ぶと、以後は継続して編集できます。</string>
+    <string name="retry">再試行</string>
+
+    <!-- 検索と置換 -->
+    <string name="previous_match">前へ</string>
+    <string name="next_match">次へ</string>
+    <string name="close_search">検索を閉じる</string>
+    <string name="replace_placeholder">置換後の文字列</string>
+    <string name="replace">置換</string>
+    <string name="replace_all">すべて</string>
+
+    <!-- Markdown ツールバー -->
+    <string name="md_heading">見出し</string>
+    <string name="md_bold">太字</string>
+    <string name="md_italic">斜体</string>
+    <string name="md_strikethrough">取り消し線</string>
+    <string name="md_quote">引用</string>
+    <string name="md_list">リスト</string>
+    <string name="md_list_item">リスト項目</string>
+    <string name="md_link">リンク</string>
+    <string name="md_link_text">リンクテキスト</string>
+    <string name="md_code">コード</string>
+    <string name="md_divider">区切り線</string>
+
+    <!-- 設定 -->
+    <string name="appearance">外観</string>
+    <string name="theme_mode">テーマ</string>
+    <string name="theme_system">システムに従う</string>
+    <string name="theme_light">ライト</string>
+    <string name="theme_dark">ダーク</string>
+    <string name="editor_section">エディタ</string>
+    <string name="editor_font_size">エディタの文字サイズ（現在 %1$dsp）</string>
+    <string name="preview_section">プレビュー</string>
+    <string name="preview_font_size">プレビューの文字サイズ（現在 %1$dsp）</string>
+    <string name="save_section">保存</string>
+    <string name="auto_save">自動保存</string>
+    <string name="auto_save_on">入力が 800ms 止まるとファイルに書き戻します</string>
+    <string name="auto_save_off">オフにするとトップバーに保存ボタンが表示されます</string>
+    <string name="language_section">言語</string>
+    <string name="language">言語</string>
+    <string name="language_system">システムに従う</string>
+    <string name="language_system_detail">システムの言語設定を使用します</string>
+    <string name="about">このアプリについて</string>
+    <string name="about_version">MarkNote v%1$s</string>
+    <string name="font_small">小</string>
+    <string name="font_standard">標準</string>
+    <string name="font_large">大</string>
+
+    <!-- プレビューで画像の読み込みに失敗したとき -->
+    <string name="image_open_failed">画像を開けません：%1$s</string>
+    <string name="image_decode_failed">画像をデコードできません：%1$s</string>
+    <string name="image_invalid_data">無効な data 画像です</string>
+    <string name="image_decode_data_failed">data 画像をデコードできません</string>
+</resources>

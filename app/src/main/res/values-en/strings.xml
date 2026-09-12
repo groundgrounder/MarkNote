@@ -1,9 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  默认资源目录 = 英文，同时作为未匹配语言的兜底（例如韩语、葡语用户看到英文）。
-  简体中文简体见 values-b+zh+Hans，繁體中文见 values-b+zh+Hant，
-  其余语言见 values-ja / values-fr / values-de / values-es / values-it / values-la。
-  键名必须与本文件完全一致；新增文案时请同步补全所有语言目录。
+  英语。内容与默认目录 values/ 相同：默认目录本身兜底英文，这里再显式声明一份 en，
+  一是让 android:localeConfig / 系统「应用语言」里的 English 有明确的资源归属，
+  二是区域变体（en-GB、en-US…）命中 values-en 后不再往默认目录回退。
 -->
 <resources>
     <string name="app_name">MarkNote</string>

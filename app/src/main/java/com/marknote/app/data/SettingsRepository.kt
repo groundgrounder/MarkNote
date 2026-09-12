@@ -14,7 +14,10 @@ enum class ThemeMode { SYSTEM, LIGHT, DARK }
  */
 class SettingsRepository(context: Context) {
 
-    private val prefs = context.getSharedPreferences("settings", Context.MODE_PRIVATE)
+    /** 只用于写（发系统广播/服务调用），持有 Application 而非 Activity，避免长生命周期引用泄漏 */
+    private val appContext = context.applicationContext
+
+    private val prefs = context.getSharedPreferences(AppLocaleStore.PREFS, Context.MODE_PRIVATE)
 
     /** 主题模式：跟随系统 / 浅色 / 深色 */
     var themeMode by mutableStateOf(
@@ -22,6 +25,16 @@ class SettingsRepository(context: Context) {
             ThemeMode.valueOf(prefs.getString(KEY_THEME, ThemeMode.SYSTEM.name) ?: ThemeMode.SYSTEM.name)
         }.getOrDefault(ThemeMode.SYSTEM),
     )
+        private set
+
+    /**
+     * 界面语言。改动后需要重建 Activity 才会生效（见 SettingsScreen 里的切语言回调）：
+     * 语言是在 attachBaseContext 阶段套到 Context 上的，运行中改不了已经用出去的 Resources。
+     *
+     * 初值走 AppLocaleStore.current：Android 13+ 用户在系统「应用语言」里改过时，
+     * 应用内的选择器要显示同一种语言，不能只认自己的 SharedPreferences。
+     */
+    var appLanguage by mutableStateOf(AppLocaleStore.current(context))
         private set
 
     /** 编辑器字号（sp） */
@@ -39,6 +52,16 @@ class SettingsRepository(context: Context) {
     fun updateThemeMode(mode: ThemeMode) {
         themeMode = mode
         prefs.edit().putString(KEY_THEME, mode.name).apply()
+    }
+
+    /**
+     * 写入语言偏好。走 AppLocaleStore 写，它会同时更新进程内缓存、SharedPreferences，
+     * 以及在 Android 13+ 同步到系统的「按应用语言」——三处不一致就会出现
+     * 「应用内显示法语、系统设置里显示英语」这种分裂。
+     */
+    fun updateAppLanguage(language: AppLanguage) {
+        appLanguage = language
+        AppLocaleStore.write(appContext, language)
     }
 
     fun updateEditorFont(sp: Int) {

@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">MarkNote</string>
+
+    <!-- File recenti -->
+    <string name="settings">Impostazioni</string>
+    <string name="collapse_sidebar">Comprimi barra laterale</string>
+    <string name="expand_sidebar">Espandi barra laterale</string>
+    <string name="new_file">Nuovo file</string>
+    <string name="open_file">Apri file</string>
+    <string name="untitled_md">Senza titolo.md</string>
+    <string name="remove_from_list">Rimuovi dall\'elenco</string>
+    <string name="remove_dialog_message">Rimuovere «%1$s» dall\'elenco dei file recenti? Il file sul dispositivo non verrà eliminato.</string>
+    <string name="remove">Rimuovi</string>
+    <string name="cancel">Annulla</string>
+    <string name="list_item_unavailable">File non disponibile: potrebbe essere stato spostato o eliminato, oppure l\'autorizzazione è scaduta. Tocca per concederla di nuovo.</string>
+    <string name="empty_document">(Documento vuoto)</string>
+    <string name="empty_list_title">Nessun file aperto finora</string>
+    <string name="empty_list_hint">Tocca «Apri file» per scegliere un documento Markdown sul dispositivo\nPuoi anche aprire i file .md da un gestore di file con MarkNote</string>
+
+    <!-- Stato vuoto e apertura esterna -->
+    <string name="empty_editor_hint">Apri un file recente a sinistra oppure tocca «Apri file»</string>
+    <string name="no_persistent_access_title">Non è possibile accedere a questo file a lungo termine</string>
+    <string name="no_persistent_access_message">I file condivisi da altre app non hanno un\'autorizzazione a lungo termine: non sarà possibile aprirli dopo aver chiuso MarkNote. Concedi di nuovo l\'accesso per continuare a modificarli.</string>
+    <string name="edit_temporarily">Modifica per ora</string>
+
+    <!-- Editor -->
+    <string name="back">Indietro</string>
+    <string name="save">Salva</string>
+    <string name="search">Cerca</string>
+    <string name="outline">Struttura</string>
+    <string name="edit">Modifica</string>
+    <string name="preview">Anteprima</string>
+    <string name="close_outline">Chiudi struttura</string>
+    <string name="outline_empty">Nessun titolo. Inizia una riga con # per creare una struttura.</string>
+    <string name="editor_placeholder">Inizia a scrivere in Markdown…</string>
+    <string name="stats_format">%1$d car. · %2$d righe</string>
+    <string name="regrant">Concedi accesso</string>
+    <string name="grant_image_folder">Concedi</string>
+    <string name="image_folder_hint">Le immagini di questo documento richiedono l\'accesso alla loro cartella per essere mostrate</string>
+    <string name="notice_save_failed">Salvataggio non riuscito: nessun permesso di scrittura su questo file</string>
+    <string name="notice_read_only">Aperto in sola lettura: nessun permesso di scrittura, le modifiche non verranno salvate</string>
+    <string name="document_unavailable_title">Impossibile aprire questo file</string>
+    <string name="document_unavailable_message">MarkNote non ha più accesso a questo file, oppure il file è stato spostato o eliminato.\nI file aperti da altre app («Apri con» di un gestore di file, un\'app di messaggistica e così via) di solito non ottengono un\'autorizzazione a lungo termine: si perde alla chiusura dell\'app.\nUsa «Concedi accesso» per selezionare di nuovo lo stesso file nel selettore di sistema e potrai modificarlo stabilmente.</string>
+    <string name="retry">Riprova</string>
+
+    <!-- Cerca e sostituisci -->
+    <string name="previous_match">Precedente</string>
+    <string name="next_match">Successivo</string>
+    <string name="close_search">Chiudi ricerca</string>
+    <string name="replace_placeholder">Sostituisci con</string>
+    <string name="replace">Sostituisci</string>
+    <string name="replace_all">Tutto</string>
+
+    <!-- Barra degli strumenti Markdown -->
+    <string name="md_heading">Titolo</string>
+    <string name="md_bold">Grassetto</string>
+    <string name="md_italic">Corsivo</string>
+    <string name="md_strikethrough">Barrato</string>
+    <string name="md_quote">Citazione</string>
+    <string name="md_list">Elenco</string>
+    <string name="md_list_item">Voce di elenco</string>
+    <string name="md_link">Link</string>
+    <string name="md_link_text">Testo del link</string>
+    <string name="md_code">Codice</string>
+    <string name="md_divider">Separatore</string>
+
+    <!-- Impostazioni -->
+    <string name="appearance">Aspetto</string>
+    <string name="theme_mode">Tema</string>
+    <string name="theme_system">Sistema</string>
+    <string name="theme_light">Chiaro</string>
+    <string name="theme_dark">Scuro</string>
+    <string name="editor_section">Editor</string>
+    <string name="editor_font_size">Dimensione carattere editor (attuale %1$dsp)</string>
+    <string name="preview_section">Anteprima</string>
+    <string name="preview_font_size">Dimensione carattere anteprima (attuale %1$dsp)</string>
+    <string name="save_section">Salvataggio</string>
+    <string name="auto_save">Salvataggio automatico</string>
+    <string name="auto_save_on">Scrive nel file 800 ms dopo l\'ultima digitazione</string>
+    <string name="auto_save_off">Se disattivato, nella barra superiore compare un pulsante di salvataggio</string>
+    <string name="language_section">Lingua</string>
+    <string name="language">Lingua</string>
+    <string name="language_system">Lingua di sistema</string>
+    <string name="language_system_detail">Segui la lingua di sistema</string>
+    <string name="about">Informazioni</string>
+    <string name="about_version">MarkNote v%1$s</string>
+    <string name="font_small">Piccola</string>
+    <string name="font_standard">Standard</string>
+    <string name="font_large">Grande</string>
+
+    <!-- Errori di caricamento delle immagini nell'anteprima -->
+    <string name="image_open_failed">Impossibile aprire l\'immagine: %1$s</string>
+    <string name="image_decode_failed">Impossibile decodificare l\'immagine: %1$s</string>
+    <string name="image_invalid_data">Immagine data non valida</string>
+    <string name="image_decode_data_failed">Impossibile decodificare l\'immagine data</string>
+</resources>

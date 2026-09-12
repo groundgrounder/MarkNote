@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Android 13+（API 33）系统「设置 → 应用 → MarkNote → 语言」里可选的语言清单，
+  由 AndroidManifest 的 android:localeConfig 引用。
+
+  约束：每一项都必须能对应到 res/values-*/ 的资源目录，否则系统不会把该语言列出来。
+  中文按 BCP 47 script 标注（zh-Hans / zh-Hant），与资源目录 values-b+zh+Hans /
+  values-b+zh+Hant 一一对应，而不是按 zh-CN / zh-TW 分区域。
+-->
+<locale-config xmlns:android="http://schemas.android.com/apk/res/android">
+    <locale android:name="en" />
+    <locale android:name="zh-Hans" />
+    <locale android:name="zh-Hant" />
+    <locale android:name="ja" />
+    <locale android:name="fr" />
+    <locale android:name="de" />
+    <locale android:name="es" />
+    <locale android:name="it" />
+    <locale android:name="la" />
+</locale-config>

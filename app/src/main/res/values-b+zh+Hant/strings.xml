@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 繁體中文。以 BCP 47 script 限定，zh-TW / zh-HK / zh-MO 皆命中 -->
+<resources>
+    <string name="app_name">MarkNote</string>
+
+    <!-- 最近開啟的檔案 -->
+    <string name="settings">設定</string>
+    <string name="collapse_sidebar">收合側邊欄</string>
+    <string name="expand_sidebar">展開側邊欄</string>
+    <string name="new_file">新增檔案</string>
+    <string name="open_file">開啟檔案</string>
+    <string name="untitled_md">未命名.md</string>
+    <string name="remove_from_list">從清單移除</string>
+    <string name="remove_dialog_message">將「%1$s」從最近開啟清單中移除，不會刪除裝置上的檔案。</string>
+    <string name="remove">移除</string>
+    <string name="cancel">取消</string>
+    <string name="list_item_unavailable">檔案暫時無法存取：可能已被移動或刪除，或存取權限已失效。點按可重新授權。</string>
+    <string name="empty_document">（空白文件）</string>
+    <string name="empty_list_title">還沒有開啟過檔案</string>
+    <string name="empty_list_hint">點擊「開啟檔案」選擇裝置上的 Markdown 文件\n也可以在檔案管理器裡用 MarkNote 直接開啟 .md 檔案</string>
+
+    <!-- 空狀態與外部開啟 -->
+    <string name="empty_editor_hint">從左側開啟最近檔案，或「開啟檔案」選擇文件</string>
+    <string name="no_persistent_access_title">這個檔案無法長期存取</string>
+    <string name="no_persistent_access_message">其他應用程式分享的檔案沒有長期權限，離開 MarkNote 後就無法開啟。重新授權即可長期編輯。</string>
+    <string name="edit_temporarily">暫時編輯</string>
+
+    <!-- 編輯器 -->
+    <string name="back">返回</string>
+    <string name="save">儲存</string>
+    <string name="search">搜尋</string>
+    <string name="outline">大綱</string>
+    <string name="edit">編輯</string>
+    <string name="preview">預覽</string>
+    <string name="close_outline">關閉大綱</string>
+    <string name="outline_empty">還沒有標題，用 # 開頭寫一行即可產生大綱</string>
+    <string name="editor_placeholder">開始用 Markdown 寫作…</string>
+    <string name="stats_format">%1$d 字 · %2$d 行</string>
+    <string name="regrant">重新授權</string>
+    <string name="grant_image_folder">去授權</string>
+    <string name="image_folder_hint">文件中的圖片需要授權所在資料夾才能顯示</string>
+    <string name="notice_save_failed">儲存失敗：沒有寫入這個檔案的權限</string>
+    <string name="notice_read_only">以唯讀開啟：沒有寫入權限，修改不會被儲存</string>
+    <string name="document_unavailable_title">無法開啟該檔案</string>
+    <string name="document_unavailable_message">MarkNote 已經沒有這個檔案的存取權限，或者檔案已被移動、刪除。\n從其他應用程式（檔案管理員「開啟方式」、聊天記錄等）開啟的檔案，系統通常不會給予長期權限，離開應用程式後就會失效。\n用「重新授權」在系統檔案選擇器裡重新選一次同一個檔案，之後就能一直編輯。</string>
+    <string name="retry">重試</string>
+
+    <!-- 搜尋與取代 -->
+    <string name="previous_match">上一個</string>
+    <string name="next_match">下一個</string>
+    <string name="close_search">關閉搜尋</string>
+    <string name="replace_placeholder">取代為</string>
+    <string name="replace">取代</string>
+    <string name="replace_all">全部</string>
+
+    <!-- Markdown 工具列 -->
+    <string name="md_heading">標題</string>
+    <string name="md_bold">粗體</string>
+    <string name="md_italic">斜體</string>
+    <string name="md_strikethrough">刪除線</string>
+    <string name="md_quote">引用</string>
+    <string name="md_list">清單</string>
+    <string name="md_list_item">清單項目</string>
+    <string name="md_link">連結</string>
+    <string name="md_link_text">連結文字</string>
+    <string name="md_code">程式碼</string>
+    <string name="md_divider">分隔線</string>
+
+    <!-- 設定 -->
+    <string name="appearance">外觀</string>
+    <string name="theme_mode">主題模式</string>
+    <string name="theme_system">跟隨系統</string>
+    <string name="theme_light">淺色</string>
+    <string name="theme_dark">深色</string>
+    <string name="editor_section">編輯器</string>
+    <string name="editor_font_size">編輯器字級（目前 %1$dsp）</string>
+    <string name="preview_section">預覽</string>
+    <string name="preview_font_size">預覽字級（目前 %1$dsp）</string>
+    <string name="save_section">儲存</string>
+    <string name="auto_save">自動儲存</string>
+    <string name="auto_save_on">停止輸入 800ms 後自動寫回檔案</string>
+    <string name="auto_save_off">關閉後頂端列會出現儲存按鈕，需手動儲存</string>
+    <string name="language_section">語言</string>
+    <string name="language">語言</string>
+    <string name="language_system">跟隨系統</string>
+    <string name="language_system_detail">使用系統語言設定</string>
+    <string name="about">關於</string>
+    <string name="about_version">MarkNote v%1$s</string>
+    <string name="font_small">小</string>
+    <string name="font_standard">標準</string>
+    <string name="font_large">大</string>
+
+    <!-- 預覽中的圖片載入失敗提示 -->
+    <string name="image_open_failed">無法開啟圖片：%1$s</string>
+    <string name="image_decode_failed">無法解碼圖片：%1$s</string>
+    <string name="image_invalid_data">無效的 data 圖片</string>
+    <string name="image_decode_data_failed">無法解碼 data 圖片</string>
+</resources>

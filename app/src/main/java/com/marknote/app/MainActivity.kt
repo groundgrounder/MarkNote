@@ -1,5 +1,6 @@
 package com.marknote.app
 
+import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
@@ -39,10 +40,13 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.marknote.app.data.AppLocaleStore
 import com.marknote.app.data.DocumentRepository
 import com.marknote.app.data.SettingsRepository
 import com.marknote.app.data.ThemeMode
+import com.marknote.app.data.localizedContext
 import com.marknote.app.ui.common.OpenDocumentWithInitialUri
 import com.marknote.app.ui.editor.EditorScreen
 import com.marknote.app.ui.files.FileListScreen
@@ -53,6 +57,19 @@ class MainActivity : ComponentActivity() {
 
     /** 外部（文件管理器等）通过 VIEW/EDIT intent 传入的文档 Uri，桥接给 Compose */
     private var externalUri by mutableStateOf<Uri?>(null)
+
+    /**
+     * 套用应用内语言。必须在 attachBaseContext 阶段完成：此时 Activity 的 Resources
+     * 还没被使用，包一层之后 Compose 的 stringResource、Material 组件的默认文案
+     * 才都是目标语言。切换语言时会重建 Activity，本方法随之重新执行。
+     *
+     * 这里用 refresh 而不是读缓存：Android 13+ 用户可能在系统「应用语言」里改过，
+     * 系统改完会重建 Activity，而 attachBaseContext 正是唯一「早于 Resources 被使用」的
+     * 时机，在这里重新解析才能让新语言立刻生效。
+     */
+    override fun attachBaseContext(newBase: Context) {
+        super.attachBaseContext(localizedContext(newBase, AppLocaleStore.refresh(newBase)))
+    }
 
     @OptIn(ExperimentalMaterial3WindowSizeClassApi::class)
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -187,7 +204,10 @@ fun MarkNoteApp(
                             onClick = { sidebarVisible = true },
                             modifier = Modifier.padding(top = 12.dp),
                         ) {
-                            Icon(Icons.Outlined.Menu, contentDescription = "展开侧栏")
+                            Icon(
+                                Icons.Outlined.Menu,
+                                contentDescription = stringResource(R.string.expand_sidebar),
+                            )
                         }
                     }
                 }
@@ -242,23 +262,22 @@ fun MarkNoteApp(
     if (regrantTarget != null) {
         AlertDialog(
             onDismissRequest = { pendingRegrant = null },
-            title = { Text("这个文件无法长期访问") },
+            title = { Text(stringResource(R.string.no_persistent_access_title)) },
             text = {
                 // 字号沿用 AlertDialog 默认（bodyMedium）：不覆盖全局排版风格
-                Text(
-                    text = "其他应用分享的文件没有长期权限，" +
-                        "退出 MarkNote 后就打不开。重新授权即可长期编辑。",
-                )
+                Text(text = stringResource(R.string.no_persistent_access_message))
             },
             confirmButton = {
                 TextButton(
                     onClick = {
                         regrantLauncher.launch(arrayOf("text/markdown", "text/plain", "*/*"))
                     },
-                ) { Text("重新授权") }
+                ) { Text(stringResource(R.string.regrant)) }
             },
             dismissButton = {
-                TextButton(onClick = { pendingRegrant = null }) { Text("暂时编辑") }
+                TextButton(onClick = { pendingRegrant = null }) {
+                    Text(stringResource(R.string.edit_temporarily))
+                }
             },
         )
     }
@@ -268,7 +287,7 @@ fun MarkNoteApp(
 private fun EmptyEditorHint() {
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         Text(
-            text = "从左侧打开最近文件，或「打开文件」选择文档",
+            text = stringResource(R.string.empty_editor_hint),
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )

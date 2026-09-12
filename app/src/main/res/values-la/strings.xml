@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Lingua Latina -->
+<resources>
+    <string name="app_name">MarkNote</string>
+
+    <!-- Fasciculi recentes -->
+    <string name="settings">Optiones</string>
+    <string name="collapse_sidebar">Latus claude</string>
+    <string name="expand_sidebar">Latus pande</string>
+    <string name="new_file">Novus fasciculus</string>
+    <string name="open_file">Fasciculum aperire</string>
+    <string name="untitled_md">Sine titulo.md</string>
+    <string name="remove_from_list">E tabula tolle</string>
+    <string name="remove_dialog_message">«%1$s» e tabula recentium tollere? Fasciculus in instrumento tuo non delebitur.</string>
+    <string name="remove">Tolle</string>
+    <string name="cancel">Abrogare</string>
+    <string name="list_item_unavailable">Fasciculus nunc non patet: fortasse motus vel deletus est, vel permissio periit. Tange ut iterum permittas.</string>
+    <string name="empty_document">(Fasciculus vacuus)</string>
+    <string name="empty_list_title">Nondum ullus fasciculus apertus est</string>
+    <string name="empty_list_hint">Tange «Fasciculum aperire» ut documentum Markdown in instrumento eligas\nPotes etiam fasciculos .md e ministro fasciculorum cum MarkNote aperire</string>
+
+    <!-- Status vacuus et aperitio externa -->
+    <string name="empty_editor_hint">Aperi recentem fasciculum a sinistra, vel tange «Fasciculum aperire»</string>
+    <string name="no_persistent_access_title">Hic fasciculus diu patere non potest</string>
+    <string name="no_persistent_access_message">Fasciculi ab aliis programmatibus communicati permissionem diuturnam non habent; postquam MarkNote relinquis, aperiri non poterunt. Permitte iterum ut eos porro recenseas.</string>
+    <string name="edit_temporarily">Ad tempus recensere</string>
+
+    <!-- Editor -->
+    <string name="back">Redi</string>
+    <string name="save">Serva</string>
+    <string name="search">Quaere</string>
+    <string name="outline">Index</string>
+    <string name="edit">Recensere</string>
+    <string name="preview">Praevidere</string>
+    <string name="close_outline">Indicem claude</string>
+    <string name="outline_empty">Nulli tituli adhuc. Lineam a # incipe ut index fiat.</string>
+    <string name="editor_placeholder">Incipe Markdown scribere…</string>
+    <string name="stats_format">%1$d litterae · %2$d versus</string>
+    <string name="regrant">Permitte iterum</string>
+    <string name="grant_image_folder">Permitte</string>
+    <string name="image_folder_hint">Imagines huius documenti permissione eius plicae opus habent ut ostendantur</string>
+    <string name="notice_save_failed">Servatio defecit: nulla potestas in hunc fasciculum scribendi</string>
+    <string name="notice_read_only">Modo legendi apertus: nulla potestas scribendi, mutationes non servabuntur</string>
+    <string name="document_unavailable_title">Hic fasciculus aperiri non potest</string>
+    <string name="document_unavailable_message">MarkNote iam ad hunc fasciculum non accedit, aut fasciculus motus vel deletus est.\nFasciculi ex aliis programmatibus aperti (per «Aperire cum» ministri fasciculorum, per colloquia, et cetera) plerumque permissionem diuturnam non accipiunt; ea, programmate relicto, perit.\nUtere «Permitte iterum» ut eundem fasciculum in selectore systematis iterum eligas: deinde semper recensere poteris.</string>
+    <string name="retry">Iterum conare</string>
+
+    <!-- Quaerere et substituere -->
+    <string name="previous_match">Superius</string>
+    <string name="next_match">Inferius</string>
+    <string name="close_search">Quaesitum claude</string>
+    <string name="replace_placeholder">Substitue cum</string>
+    <string name="replace">Substitue</string>
+    <string name="replace_all">Omnia</string>
+
+    <!-- Instrumenta Markdown -->
+    <string name="md_heading">Titulus</string>
+    <string name="md_bold">Pingue</string>
+    <string name="md_italic">Obliquum</string>
+    <string name="md_strikethrough">Linea deleta</string>
+    <string name="md_quote">Citatio</string>
+    <string name="md_list">Enumeratio</string>
+    <string name="md_list_item">Elementum</string>
+    <string name="md_link">Nexus</string>
+    <string name="md_link_text">Textus nexus</string>
+    <string name="md_code">Codex</string>
+    <string name="md_divider">Linea dividens</string>
+
+    <!-- Optiones -->
+    <string name="appearance">Aspectus</string>
+    <string name="theme_mode">Thema</string>
+    <string name="theme_system">Systema sequi</string>
+    <string name="theme_light">Lucidum</string>
+    <string name="theme_dark">Obscurum</string>
+    <string name="editor_section">Editor</string>
+    <string name="editor_font_size">Magnitudo litterarum editoris (nunc %1$dsp)</string>
+    <string name="preview_section">Praevisum</string>
+    <string name="preview_font_size">Magnitudo litterarum praevisi (nunc %1$dsp)</string>
+    <string name="save_section">Servatio</string>
+    <string name="auto_save">Servatio automatica</string>
+    <string name="auto_save_on">Post 800 ms scribendi in fasciculum scribit</string>
+    <string name="auto_save_off">Cum clausa est, in summa tabula bulla servandi apparet</string>
+    <string name="language_section">Lingua</string>
+    <string name="language">Lingua</string>
+    <string name="language_system">Lingua systematis</string>
+    <string name="language_system_detail">Linguam systematis sequi</string>
+    <string name="about">De programmate</string>
+    <string name="about_version">MarkNote v%1$s</string>
+    <string name="font_small">Parva</string>
+    <string name="font_standard">Media</string>
+    <string name="font_large">Magna</string>
+
+    <!-- Errores imaginum in praeviso -->
+    <string name="image_open_failed">Imago aperiri non potest: %1$s</string>
+    <string name="image_decode_failed">Imago decodificari non potest: %1$s</string>
+    <string name="image_invalid_data">Imago data invalida</string>
+    <string name="image_decode_data_failed">Imago data decodificari non potest</string>
+</resources>

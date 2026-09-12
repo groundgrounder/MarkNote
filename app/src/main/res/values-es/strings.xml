@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">MarkNote</string>
+
+    <!-- Archivos recientes -->
+    <string name="settings">Ajustes</string>
+    <string name="collapse_sidebar">Contraer panel lateral</string>
+    <string name="expand_sidebar">Expandir panel lateral</string>
+    <string name="new_file">Nuevo archivo</string>
+    <string name="open_file">Abrir archivo</string>
+    <string name="untitled_md">Sin título.md</string>
+    <string name="remove_from_list">Quitar de la lista</string>
+    <string name="remove_dialog_message">¿Quitar «%1$s» de la lista de recientes? El archivo del dispositivo no se eliminará.</string>
+    <string name="remove">Quitar</string>
+    <string name="cancel">Cancelar</string>
+    <string name="list_item_unavailable">Archivo no disponible: puede que se haya movido o eliminado, o que el permiso se haya revocado. Toca para volver a concederlo.</string>
+    <string name="empty_document">(Documento vacío)</string>
+    <string name="empty_list_title">Aún no has abierto ningún archivo</string>
+    <string name="empty_list_hint">Toca «Abrir archivo» para elegir un documento Markdown del dispositivo\nTambién puedes abrir archivos .md desde un gestor de archivos con MarkNote</string>
+
+    <!-- Estado vacío y apertura externa -->
+    <string name="empty_editor_hint">Abre un archivo reciente a la izquierda o toca «Abrir archivo»</string>
+    <string name="no_persistent_access_title">No se puede acceder a este archivo a largo plazo</string>
+    <string name="no_persistent_access_message">Los archivos compartidos desde otras apps no tienen permiso a largo plazo, así que no se podrán abrir al salir de MarkNote. Vuelve a conceder el permiso para seguir editándolos.</string>
+    <string name="edit_temporarily">Editar por ahora</string>
+
+    <!-- Editor -->
+    <string name="back">Atrás</string>
+    <string name="save">Guardar</string>
+    <string name="search">Buscar</string>
+    <string name="outline">Esquema</string>
+    <string name="edit">Editar</string>
+    <string name="preview">Vista previa</string>
+    <string name="close_outline">Cerrar esquema</string>
+    <string name="outline_empty">Aún no hay títulos. Empieza una línea con # para generar un esquema.</string>
+    <string name="editor_placeholder">Empieza a escribir en Markdown…</string>
+    <string name="stats_format">%1$d car. · %2$d líneas</string>
+    <string name="regrant">Conceder permiso</string>
+    <string name="grant_image_folder">Conceder</string>
+    <string name="image_folder_hint">Las imágenes de este documento necesitan acceso a su carpeta para mostrarse</string>
+    <string name="notice_save_failed">Error al guardar: no hay permiso de escritura en este archivo</string>
+    <string name="notice_read_only">Abierto en solo lectura: sin permiso de escritura, los cambios no se guardarán</string>
+    <string name="document_unavailable_title">No se puede abrir este archivo</string>
+    <string name="document_unavailable_message">MarkNote ya no tiene acceso a este archivo, o el archivo se ha movido o eliminado.\nLos archivos abiertos desde otras apps («Abrir con» de un gestor de archivos, una app de mensajería, etc.) normalmente no obtienen permiso a largo plazo, así que se pierde al salir de la app.\nUsa «Conceder permiso» para volver a elegir el mismo archivo en el selector del sistema y podrás editarlo siempre.</string>
+    <string name="retry">Reintentar</string>
+
+    <!-- Buscar y reemplazar -->
+    <string name="previous_match">Anterior</string>
+    <string name="next_match">Siguiente</string>
+    <string name="close_search">Cerrar búsqueda</string>
+    <string name="replace_placeholder">Reemplazar por</string>
+    <string name="replace">Reemplazar</string>
+    <string name="replace_all">Todo</string>
+
+    <!-- Barra de herramientas de Markdown -->
+    <string name="md_heading">Título</string>
+    <string name="md_bold">Negrita</string>
+    <string name="md_italic">Cursiva</string>
+    <string name="md_strikethrough">Tachado</string>
+    <string name="md_quote">Cita</string>
+    <string name="md_list">Lista</string>
+    <string name="md_list_item">Elemento de lista</string>
+    <string name="md_link">Enlace</string>
+    <string name="md_link_text">Texto del enlace</string>
+    <string name="md_code">Código</string>
+    <string name="md_divider">Separador</string>
+
+    <!-- Ajustes -->
+    <string name="appearance">Apariencia</string>
+    <string name="theme_mode">Tema</string>
+    <string name="theme_system">Sistema</string>
+    <string name="theme_light">Claro</string>
+    <string name="theme_dark">Oscuro</string>
+    <string name="editor_section">Editor</string>
+    <string name="editor_font_size">Tamaño de letra del editor (actual: %1$dsp)</string>
+    <string name="preview_section">Vista previa</string>
+    <string name="preview_font_size">Tamaño de letra de la vista previa (actual: %1$dsp)</string>
+    <string name="save_section">Guardado</string>
+    <string name="auto_save">Guardado automático</string>
+    <string name="auto_save_on">Escribe en el archivo 800 ms después de dejar de escribir</string>
+    <string name="auto_save_off">Al desactivarlo aparece un botón de guardar en la barra superior</string>
+    <string name="language_section">Idioma</string>
+    <string name="language">Idioma</string>
+    <string name="language_system">Idioma del sistema</string>
+    <string name="language_system_detail">Usar el idioma del sistema</string>
+    <string name="about">Acerca de</string>
+    <string name="about_version">MarkNote v%1$s</string>
+    <string name="font_small">Pequeña</string>
+    <string name="font_standard">Estándar</string>
+    <string name="font_large">Grande</string>
+
+    <!-- Errores de carga de imágenes en la vista previa -->
+    <string name="image_open_failed">No se puede abrir la imagen: %1$s</string>
+    <string name="image_decode_failed">No se puede decodificar la imagen: %1$s</string>
+    <string name="image_invalid_data">Imagen data no válida</string>
+    <string name="image_decode_data_failed">No se puede decodificar la imagen data</string>
+</resources>

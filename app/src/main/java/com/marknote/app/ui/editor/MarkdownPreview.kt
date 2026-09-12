@@ -23,6 +23,7 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.documentfile.provider.DocumentFile
+import com.marknote.app.R
 import io.noties.markwon.Markwon
 import io.noties.markwon.ext.strikethrough.StrikethroughPlugin
 import io.noties.markwon.ext.tables.TablePlugin
@@ -219,22 +220,28 @@ private fun rewriteRelativeImages(markdown: String, imageTree: String?): String 
 /** content:// / file:// / data: / marknote-rel:// 四种来源的图片加载 */
 private class LocalImageSchemeHandler(private val context: Context) : SchemeHandler() {
 
+    /**
+     * 注意：这里抛出的异常文案会被 Markwon 显示在图片位置上，属于用户可见文案，
+     * 必须走资源文件（context 是 applicationContext，语言跟随应用设置）。
+     * 而 openRelative() 里的 IOException 只会被记进 logcat，保持中文诊断信息即可。
+     */
     override fun handle(raw: String, uri: Uri): ImageItem {
         if (uri.scheme == "data") return decodeDataUri(raw)
+        val target = uri.path ?: uri.toString()
         val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
         // 注意：inJustDecodeBounds 模式下 decodeStream 返回 null 是正常的，不能用它判断成败
-        val s1 = open(uri) ?: throw IOException("无法打开图片: ${uri.path ?: uri}")
+        val s1 = open(uri) ?: throw IOException(context.getString(R.string.image_open_failed, target))
         s1.use { BitmapFactory.decodeStream(it, null, bounds) }
         if (bounds.outWidth <= 0 || bounds.outHeight <= 0) {
-            throw IOException("无法解码图片: ${uri.path ?: uri}")
+            throw IOException(context.getString(R.string.image_decode_failed, target))
         }
         // 大图降采样，防 OOM
         var sample = 1
         while (bounds.outWidth / sample > 4096 || bounds.outHeight / sample > 4096) sample *= 2
         val opts = BitmapFactory.Options().apply { inSampleSize = sample }
-        val s2 = open(uri) ?: throw IOException("无法打开图片: ${uri.path ?: uri}")
+        val s2 = open(uri) ?: throw IOException(context.getString(R.string.image_open_failed, target))
         val bitmap = s2.use { BitmapFactory.decodeStream(it, null, opts) }
-            ?: throw IOException("无法解码图片: ${uri.path ?: uri}")
+            ?: throw IOException(context.getString(R.string.image_decode_failed, target))
         return ImageItem.withResult(BitmapDrawable(context.resources, bitmap))
     }
 
@@ -270,10 +277,10 @@ private class LocalImageSchemeHandler(private val context: Context) : SchemeHand
     /** data:image/png;base64,.... 内嵌图 */
     private fun decodeDataUri(raw: String): ImageItem {
         val comma = raw.indexOf(',')
-        if (comma < 0) throw IOException("无效的 data 图片")
+        if (comma < 0) throw IOException(context.getString(R.string.image_invalid_data))
         val bytes = Base64.decode(raw.substring(comma + 1), Base64.DEFAULT)
         val bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
-            ?: throw IOException("无法解码 data 图片")
+            ?: throw IOException(context.getString(R.string.image_decode_data_failed))
         return ImageItem.withResult(BitmapDrawable(context.resources, bitmap))
     }
 }

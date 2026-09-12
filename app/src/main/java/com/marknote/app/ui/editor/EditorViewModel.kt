@@ -6,15 +6,18 @@ import androidx.compose.material.icons.outlined.Code
 import androidx.compose.material.icons.outlined.FormatQuote
 import androidx.compose.material.icons.outlined.HorizontalRule
 import androidx.compose.material.icons.outlined.Link
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.TextFieldValue
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.marknote.app.R
 import com.marknote.app.data.DocumentRepository
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
@@ -52,17 +55,44 @@ fun parseOutline(text: String): List<Heading> {
     return result
 }
 
-val markdownActions = listOf(
-    MarkdownAction("H1", "# ", placeholder = "标题"),
-    MarkdownAction("H2", "## ", placeholder = "标题"),
-    MarkdownAction("B", "**", "**", "加粗"),
-    MarkdownAction("I", "*", "*", "斜体"),
-    MarkdownAction("S", "~~", "~~", "删除线"),
-    MarkdownAction("引用", "> ", placeholder = "引用", icon = Icons.Outlined.FormatQuote),
-    MarkdownAction("列表", "- ", placeholder = "列表项", icon = Icons.AutoMirrored.Outlined.FormatListBulleted),
-    MarkdownAction("链接", "[", "](https://)", "链接文字", icon = Icons.Outlined.Link),
-    MarkdownAction("代码", "```\n", "\n```", "代码", icon = Icons.Outlined.Code),
-    MarkdownAction("分割线", "\n---\n", icon = Icons.Outlined.HorizontalRule),
+/**
+ * 工具栏动作列表。
+ *
+ * 做成 @Composable 而不是顶层常量，是因为 label（图标按钮的无障碍描述）与 placeholder
+ * （无选区时插入的占位文字）都要跟随界面语言；H1/H2/B/I/S 这类符号本身是语言无关的，
+ * 保持原样输出成 Markdown 语法。
+ */
+@Composable
+fun markdownActions(): List<MarkdownAction> = listOf(
+    MarkdownAction("H1", "# ", placeholder = stringResource(R.string.md_heading)),
+    MarkdownAction("H2", "## ", placeholder = stringResource(R.string.md_heading)),
+    MarkdownAction("B", "**", "**", stringResource(R.string.md_bold)),
+    MarkdownAction("I", "*", "*", stringResource(R.string.md_italic)),
+    MarkdownAction("S", "~~", "~~", stringResource(R.string.md_strikethrough)),
+    MarkdownAction(
+        stringResource(R.string.md_quote), "> ",
+        placeholder = stringResource(R.string.md_quote),
+        icon = Icons.Outlined.FormatQuote,
+    ),
+    MarkdownAction(
+        stringResource(R.string.md_list), "- ",
+        placeholder = stringResource(R.string.md_list_item),
+        icon = Icons.AutoMirrored.Outlined.FormatListBulleted,
+    ),
+    MarkdownAction(
+        stringResource(R.string.md_link), "[", "](https://)",
+        stringResource(R.string.md_link_text),
+        icon = Icons.Outlined.Link,
+    ),
+    MarkdownAction(
+        stringResource(R.string.md_code), "```\n", "\n```",
+        stringResource(R.string.md_code),
+        icon = Icons.Outlined.Code,
+    ),
+    MarkdownAction(
+        stringResource(R.string.md_divider), "\n---\n",
+        icon = Icons.Outlined.HorizontalRule,
+    ),
 )
 
 class EditorViewModel(

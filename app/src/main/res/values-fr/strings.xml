@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">MarkNote</string>
+
+    <!-- Fichiers récents -->
+    <string name="settings">Réglages</string>
+    <string name="collapse_sidebar">Replier le volet</string>
+    <string name="expand_sidebar">Déplier le volet</string>
+    <string name="new_file">Nouveau fichier</string>
+    <string name="open_file">Ouvrir un fichier</string>
+    <string name="untitled_md">Sans titre.md</string>
+    <string name="remove_from_list">Retirer de la liste</string>
+    <string name="remove_dialog_message">Retirer « %1$s » de la liste des fichiers récents ? Le fichier sur votre appareil ne sera pas supprimé.</string>
+    <string name="remove">Retirer</string>
+    <string name="cancel">Annuler</string>
+    <string name="list_item_unavailable">Fichier indisponible : il a peut-être été déplacé ou supprimé, ou l\'autorisation a été révoquée. Touchez pour l\'accorder à nouveau.</string>
+    <string name="empty_document">(Document vide)</string>
+    <string name="empty_list_title">Aucun fichier ouvert pour l\'instant</string>
+    <string name="empty_list_hint">Touchez « Ouvrir un fichier » pour choisir un document Markdown sur votre appareil\nVous pouvez aussi ouvrir les fichiers .md depuis un gestionnaire de fichiers avec MarkNote</string>
+
+    <!-- État vide et ouverture externe -->
+    <string name="empty_editor_hint">Ouvrez un fichier récent à gauche, ou touchez « Ouvrir un fichier »</string>
+    <string name="no_persistent_access_title">Ce fichier n\'est pas accessible durablement</string>
+    <string name="no_persistent_access_message">Les fichiers partagés par d\'autres applications n\'ont pas d\'autorisation durable : ils deviennent inaccessibles après avoir quitté MarkNote. Accordez à nouveau l\'accès pour continuer à les modifier.</string>
+    <string name="edit_temporarily">Modifier pour l\'instant</string>
+
+    <!-- Éditeur -->
+    <string name="back">Retour</string>
+    <string name="save">Enregistrer</string>
+    <string name="search">Rechercher</string>
+    <string name="outline">Plan</string>
+    <string name="edit">Modifier</string>
+    <string name="preview">Aperçu</string>
+    <string name="close_outline">Fermer le plan</string>
+    <string name="outline_empty">Aucun titre pour l\'instant. Commencez une ligne par # pour créer un plan.</string>
+    <string name="editor_placeholder">Commencez à écrire en Markdown…</string>
+    <string name="stats_format">%1$d car. · %2$d lignes</string>
+    <string name="regrant">Accorder l\'accès</string>
+    <string name="grant_image_folder">Autoriser</string>
+    <string name="image_folder_hint">Les images de ce document nécessitent l\'accès à leur dossier pour s\'afficher</string>
+    <string name="notice_save_failed">Échec de l\'enregistrement : aucune autorisation d\'écriture sur ce fichier</string>
+    <string name="notice_read_only">Ouvert en lecture seule : pas d\'autorisation d\'écriture, les modifications ne seront pas enregistrées</string>
+    <string name="document_unavailable_title">Impossible d\'ouvrir ce fichier</string>
+    <string name="document_unavailable_message">MarkNote n\'a plus accès à ce fichier, ou celui-ci a été déplacé ou supprimé.\nLes fichiers ouverts depuis d\'autres applications (« Ouvrir avec » d\'un gestionnaire de fichiers, une messagerie, etc.) n\'obtiennent généralement pas d\'autorisation durable : elle expire à la fermeture de l\'application.\nUtilisez « Accorder l\'accès » pour resélectionner le même fichier dans le sélecteur système, et vous pourrez l\'éditer durablement.</string>
+    <string name="retry">Réessayer</string>
+
+    <!-- Recherche et remplacement -->
+    <string name="previous_match">Précédent</string>
+    <string name="next_match">Suivant</string>
+    <string name="close_search">Fermer la recherche</string>
+    <string name="replace_placeholder">Remplacer par</string>
+    <string name="replace">Remplacer</string>
+    <string name="replace_all">Tout</string>
+
+    <!-- Barre d\'outils Markdown -->
+    <string name="md_heading">Titre</string>
+    <string name="md_bold">Gras</string>
+    <string name="md_italic">Italique</string>
+    <string name="md_strikethrough">Barré</string>
+    <string name="md_quote">Citation</string>
+    <string name="md_list">Liste</string>
+    <string name="md_list_item">Élément de liste</string>
+    <string name="md_link">Lien</string>
+    <string name="md_link_text">Texte du lien</string>
+    <string name="md_code">Code</string>
+    <string name="md_divider">Séparateur</string>
+
+    <!-- Réglages -->
+    <string name="appearance">Apparence</string>
+    <string name="theme_mode">Thème</string>
+    <string name="theme_system">Système</string>
+    <string name="theme_light">Clair</string>
+    <string name="theme_dark">Sombre</string>
+    <string name="editor_section">Éditeur</string>
+    <string name="editor_font_size">Taille de police de l\'éditeur (%1$dsp actuellement)</string>
+    <string name="preview_section">Aperçu</string>
+    <string name="preview_font_size">Taille de police de l\'aperçu (%1$dsp actuellement)</string>
+    <string name="save_section">Enregistrement</string>
+    <string name="auto_save">Enregistrement automatique</string>
+    <string name="auto_save_on">Écrit dans le fichier 800 ms après la dernière frappe</string>
+    <string name="auto_save_off">Une fois désactivé, un bouton d\'enregistrement apparaît dans la barre supérieure</string>
+    <string name="language_section">Langue</string>
+    <string name="language">Langue</string>
+    <string name="language_system">Langue du système</string>
+    <string name="language_system_detail">Suivre la langue du système</string>
+    <string name="about">À propos</string>
+    <string name="about_version">MarkNote v%1$s</string>
+    <string name="font_small">Petite</string>
+    <string name="font_standard">Standard</string>
+    <string name="font_large">Grande</string>
+
+    <!-- Erreurs de chargement d'image dans l'aperçu -->
+    <string name="image_open_failed">Impossible d\'ouvrir l\'image : %1$s</string>
+    <string name="image_decode_failed">Impossible de décoder l\'image : %1$s</string>
+    <string name="image_invalid_data">Image data non valide</string>
+    <string name="image_decode_data_failed">Impossible de décoder l\'image data</string>
+</resources>

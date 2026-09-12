@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">MarkNote</string>
+
+    <!-- Zuletzt geöffnete Dateien -->
+    <string name="settings">Einstellungen</string>
+    <string name="collapse_sidebar">Seitenleiste einklappen</string>
+    <string name="expand_sidebar">Seitenleiste ausklappen</string>
+    <string name="new_file">Neue Datei</string>
+    <string name="open_file">Datei öffnen</string>
+    <string name="untitled_md">Unbenannt.md</string>
+    <string name="remove_from_list">Aus Liste entfernen</string>
+    <string name="remove_dialog_message">„%1$s“ aus der Liste der zuletzt geöffneten Dateien entfernen? Die Datei auf dem Gerät wird nicht gelöscht.</string>
+    <string name="remove">Entfernen</string>
+    <string name="cancel">Abbrechen</string>
+    <string name="list_item_unavailable">Datei nicht verfügbar: Sie wurde möglicherweise verschoben oder gelöscht, oder die Berechtigung ist erloschen. Zum erneuten Erteilen tippen.</string>
+    <string name="empty_document">(Leeres Dokument)</string>
+    <string name="empty_list_title">Noch keine Datei geöffnet</string>
+    <string name="empty_list_hint">Tippe auf „Datei öffnen“, um ein Markdown-Dokument auf dem Gerät auszuwählen\nDu kannst .md-Dateien auch im Dateimanager direkt mit MarkNote öffnen</string>
+
+    <!-- Leerer Zustand und externes Öffnen -->
+    <string name="empty_editor_hint">Öffne links eine zuletzt verwendete Datei oder tippe auf „Datei öffnen“</string>
+    <string name="no_persistent_access_title">Auf diese Datei kann nicht dauerhaft zugegriffen werden</string>
+    <string name="no_persistent_access_message">Von anderen Apps geteilte Dateien haben keine dauerhafte Berechtigung und lassen sich nach dem Beenden von MarkNote nicht mehr öffnen. Erteile die Berechtigung erneut, um sie weiter zu bearbeiten.</string>
+    <string name="edit_temporarily">Vorerst bearbeiten</string>
+
+    <!-- Editor -->
+    <string name="back">Zurück</string>
+    <string name="save">Speichern</string>
+    <string name="search">Suchen</string>
+    <string name="outline">Gliederung</string>
+    <string name="edit">Bearbeiten</string>
+    <string name="preview">Vorschau</string>
+    <string name="close_outline">Gliederung schließen</string>
+    <string name="outline_empty">Noch keine Überschriften. Beginne eine Zeile mit #, um eine Gliederung zu erzeugen.</string>
+    <string name="editor_placeholder">Beginne in Markdown zu schreiben…</string>
+    <string name="stats_format">%1$d Zeichen · %2$d Zeilen</string>
+    <string name="regrant">Berechtigung erteilen</string>
+    <string name="grant_image_folder">Erteilen</string>
+    <string name="image_folder_hint">Bilder in diesem Dokument benötigen Zugriff auf ihren Ordner, um angezeigt zu werden</string>
+    <string name="notice_save_failed">Speichern fehlgeschlagen: keine Schreibberechtigung für diese Datei</string>
+    <string name="notice_read_only">Schreibgeschützt geöffnet: keine Schreibberechtigung, Änderungen werden nicht gespeichert</string>
+    <string name="document_unavailable_title">Diese Datei kann nicht geöffnet werden</string>
+    <string name="document_unavailable_message">MarkNote hat keinen Zugriff mehr auf diese Datei, oder sie wurde verschoben oder gelöscht.\nAus anderen Apps geöffnete Dateien („Öffnen mit“ im Dateimanager, Chats usw.) erhalten meist keine dauerhafte Berechtigung und sind nach dem Beenden der App nicht mehr zugänglich.\nWähle die Datei mit „Berechtigung erteilen“ erneut in der Systemauswahl aus, dann kannst du sie dauerhaft bearbeiten.</string>
+    <string name="retry">Wiederholen</string>
+
+    <!-- Suchen und ersetzen -->
+    <string name="previous_match">Vorheriges</string>
+    <string name="next_match">Nächstes</string>
+    <string name="close_search">Suche schließen</string>
+    <string name="replace_placeholder">Ersetzen durch</string>
+    <string name="replace">Ersetzen</string>
+    <string name="replace_all">Alle</string>
+
+    <!-- Markdown-Werkzeugleiste -->
+    <string name="md_heading">Überschrift</string>
+    <string name="md_bold">Fett</string>
+    <string name="md_italic">Kursiv</string>
+    <string name="md_strikethrough">Durchgestrichen</string>
+    <string name="md_quote">Zitat</string>
+    <string name="md_list">Liste</string>
+    <string name="md_list_item">Listeneintrag</string>
+    <string name="md_link">Link</string>
+    <string name="md_link_text">Linktext</string>
+    <string name="md_code">Code</string>
+    <string name="md_divider">Trennlinie</string>
+
+    <!-- Einstellungen -->
+    <string name="appearance">Darstellung</string>
+    <string name="theme_mode">Design</string>
+    <string name="theme_system">System</string>
+    <string name="theme_light">Hell</string>
+    <string name="theme_dark">Dunkel</string>
+    <string name="editor_section">Editor</string>
+    <string name="editor_font_size">Editor-Schriftgröße (aktuell %1$dsp)</string>
+    <string name="preview_section">Vorschau</string>
+    <string name="preview_font_size">Vorschau-Schriftgröße (aktuell %1$dsp)</string>
+    <string name="save_section">Speichern</string>
+    <string name="auto_save">Automatisch speichern</string>
+    <string name="auto_save_on">Schreibt 800 ms nach der letzten Eingabe in die Datei zurück</string>
+    <string name="auto_save_off">Wenn aus, erscheint in der oberen Leiste eine Speichern-Schaltfläche</string>
+    <string name="language_section">Sprache</string>
+    <string name="language">Sprache</string>
+    <string name="language_system">Systemsprache</string>
+    <string name="language_system_detail">Der Systemsprache folgen</string>
+    <string name="about">Über</string>
+    <string name="about_version">MarkNote v%1$s</string>
+    <string name="font_small">Klein</string>
+    <string name="font_standard">Standard</string>
+    <string name="font_large">Groß</string>
+
+    <!-- Bildladefehler in der Vorschau -->
+    <string name="image_open_failed">Bild kann nicht geöffnet werden: %1$s</string>
+    <string name="image_decode_failed">Bild kann nicht dekodiert werden: %1$s</string>
+    <string name="image_invalid_data">Ungültiges data-Bild</string>
+    <string name="image_decode_data_failed">data-Bild kann nicht dekodiert werden</string>
+</resources>

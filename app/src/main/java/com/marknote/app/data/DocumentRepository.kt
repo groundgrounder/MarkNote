@@ -6,6 +6,8 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Process
 import android.provider.OpenableColumns
+import android.text.format.DateFormat
+import com.marknote.app.R
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
@@ -37,7 +39,10 @@ data class DocumentMeta(
 class DocumentRepository(private val context: Context) {
 
     private val prefs = context.getSharedPreferences("recent_docs", Context.MODE_PRIVATE)
-    private val timeFormat = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault())
+
+    /** 时间格式按界面语言缓存；locale 变化时重建，避免每个列表项都新建 formatter */
+    private var timeFormat: SimpleDateFormat? = null
+    private var formattedLocale: Locale? = null
 
     // ---------- 读写 ----------
 
@@ -93,7 +98,7 @@ class DocumentRepository(private val context: Context) {
         load().firstOrNull { it.uri == uri.toString() }?.name
             ?.takeIf { it.isNotBlank() }
             ?.let { return it }
-        return uri.lastPathSegment?.substringAfterLast('/') ?: "未命名.md"
+        return uri.lastPathSegment?.substringAfterLast('/') ?: context.getString(R.string.untitled_md)
     }
 
     // ---------- 权限持久化 ----------
@@ -217,9 +222,20 @@ class DocumentRepository(private val context: Context) {
     fun imageTreeFor(docUriString: String): String? =
         load().firstOrNull { it.uri == docUriString }?.tree?.ifBlank { null }
 
-    /** 格式化打开时间（列表页展示用） */
-    fun formatTime(epochMillis: Long): String =
-        if (epochMillis > 0) timeFormat.format(Date(epochMillis)) else ""
+    /**
+     * 格式化打开时间（列表页展示用）。
+     * 日期格式由当前界面语言的 locale 决定（各语言下的字段顺序与分隔符不同），
+     * 语言切换后 locale 变化即重建 formatter。
+     */
+    fun formatTime(epochMillis: Long): String {
+        if (epochMillis <= 0) return ""
+        val locale = context.resources.configuration.locales[0] ?: Locale.getDefault()
+        if (timeFormat == null || formattedLocale != locale) {
+            timeFormat = SimpleDateFormat(DateFormat.getBestDateTimePattern(locale, TIME_SKELETON), locale)
+            formattedLocale = locale
+        }
+        return timeFormat!!.format(Date(epochMillis))
+    }
 
     // ---------- 存取 ----------
 
@@ -319,5 +335,8 @@ class DocumentRepository(private val context: Context) {
         const val LEGACY_KEY_TIMES = "times"
         const val LEGACY_KEY_TREES = "trees"
         const val LEGACY_SEP = "\u0001"
+
+        /** ICU 骨架：年月日时分，具体排列由 locale 决定（如 zh 为 y/M/d HH:mm） */
+        const val TIME_SKELETON = "yMdHm"
     }
 }

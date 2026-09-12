@@ -45,7 +45,51 @@ MarkNote 是一个**文件优先**的 Markdown 编辑器：不建私有笔记库
 
 - Material You：Android 12+ 动态取色，浅色/深色可跟随系统或手动锁定，边到边布局
 - 平板/横屏双栏：宽屏（≥840dp）自动切换为左栏文件列表 + 右栏编辑器，旋转实时切换；侧栏可收起为窄条
-- 设置页：主题模式、编辑器与预览字号独立调节、自动保存开关
+- 设置页：主题模式、界面语言、编辑器与预览字号独立调节、自动保存开关
+- 多语言：内置英语、简体中文、繁體中文、日语、法语、德语、西班牙语、意大利语、拉丁语；默认跟随系统，也可在设置里手动指定，切换即时生效；未匹配的语言（韩语、葡语等）兜底英文
+- 系统级语言入口：声明 `android:localeConfig`，Android 13+ 可直接在系统「设置 → 应用 → MarkNote → 语言」里改，与应用内选项双向同步
+
+## 多语言
+
+界面文案全部集中在 `app/src/main/res/values*/strings.xml`，代码里只通过 `stringResource(...)`（Compose）或 `context.getString(...)`（Repository 层）取用。
+
+| 目录 | 语言 |
+|---|---|
+| `values/` | English（默认目录，未匹配到其他语言的兜底） |
+| `values-en/` | English（与默认目录同内容，显式声明 `en`，让 `localeConfig` 有明确归属） |
+| `values-b+zh+Hans/` | 简体中文（用 BCP 47 script 限定，zh-CN / zh-SG / zh-Hans-* 均命中） |
+| `values-b+zh+Hant/` | 繁體中文（用 BCP 47 script 限定，zh-TW / zh-HK / zh-MO 均命中） |
+| `values-ja/` | 日本語 |
+| `values-fr/` | Français |
+| `values-de/` | Deutsch |
+| `values-es/` | Español |
+| `values-it/` | Italiano |
+| `values-la/` | Latina |
+
+最近文件列表的时间格式也跟随语言（由 ICU 骨架 `yMdHm` 按 locale 生成）。
+
+切换语言没有引入 AppCompat（本项目主题继承 `android:Theme.Material.NoActionBar`，用不了 `AppCompatDelegate.setApplicationLocales`），而是自己实现：`AppLanguage` 枚举 + 语言偏好存 SharedPreferences，切换时重建 Activity。真正生效靠两处包装，缺一不可：
+
+- `MainActivity.attachBaseContext` —— 包装 Activity 的 Context，Compose 里 `stringResource` 读到的才是目标语言
+- `MarkNoteApplication.getResources()` —— 按当前偏好动态解析，让 `applicationContext`（Repository 层取文案用）也跟随语言，且切换后无需重启进程
+
+两个 Context 包装是这套方案的全部机制，因此**不依赖 API 等级**，Android 8.0+ 一律可用。
+
+Android 13+ 另有一条系统通道：`AndroidManifest` 声明 `android:localeConfig`（指向 `res/xml/locales_config.xml`）后，MarkNote 会出现在系统「设置 → 应用 → 语言」里。`AppLocaleStore` 负责两边对齐：
+
+- 系统里设过 → 以系统为准，并回写本地偏好，应用内的「语言」行跟着变
+- 系统里没设（跟随系统）→ 用本地偏好，保证应用内切换在任何机型上都可靠
+
+`AppLocaleStore` 内部对语言做**进程内缓存**：`MarkNoteApplication.getResources()` 调用极其频繁，而查询系统「按应用语言」是一次跨进程调用，不能每次现问。缓存在 `MainActivity.attachBaseContext`（系统改语言后必定重建 Activity）与写入时刷新。
+
+### 新增一种语言
+
+1. 在 `res/` 下新建 `values-xx/strings.xml`，把 `values/strings.xml` 的全部文案（当前 80 条）翻译过去，**键名必须完全一致**
+2. 在 `data/AppLanguage.kt` 的 `AppLanguage` 枚举里加一项：`tag` 用 BCP 47 标签，`endonym` 用该语言的自称
+3. 在 `res/xml/locales_config.xml` 里补一条 `<locale android:name="xx" />`，否则 Android 13+ 的系统语言列表里不会出现它
+4. 构建即可，设置页的语言列表会自动多出一项
+
+中文相关的语言按 BCP 47 **script** 标注（`zh-Hans` / `zh-Hant`），资源目录用 `values-b+zh+Hans` / `values-b+zh+Hant`，这样一次覆盖同文不同区的多个地区，也不必为每个地区各写一份译文。
 
 ## 技术栈
 
@@ -56,6 +100,7 @@ MarkNote 是一个**文件优先**的 Markdown 编辑器：不建私有笔记库
 | Markdown 渲染 | Markwon 4.6.2（core + ext-strikethrough + ext-tables + image），经 AndroidView 嵌入 |
 | 架构 | MVVM（ViewModel + Compose State），单 Activity + 轻量状态导航 |
 | 存储 | SAF + SharedPreferences（最近列表与设置），免存储权限 |
+| 多语言 | 自建方案（不依赖 AppCompat）：`AppLanguage` 枚举 + `attachBaseContext` / `getResources` 包装 + 9 套 `values-*/strings.xml`；Android 13+ 由 `android:localeConfig` 接入系统「按应用语言」 |
 | 兼容 | minSdk 26 / targetSdk 35 |
 
 ## 构建
@@ -72,16 +117,21 @@ MarkNote 是一个**文件优先**的 Markdown 编辑器：不建私有笔记库
 
 ```
 app/src/main/java/com/marknote/app/
-├── MainActivity.kt              # 入口 + 外部打开 intent + 轻量导航
+├── MainActivity.kt              # 入口 + 外部打开 intent + 轻量导航 + 应用语言包装
+├── MarkNoteApplication.kt       # 让 applicationContext 的资源跟随应用内语言
 ├── data/
 │   ├── DocumentRepository.kt    # SAF 文档读写 + 最近列表 + 图片文件夹授权
-│   └── SettingsRepository.kt    # 设置项（SharedPreferences + Compose 状态）
+│   ├── SettingsRepository.kt    # 设置项（SharedPreferences + Compose 状态）
+│   └── AppLanguage.kt           # 语言枚举 / 持久化（含系统按应用语言同步）/ Context 本地化包装
 └── ui/
     ├── theme/Theme.kt           # M3 动态取色主题（支持手动锁定浅/深）
+    ├── common/                  # 文档选择器、Context 扩展等公共组件
     ├── files/                   # 最近打开列表页 + ViewModel
-    ├── settings/                # 设置页
+    ├── settings/                # 设置页（含语言切换）
     └── editor/                  # 编辑器页、工具栏、语法高亮、大纲、Markwon 预览
 ```
+
+另有 `app/src/main/res/xml/locales_config.xml` —— Android 13+ 系统「应用语言」的可选清单，由清单里的 `android:localeConfig` 引用。
 
 ## 图标
 
@@ -94,6 +144,20 @@ app/src/main/java/com/marknote/app/
 
 <details>
 <summary>历史版本</summary>
+
+### v0.11.0
+
+- 兜底语言改为英文：默认资源目录 `values/` 由简体中文换成英文，简体中文迁到 `values-b+zh+Hans/`（BCP 47 script 限定）。原先未匹配语言的用户会看到中文，现在统一看到英文
+- 新增 `res/xml/locales_config.xml` 并在清单声明 `android:localeConfig`，Android 13+ 可直接在系统「设置 → 应用 → MarkNote → 语言」切换界面语言
+- 应用内选择与系统「按应用语言」双向同步：`AppLocaleStore` 读写两端对齐，并对语言做进程内缓存（`getResources()` 高频调用，不能每次都跨进程查询）
+- 中文标签由区域改为 script（`zh-CN` → `zh-Hans`、`zh-TW` → `zh-Hant`），并兼容旧版本已持久化的区域标签
+
+### v0.10.0
+
+- 多语言支持：新增「语言」设置项，内置简体中文、繁體中文、英语、日语、法语、德语、西班牙语、意大利语、拉丁语 9 种界面语言；默认跟随系统，每种语言用其自称展示
+- 全部界面文案从 Kotlin 代码抽到 `strings.xml`（共 80 条 × 9 套），代码侧改为 `stringResource` / `getString` 取用
+- 切换语言即时生效，并保留当前所在页面与正在编辑的文档；最近文件列表的时间格式也跟随语言
+- 未引入 AppCompat（主题继承 `android:Theme.Material.NoActionBar`），语言切换由 `attachBaseContext` + `Application.getResources` 自行实现
 
 ### v0.9.0
 

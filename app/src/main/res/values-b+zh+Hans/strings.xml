@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  简体中文（BCP 47: zh-Hans）。
+  以 script 限定，zh-CN / zh-SG / zh-Hans-* 皆命中，与 values-b+zh+Hant 对举。
+  注意：本目录**不是**默认目录 —— 未匹配语言的兜底是 values/ 的英文。
+-->
+<resources>
+    <string name="app_name">MarkNote</string>
+
+    <!-- 最近文件列表 -->
+    <string name="settings">设置</string>
+    <string name="collapse_sidebar">收起侧栏</string>
+    <string name="expand_sidebar">展开侧栏</string>
+    <string name="new_file">新建文件</string>
+    <string name="open_file">打开文件</string>
+    <string name="untitled_md">未命名.md</string>
+    <string name="remove_from_list">从列表移除</string>
+    <string name="remove_dialog_message">将「%1$s」从最近打开列表中移除，不会删除设备上的文件。</string>
+    <string name="remove">移除</string>
+    <string name="cancel">取消</string>
+    <string name="list_item_unavailable">文件暂不可访问：可能已被移动或删除，或访问权限已失效。点按可重新授权。</string>
+    <string name="empty_document">（空文档）</string>
+    <string name="empty_list_title">还没有打开过文件</string>
+    <string name="empty_list_hint">点击「打开文件」选择设备上的 Markdown 文档\n也可以在文件管理器里用 MarkNote 直接打开 .md 文件</string>
+
+    <!-- 空状态与外部打开 -->
+    <string name="empty_editor_hint">从左侧打开最近文件，或「打开文件」选择文档</string>
+    <string name="no_persistent_access_title">这个文件无法长期访问</string>
+    <string name="no_persistent_access_message">其他应用分享的文件没有长期权限，退出 MarkNote 后就打不开。重新授权即可长期编辑。</string>
+    <string name="edit_temporarily">暂时编辑</string>
+
+    <!-- 编辑器 -->
+    <string name="back">返回</string>
+    <string name="save">保存</string>
+    <string name="search">搜索</string>
+    <string name="outline">大纲</string>
+    <string name="edit">编辑</string>
+    <string name="preview">预览</string>
+    <string name="close_outline">关闭大纲</string>
+    <string name="outline_empty">还没有标题，用 # 开头写一行即可生成大纲</string>
+    <string name="editor_placeholder">开始用 Markdown 写作…</string>
+    <string name="stats_format">%1$d 字 · %2$d 行</string>
+    <string name="regrant">重新授权</string>
+    <string name="grant_image_folder">去授权</string>
+    <string name="image_folder_hint">文档中的图片需要授权所在文件夹才能显示</string>
+    <string name="notice_save_failed">保存失败：没有写入这个文件的权限</string>
+    <string name="notice_read_only">只读打开：没有写入权限，修改不会被保存</string>
+    <string name="document_unavailable_title">无法打开该文件</string>
+    <string name="document_unavailable_message">MarkNote 已经没有这个文件的访问权限，或者文件已被移动、删除。\n从其他应用（文件管理器「打开方式」、聊天记录等）打开的文件，系统通常不会给出长期权限，退出应用后就会失效。\n用「重新授权」在系统文件选择器里重新选一次同一个文件，之后就能一直编辑。</string>
+    <string name="retry">重试</string>
+
+    <!-- 搜索与替换 -->
+    <string name="previous_match">上一个</string>
+    <string name="next_match">下一个</string>
+    <string name="close_search">关闭搜索</string>
+    <string name="replace_placeholder">替换为</string>
+    <string name="replace">替换</string>
+    <string name="replace_all">全部</string>
+
+    <!-- Markdown 工具栏 -->
+    <string name="md_heading">标题</string>
+    <string name="md_bold">加粗</string>
+    <string name="md_italic">斜体</string>
+    <string name="md_strikethrough">删除线</string>
+    <string name="md_quote">引用</string>
+    <string name="md_list">列表</string>
+    <string name="md_list_item">列表项</string>
+    <string name="md_link">链接</string>
+    <string name="md_link_text">链接文字</string>
+    <string name="md_code">代码</string>
+    <string name="md_divider">分割线</string>
+
+    <!-- 设置 -->
+    <string name="appearance">外观</string>
+    <string name="theme_mode">主题模式</string>
+    <string name="theme_system">跟随系统</string>
+    <string name="theme_light">浅色</string>
+    <string name="theme_dark">深色</string>
+    <string name="editor_section">编辑器</string>
+    <string name="editor_font_size">编辑器字号（当前 %1$dsp）</string>
+    <string name="preview_section">预览</string>
+    <string name="preview_font_size">预览字号（当前 %1$dsp）</string>
+    <string name="save_section">保存</string>
+    <string name="auto_save">自动保存</string>
+    <string name="auto_save_on">输入停顿 800ms 自动写回文件</string>
+    <string name="auto_save_off">关闭后顶栏出现保存按钮，需手动保存</string>
+    <string name="language_section">语言</string>
+    <string name="language">语言</string>
+    <string name="language_system">跟随系统</string>
+    <string name="language_system_detail">使用系统语言设置</string>
+    <string name="about">关于</string>
+    <string name="about_version">MarkNote v%1$s</string>
+    <string name="font_small">小</string>
+    <string name="font_standard">标准</string>
+    <string name="font_large">大</string>
+
+    <!-- 预览中的图片加载失败提示 -->
+    <string name="image_open_failed">无法打开图片：%1$s</string>
+    <string name="image_decode_failed">无法解码图片：%1$s</string>
+    <string name="image_invalid_data">无效的 data 图片</string>
+    <string name="image_decode_data_failed">无法解码 data 图片</string>
+</resources>
+
