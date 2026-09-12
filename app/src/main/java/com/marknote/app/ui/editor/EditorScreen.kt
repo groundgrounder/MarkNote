@@ -54,6 +54,7 @@ import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -147,28 +148,62 @@ fun EditorScreen(
         }
     }
 
-    // 搜索替换
+    // 搜索替换。编辑器在源文本上搜索；预览没有源文本可编辑，改为在**渲染结果**上搜索，
+    // 命中与所见一致（命中数由 MarkdownPreview 回传渲染文本后算出）。
     var searchOpen by remember { mutableStateOf(false) }
     var query by remember { mutableStateOf("") }
     var replacement by remember { mutableStateOf("") }
     var matchIndex by remember { mutableStateOf(0) }
-    val matches = remember(viewModel.content.text, query) {
-        if (query.isEmpty()) emptyList() else buildList {
-            var i = viewModel.content.text.indexOf(query)
-            while (i >= 0) { add(i); i = viewModel.content.text.indexOf(query, i + 1) }
-        }
+    // 预览定位：同一个位置可能需要重复滚动（关掉搜索再点同一项），用 nonce 触发
+    var locateNonce by remember { mutableIntStateOf(0) }
+    var scrollTo by remember { mutableStateOf<PreviewScroll?>(null) }
+    var renderedText by remember(uriString) { mutableStateOf("") }
+
+    val sourceMatches = remember(viewModel.content.text, query) {
+        findMatches(viewModel.content.text, query)
     }
+    val renderedMatches = remember(renderedText, query) { findMatches(renderedText, query) }
+    val matches = if (viewModel.isPreview) renderedMatches else sourceMatches
+
     fun jumpToMatch(index: Int) {
         if (matches.isEmpty()) return
         matchIndex = ((index % matches.size) + matches.size) % matches.size
-        val start = matches[matchIndex]
-        viewModel.selectRange(start, start + query.length)
+        val match = matches[matchIndex]
+        if (viewModel.isPreview) {
+            scrollTo = PreviewScroll(match.first, ++locateNonce)
+        } else {
+            viewModel.selectRange(match.first, match.last + 1)
+        }
     }
 
-    // 输入变化后在重组完成时跳到第一个命中（此时 matches 已是新 query 的结果）
+    // 编辑器：输入变化后在重组完成时跳到第一个命中（此时 matches 已是新 query 的结果）
     LaunchedEffect(query) {
-        if (query.isNotEmpty() && matches.isNotEmpty()) jumpToMatch(0)
+        if (!viewModel.isPreview && query.isNotEmpty() && sourceMatches.isNotEmpty()) jumpToMatch(0)
     }
+
+    // 预览：命中数要等渲染文本回传才知道，拿到之后跳到第一个命中
+    LaunchedEffect(viewModel.isPreview, query, renderedMatches.size) {
+        if (viewModel.isPreview && query.isNotEmpty() && renderedMatches.isNotEmpty()) jumpToMatch(0)
+    }
+
+    // 大纲跳转：预览态下滚动到对应标题（下标在渲染文本里），编辑器里则是移动光标
+    val jumpToHeading: (Int) -> Unit = { offset ->
+        if (viewModel.isPreview) {
+            scrollTo = PreviewScroll(
+                offset = renderedOffsetOfHeading(
+                    headingOffset = offset,
+                    sourceText = viewModel.content.text,
+                    renderedText = renderedText,
+                ),
+                nonce = ++locateNonce,
+            )
+        } else {
+            viewModel.jumpTo(offset)
+        }
+    }
+
+    // 显示用的命中序号：内容变化后命中数可能变少，避免 n/m 里的 n 越界
+    val clampedMatchIndex = matchIndex.coerceIn(0, (matches.size - 1).coerceAtLeast(0))
 
     // 字数统计
     val (charCount, lineCount) = viewModel.stats()
@@ -201,21 +236,22 @@ fun EditorScreen(
                     }
                 },
                 actions = {
-                    if (usable && !viewModel.isPreview) {
-                        // 手动保存：关闭自动保存时显示；有未保存修改时高亮
-                        if (!settings.autoSave) {
-                            IconButton(onClick = { viewModel.save() }) {
-                                Icon(
-                                    Icons.Outlined.Save,
-                                    contentDescription = "保存",
-                                    tint = if (viewModel.hasUnsavedChanges) {
-                                        MaterialTheme.colorScheme.primary
-                                    } else {
-                                        MaterialTheme.colorScheme.onSurfaceVariant
-                                    },
-                                )
-                            }
+                    // 手动保存：关闭自动保存时显示；有未保存修改时高亮（预览态无需保存）
+                    if (usable && !viewModel.isPreview && !settings.autoSave) {
+                        IconButton(onClick = { viewModel.save() }) {
+                            Icon(
+                                Icons.Outlined.Save,
+                                contentDescription = "保存",
+                                tint = if (viewModel.hasUnsavedChanges) {
+                                    MaterialTheme.colorScheme.primary
+                                } else {
+                                    MaterialTheme.colorScheme.onSurfaceVariant
+                                },
+                            )
                         }
+                    }
+                    if (usable) {
+                        // 搜索与大纲在编辑、预览下都可用（预览是只读视图，同样需要查找与导航）
                         IconButton(onClick = {
                             searchOpen = !searchOpen
                             if (!searchOpen) { query = ""; replacement = "" }
@@ -228,8 +264,6 @@ fun EditorScreen(
                                 contentDescription = "大纲",
                             )
                         }
-                    }
-                    if (usable) {
                         IconButton(onClick = { viewModel.togglePreview() }) {
                             Icon(
                                 imageVector = if (viewModel.isPreview) Icons.Outlined.Edit
@@ -272,8 +306,34 @@ fun EditorScreen(
             Column(
                 modifier = Modifier
                     .widthIn(max = 840.dp)
-                    .fillMaxWidth(),
+                    .fillMaxWidth()
+                    // 搜索时要弹键盘，预览没有底栏，得自己避让，否则命中被键盘挡住
+                    .imePadding(),
             ) {
+                // 只读预览同样支持搜索：只找位置不改内容，所以不显示替换行
+                if (searchOpen) {
+                    SearchPanel(
+                        query = query,
+                        onQueryChange = {
+                            query = it
+                            matchIndex = 0
+                        },
+                        replacement = replacement,
+                        onReplacementChange = { replacement = it },
+                        matchCount = matches.size,
+                        matchIndex = clampedMatchIndex,
+                        onPrev = { jumpToMatch(matchIndex - 1) },
+                        onNext = { jumpToMatch(matchIndex + 1) },
+                        onReplace = {},
+                        onReplaceAll = {},
+                        showReplace = false,
+                        onClose = {
+                            searchOpen = false
+                            query = ""
+                            replacement = ""
+                        },
+                    )
+                }
                 // 文档含相对路径图片但尚未授权图片文件夹时，显示一次性引导条
                 if (hasRelativeImage(viewModel.content.text) && imageTree == null) {
                     Surface(
@@ -310,6 +370,10 @@ fun EditorScreen(
                     markdown = viewModel.content.text,
                     textSizeSp = settings.previewFontSp,
                     imageTree = imageTree,
+                    highlights = matches,
+                    currentHighlight = matches.getOrNull(clampedMatchIndex),
+                    scrollTo = scrollTo,
+                    onRenderedText = { renderedText = it },
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 20.dp),
@@ -343,13 +407,12 @@ fun EditorScreen(
                         replacement = replacement,
                         onReplacementChange = { replacement = it },
                         matchCount = matches.size,
-                        matchIndex = matchIndex
-                            .coerceAtMost((matches.size - 1).coerceAtLeast(0)),
+                        matchIndex = clampedMatchIndex,
                         onPrev = { jumpToMatch(matchIndex - 1) },
                         onNext = { jumpToMatch(matchIndex + 1) },
                         onReplace = {
                             if (matches.isNotEmpty()) {
-                                val start = matches[matchIndex]
+                                val start = matches[clampedMatchIndex].first
                                 viewModel.replaceInRange(
                                     start,
                                     start + query.length,
@@ -393,14 +456,14 @@ fun EditorScreen(
         }
         }
 
-        // 宽屏：大纲以右侧面板呈现，与左侧文件列表栏风格一致
-        if (isExpanded && showOutline && !viewModel.isPreview) {
+        // 宽屏：大纲以右侧面板呈现，与左侧文件列表栏风格一致（预览态也可调出）
+        if (isExpanded && showOutline) {
             VerticalDivider()
             OutlinePanel(
                 outline = outline,
                 onJump = { offset ->
                     showOutline = false
-                    viewModel.jumpTo(offset)
+                    jumpToHeading(offset)
                 },
                 onClose = { showOutline = false },
                 modifier = Modifier
@@ -411,13 +474,13 @@ fun EditorScreen(
         }
     }
 
-    // 窄屏：大纲从底部弹出
+    // 窄屏：大纲从底部弹出（预览态也可调出）
     if (!isExpanded && showOutline) {
         OutlineSheet(
             outline = outline,
             onJump = { offset ->
                 showOutline = false
-                viewModel.jumpTo(offset)
+                jumpToHeading(offset)
             },
             onDismiss = { showOutline = false },
         )
@@ -499,6 +562,56 @@ private fun DocumentUnavailable(
     }
 }
 
+/** 找出 query 在 text 中的全部命中位置（左闭右开区间），供高亮与跳转使用 */
+private fun findMatches(text: String, query: String): List<IntRange> {
+    if (query.isEmpty() || text.isEmpty()) return emptyList()
+    val result = mutableListOf<IntRange>()
+    var i = text.indexOf(query)
+    while (i >= 0) {
+        result.add(i until i + query.length)
+        i = text.indexOf(query, i + 1)
+    }
+    return result
+}
+
+/** 标题里可能带行内标记（**加粗**、[文字](链接) 等），渲染后会消失，比较前先剥掉 */
+private val inlineMarkdownPattern = Regex("""\[([^\]]*)\]\([^)]*\)|[*_~`]""")
+
+private fun plainTitle(title: String): String =
+    title.replace(inlineMarkdownPattern) { it.groupValues[1] }.trim()
+
+/**
+ * 大纲里的源文本偏移 → 渲染文本偏移。
+ *
+ * Markdown 语法在渲染后会消失（`# 标题` 变成 `标题`、列表标记等也不占字符），
+ * 所以两套偏移并不一致，不能直接拿去滚动。这里按「源文本长度比例」估算一个大概位置，
+ * 再在渲染文本里找离它最近的一次标题文字；标题文字找不到（含行内标记等）时就用估算值。
+ */
+private fun renderedOffsetOfHeading(
+    headingOffset: Int,
+    sourceText: String,
+    renderedText: String,
+): Int {
+    if (renderedText.isEmpty()) return 0
+    val ratio = if (sourceText.isEmpty()) 0.0 else headingOffset.toDouble() / sourceText.length
+    val estimate = (ratio * renderedText.length).toInt().coerceIn(0, renderedText.length)
+    val headingLine = sourceText.substring(headingOffset).lineSequence().firstOrNull().orEmpty()
+    val title = plainTitle(headingLine.trimStart('#').trim())
+    if (title.isBlank()) return estimate
+    var best = -1
+    var bestDistance = Int.MAX_VALUE
+    var i = renderedText.indexOf(title)
+    while (i >= 0) {
+        val distance = kotlin.math.abs(i - estimate)
+        if (distance < bestDistance) {
+            bestDistance = distance
+            best = i
+        }
+        i = renderedText.indexOf(title, i + 1)
+    }
+    return if (best >= 0) best else estimate
+}
+
 @Composable
 private fun SearchPanel(
     query: String,
@@ -512,6 +625,7 @@ private fun SearchPanel(
     onReplace: () -> Unit,
     onReplaceAll: () -> Unit,
     onClose: () -> Unit,
+    showReplace: Boolean = true,
 ) {
     Surface {
         Column {
@@ -548,28 +662,31 @@ private fun SearchPanel(
                     Icon(Icons.Outlined.Close, contentDescription = "关闭搜索")
                 }
             }
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.padding(start = 8.dp),
-            ) {
-                TextField(
-                    value = replacement,
-                    onValueChange = onReplacementChange,
-                    placeholder = { Text("替换为") },
-                    singleLine = true,
-                    modifier = Modifier.weight(1f),
-                    colors = TextFieldDefaults.colors(
-                        focusedContainerColor = Color.Transparent,
-                        unfocusedContainerColor = Color.Transparent,
-                        focusedIndicatorColor = Color.Transparent,
-                        unfocusedIndicatorColor = Color.Transparent,
-                    ),
-                )
-                TextButton(onClick = onReplace, enabled = matchCount > 0) {
-                    Text("替换")
-                }
-                TextButton(onClick = onReplaceAll, enabled = matchCount > 0) {
-                    Text("全部")
+            // 预览是只读视图，没有"替换"这回事，只留查找与上下跳转
+            if (showReplace) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.padding(start = 8.dp),
+                ) {
+                    TextField(
+                        value = replacement,
+                        onValueChange = onReplacementChange,
+                        placeholder = { Text("替换为") },
+                        singleLine = true,
+                        modifier = Modifier.weight(1f),
+                        colors = TextFieldDefaults.colors(
+                            focusedContainerColor = Color.Transparent,
+                            unfocusedContainerColor = Color.Transparent,
+                            focusedIndicatorColor = Color.Transparent,
+                            unfocusedIndicatorColor = Color.Transparent,
+                        ),
+                    )
+                    TextButton(onClick = onReplace, enabled = matchCount > 0) {
+                        Text("替换")
+                    }
+                    TextButton(onClick = onReplaceAll, enabled = matchCount > 0) {
+                        Text("全部")
+                    }
                 }
             }
             HorizontalDivider()

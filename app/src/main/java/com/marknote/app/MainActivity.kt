@@ -244,11 +244,10 @@ fun MarkNoteApp(
             onDismissRequest = { pendingRegrant = null },
             title = { Text("这个文件无法长期访问") },
             text = {
+                // 字号沿用 AlertDialog 默认（bodyMedium）：不覆盖全局排版风格
                 Text(
-                    "该文件是其他应用分享给 MarkNote 的，系统没有授予长期访问权限，" +
-                        "退出应用后将无法再打开或保存它。\n\n" +
-                        "点「重新授权」，在系统文件选择器里重新选一次这个文件，" +
-                        "之后就能一直编辑。",
+                    text = "其他应用分享的文件没有长期权限，" +
+                        "退出 MarkNote 后就打不开。重新授权即可长期编辑。",
                 )
             },
             confirmButton = {

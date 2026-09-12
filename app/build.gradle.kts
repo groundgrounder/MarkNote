@@ -12,8 +12,8 @@ android {
         applicationId = "com.marknote.app"
         minSdk = 26
         targetSdk = 35
-        versionCode = 2
-        versionName = "0.8.1"
+        versionCode = 3
+        versionName = "0.9.0"
     }
 
     buildTypes {
