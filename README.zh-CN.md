@@ -141,6 +141,19 @@ app/src/main/java/com/marknote/app/
 
 自适应图标（Adaptive Icon）：Markdown「M↓」记号，白色 M + 琥珀色下箭头（#FFD54F），深靛蓝底（#4A5ACF）；支持 Android 13+ 主题图标（monochrome）。各密度 PNG 由 `tools/render_icon.py` 生成。
 
+## 许可证
+
+版权所有 (C) 2026 groundgrounder
+
+MarkNote 是自由软件：你可以依据自由软件基金会发布的 **GNU 通用公共许可证**（第 3 版或
+你选择的任何更新版本）条款重新发布和/或修改它。
+
+MarkNote 的发布是希望它能有用，但不提供任何担保，甚至不包含适销性或特定用途适用性的
+默示担保。详情请见 [GNU 通用公共许可证](https://www.gnu.org/licenses/gpl-3.0.html)。
+
+你应当已随本程序收到 GNU 通用公共许可证的副本。如果没有，请见
+<https://www.gnu.org/licenses/>。
+
 ## 路线（规划）
 
 - v1.1：「另存为」、图片插入
