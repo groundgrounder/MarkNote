@@ -28,6 +28,8 @@
     <!-- Editor -->
     <string name="back">Redi</string>
     <string name="save">Serva</string>
+    <string name="undo">Revoca</string>
+    <string name="redo">Refice</string>
     <string name="search">Quaere</string>
     <string name="outline">Index</string>
     <string name="edit">Recensere</string>

@@ -35,6 +35,7 @@ Grab the latest APK (`MarkNote-vX.Y.Z.apk`) from [Releases](https://github.com/g
 - Syntax highlighting in the editor: lightweight and regex-based — headings, bold, italic, strikethrough, quotes, code, links and list markers are coloured live
 - Symbol toolbar: H1/H2/B/I/S plus quote / list / link / code / horizontal rule, docked above the keyboard, wraps the current selection
 - Search & replace: match counter (n/m), wrapping navigation with highlighted matches, replace one or all
+- Undo/redo: two buttons in the top bar (a burst of typing collapses into a single step — same-kind edits within 600ms merge — while toolbar inserts and replace-all each stay a step of their own; the caret returns to the change and the buttons dim when there is nothing left to undo). No Ctrl+Z shortcut: while a text field has focus the key is handed to the IME first, and Gboard consumes it for its own per-character undo, so the app never sees it — verified at all three hooks (Activity, pre-IME, Compose)
 - Outline navigation: slides in from the right on landscape/tablet, bottom sheet on narrow screens; tapping jumps to the heading (available in preview too)
 - Word count: live "N chars · M lines" in the top bar
 
@@ -132,10 +133,12 @@ app/src/main/java/com/marknote/app/
     ├── common/                  # document picker, context extensions and other shared pieces
     ├── files/                   # recent files screen + ViewModel
     ├── settings/                # settings screen (incl. language picker)
-    └── editor/                  # editor screen, toolbar, syntax highlighting, outline, Markwon preview
+    └── editor/                  # editor screen, toolbar, syntax highlighting, outline, undo stack, Markwon preview
 ```
 
 There is also `app/src/main/res/xml/locales_config.xml` — the list of languages offered by the Android 13+ system "App language" screen, referenced by `android:localeConfig` in the manifest.
+
+After touching the editor's text-mutation logic, run `tools/run_checks.sh`: it compiles `UndoStack` (pure Kotlin, zero Android dependencies) and runs JVM assertions over diff edge cases, coalescing rules, stack limits and the self-healing clear. No emulator needed, results in seconds.
 
 ## Icon
 
@@ -158,11 +161,20 @@ If not, see <https://www.gnu.org/licenses/>.
 
 ## Roadmap
 
-- v1.1: "Save as", image insertion
+- v1.2: "Save as", image insertion
 - v2.0: WebDAV sync, custom themes, multi-tab editing
 
 <details>
 <summary>Version history</summary>
+
+### v1.1.0
+
+- Editor undo/redo, driven by two top-bar buttons (edit mode only — the preview has nothing to undo). The history is a hand-written differential stack: pure Kotlin, zero Android dependencies, covered by JVM assertions in `tools/run_checks.sh`
+- A burst of typing collapses into a single step (same-kind edits within 600 ms merge, a pause splits them), while toolbar inserts and replace-all each stay a step of their own. The caret returns to the change, and the buttons dim when there is nothing left to undo
+- The stack is bounded twice over (200 entries and 500k characters of diff), so one large paste cannot grow it without limit. Every diff is validated against the live text before it is applied — a stale entry clears the history instead of silently corrupting the document
+- Replacing the whole text invalidates the history: opening or reloading a document, and re-reading it from disk when there are no unsaved changes, both clear the stack, so a re-read can never be undone through a stale diff
+- No Ctrl+Z shortcut, and that is deliberate: with a text field focused the letter key is handed to the IME first, and Gboard consumes the combination for its own per-character undo, so the app never sees it. Verified at all three hooks (Activity, pre-IME, Compose), and the handler was removed rather than shipped as dead code
+- Smaller cleanups: the version line in Settings now comes from the localized string resources, and an unused icon import in the editor screen is gone
 
 ### v1.0.0
 

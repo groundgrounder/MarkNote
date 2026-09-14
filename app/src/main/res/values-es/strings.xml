@@ -27,6 +27,8 @@
     <!-- Editor -->
     <string name="back">Atrás</string>
     <string name="save">Guardar</string>
+    <string name="undo">Deshacer</string>
+    <string name="redo">Rehacer</string>
     <string name="search">Buscar</string>
     <string name="outline">Esquema</string>
     <string name="edit">Editar</string>

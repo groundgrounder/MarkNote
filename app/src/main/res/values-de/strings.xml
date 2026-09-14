@@ -27,6 +27,8 @@
     <!-- Editor -->
     <string name="back">Zurück</string>
     <string name="save">Speichern</string>
+    <string name="undo">Rückgängig</string>
+    <string name="redo">Wiederholen</string>
     <string name="search">Suchen</string>
     <string name="outline">Gliederung</string>
     <string name="edit">Bearbeiten</string>

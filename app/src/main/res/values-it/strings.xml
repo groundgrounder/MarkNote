@@ -27,6 +27,8 @@
     <!-- Editor -->
     <string name="back">Indietro</string>
     <string name="save">Salva</string>
+    <string name="undo">Annulla</string>
+    <string name="redo">Ripeti</string>
     <string name="search">Cerca</string>
     <string name="outline">Struttura</string>
     <string name="edit">Modifica</string>

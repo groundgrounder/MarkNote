@@ -179,7 +179,7 @@ fun SettingsScreen(
 
             SectionLabel(stringResource(R.string.about))
             Text(
-                "MarkNote v${BuildConfig.VERSION_NAME}",
+                stringResource(R.string.about_version, BuildConfig.VERSION_NAME),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

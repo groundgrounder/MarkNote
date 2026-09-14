@@ -25,8 +25,9 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
-import androidx.compose.material.icons.automirrored.outlined.FormatListBulleted
+import androidx.compose.material.icons.automirrored.outlined.Redo
 import androidx.compose.material.icons.automirrored.outlined.Toc
+import androidx.compose.material.icons.automirrored.outlined.Undo
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.ErrorOutline
@@ -248,6 +249,26 @@ fun EditorScreen(
                     }
                 },
                 actions = {
+                    // 撤销/重做只在编辑态出现：预览是只读视图，没有可撤销的操作；隐藏掉还能
+                    // 把顶栏宽度让给文件名（411dp 的机器上六个图标已经很挤）。
+                    //
+                    // 图标不指定 tint —— TopAppBar 通过 LocalContentColor 给的是
+                    // onSurfaceVariant，而 IconButton 在 disabled 时会把它降到 38% 透明度。
+                    // 一旦写死 tint，按钮就永远是同一个颜色，撤到底也看不出来。
+                    if (usable && !viewModel.isPreview) {
+                        IconButton(onClick = { viewModel.undo() }, enabled = viewModel.canUndo) {
+                            Icon(
+                                Icons.AutoMirrored.Outlined.Undo,
+                                contentDescription = stringResource(R.string.undo),
+                            )
+                        }
+                        IconButton(onClick = { viewModel.redo() }, enabled = viewModel.canRedo) {
+                            Icon(
+                                Icons.AutoMirrored.Outlined.Redo,
+                                contentDescription = stringResource(R.string.redo),
+                            )
+                        }
+                    }
                     // 手动保存：关闭自动保存时显示；有未保存修改时高亮（预览态无需保存）
                     if (usable && !viewModel.isPreview && !settings.autoSave) {
                         IconButton(onClick = { viewModel.save() }) {
@@ -449,6 +470,12 @@ fun EditorScreen(
                     )
                 }
                 // 纯源码编辑：等宽字体、无边框、全屏
+                //
+                // 这里不挂硬件键盘的 Ctrl+Z/Ctrl+Y：实测过，文本框有焦点时字母按键会先交给
+                // 输入法，应用窗口（Activity.dispatchKeyEvent、View.onKeyPreIme、Compose 的
+                // onPreviewKeyEvent）全都收不到 Z 的 KeyDown。Gboard 自带逐字符撤销，会把
+                // Ctrl+Z 吃掉——用户看到的「撤销」是它的，不是我们栈的。顶栏那两个按钮才是
+                // 真正可用的入口，详见 README 的说明。
                 TextField(
                     value = viewModel.content,
                     onValueChange = viewModel::onContentChange,

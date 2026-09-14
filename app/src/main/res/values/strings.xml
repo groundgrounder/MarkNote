@@ -33,6 +33,8 @@
     <!-- Editor -->
     <string name="back">Back</string>
     <string name="save">Save</string>
+    <string name="undo">Undo</string>
+    <string name="redo">Redo</string>
     <string name="search">Search</string>
     <string name="outline">Outline</string>
     <string name="edit">Edit</string>

@@ -27,6 +27,8 @@
     <!-- Éditeur -->
     <string name="back">Retour</string>
     <string name="save">Enregistrer</string>
+    <string name="undo">Annuler</string>
+    <string name="redo">Rétablir</string>
     <string name="search">Rechercher</string>
     <string name="outline">Plan</string>
     <string name="edit">Modifier</string>

@@ -27,6 +27,8 @@
     <!-- エディタ -->
     <string name="back">戻る</string>
     <string name="save">保存</string>
+    <string name="undo">元に戻す</string>
+    <string name="redo">やり直し</string>
     <string name="search">検索</string>
     <string name="outline">アウトライン</string>
     <string name="edit">編集</string>

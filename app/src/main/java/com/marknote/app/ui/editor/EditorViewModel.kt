@@ -15,6 +15,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.TextFieldValue
 import android.net.Uri
+import android.os.SystemClock
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.marknote.app.R
@@ -136,6 +137,49 @@ class EditorViewModel(
     /** 串行化写盘：防止连续编辑时多个保存协程并发写同一文件造成旧内容覆盖新内容 */
     private val saveMutex = Mutex()
 
+    /** 撤销栈。纯 Kotlin、不依赖 Android，所以它能在 JVM 上被断言实测（tools/run_checks.sh） */
+    private val undoStack = UndoStack()
+
+    /**
+     * 有历史可撤 / 可重做。顶栏那两个按钮的禁用态绑的就是它们。
+     *
+     * 必须做成可观察状态，不能写成 `undoStack.canUndo` 的转发：撤销栈是普通对象，它内部
+     * 那个 ArrayList 变化**不会通知 Compose**，按钮就会永远停在初始的 false
+     * —— 编译通过、逻辑也对，只是按钮永远不变灰，很难看出来。
+     * 所以每次动过栈都要手动同步一次（见 [refreshUndoState]）。
+     */
+    var canUndo by mutableStateOf(false)
+        private set
+
+    var canRedo by mutableStateOf(false)
+        private set
+
+    /** 动过撤销栈之后调用，把它的状态搬进可观察字段 */
+    private fun refreshUndoState() {
+        canUndo = undoStack.canUndo
+        canRedo = undoStack.canRedo
+    }
+
+    /**
+     * 记一步撤销。必须在 [content] 被覆盖**之前**调用：oldText 是这次改动之前的正文。
+     *
+     * [coalesce] 传 false 用于工具栏插入、替换这类**独立操作**——它们不该与之前的手打输入
+     * 并成一步，否则撤销一次会连带退掉上一段输入。
+     *
+     * 时间戳用 `elapsedRealtime()` 而不是 `currentTimeMillis()`：后者会被用户改系统时间拨动，
+     * 拨回去就会让撤销栈的「停顿阈值」判断失真。
+     */
+    private fun recordEdit(oldText: String, newText: String, coalesce: Boolean = true) {
+        undoStack.record(oldText, newText, SystemClock.elapsedRealtime(), coalesce)
+        refreshUndoState()
+    }
+
+    /** 历史作废（正文来源换了）时清栈，并同步按钮状态 */
+    private fun clearUndoHistory() {
+        undoStack.clear()
+        refreshUndoState()
+    }
+
     init {
         load()
     }
@@ -155,6 +199,7 @@ class EditorViewModel(
             encoding = document.encoding
             lastSavedText = document.text
             content = TextFieldValue(document.text, TextRange(document.text.length))
+            clearUndoHistory() // 刚打开（或重新载入）的文档没有编辑历史可撤
             isLoaded = true
             loadFailed = false
             saveFailed = false
@@ -182,11 +227,41 @@ class EditorViewModel(
             lastSavedText = document.text
             val cursor = content.selection.start.coerceAtMost(document.text.length)
             content = TextFieldValue(document.text, TextRange(cursor))
+            // 正文被整份换掉了，栈里记的「某处曾经是某内容」全部失效。虽然栈在撤销前会
+            // 自校验、对不上就自己清空，但那只在差分真的错位时才会触发——新旧文本若有一段
+            // 共同前缀让差分恰好匹配上，就会按错误的位置改文本。显式清掉才安全。
+            clearUndoHistory()
         }
     }
 
     fun onContentChange(newValue: TextFieldValue) {
+        // 必须在 content 被覆盖之前记录。只挪光标时两段文本相同，栈会自己忽略。
+        recordEdit(content.text, newValue.text)
         content = newValue
+    }
+
+    /**
+     * 撤销一步。没有历史可撤、或历史已与正文不符（栈会自己清空）时什么都不做。
+     *
+     * 光标跟着回到改动处：被撤销的内容常常在视野之外，看不见的撤销等于没发生。
+     */
+    fun undo() {
+        val outcome = undoStack.undo(content.text)
+        refreshUndoState()
+        if (outcome != null) applyOutcome(outcome)
+    }
+
+    /** 重做一步。见 [undo] */
+    fun redo() {
+        val outcome = undoStack.redo(content.text)
+        refreshUndoState()
+        if (outcome != null) applyOutcome(outcome)
+    }
+
+    /** 应用撤销/重做的结果：换正文并把光标放到改动处，TextField 会自动滚动到光标可见 */
+    private fun applyOutcome(outcome: UndoOutcome) {
+        val caret = outcome.caret.coerceIn(0, outcome.text.length)
+        content = TextFieldValue(outcome.text, TextRange(caret))
     }
 
     /** 大纲跳转：把光标移到指定偏移，TextField 会自动滚动到光标可见 */
@@ -207,6 +282,8 @@ class EditorViewModel(
         val s = start.coerceIn(0, content.text.length)
         val e = end.coerceIn(s, content.text.length)
         val replaced = content.text.replaceRange(s, e, newText)
+        // 单处替换是一次独立意图，不与之前的手打输入合并
+        recordEdit(content.text, replaced, coalesce = false)
         content = TextFieldValue(replaced, TextRange(s + newText.length))
     }
 
@@ -227,6 +304,8 @@ class EditorViewModel(
         }
         if (count > 0) {
             val newText = text.replace(query, replacement)
+            // 替换全部是一次独立操作，不与之前的手打输入合并
+            recordEdit(text, newText, coalesce = false)
             content = TextFieldValue(newText, TextRange(content.selection.start.coerceAtMost(newText.length)))
         }
         return count
@@ -285,6 +364,8 @@ class EditorViewModel(
         } else {
             sel.min + insert.length
         }
+        // 工具栏插入是一次独立意图：不合并，撤销一次就干净退回插入前
+        recordEdit(current.text, newText, coalesce = false)
         content = TextFieldValue(newText, TextRange(cursor))
     }
 }
