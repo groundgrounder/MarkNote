@@ -21,8 +21,41 @@ jobs:
       - name: Android SDK
         uses: android-actions/setup-android@v3
 
+      # 默认的 debug 签名是 AGP 在 ~/.android/debug.keystore 不存在时**现场随机生成**的，
+      # CI 每次在全新 runner 上都会换一把钥匙 —— 于是每个 Release 包签名都不同，用户覆盖
+      # 安装会被系统拒绝（INSTALL_FAILED_UPDATE_INCOMPATIBLE）。这里把固定密钥从仓库
+      # secret 还原出来；`app/build.gradle.kts` 见到 keystore/marknote.jks 就会用它签名。
+      - name: 还原打包密钥
+        env:
+          KS_BASE64: ${{ secrets.SIGNING_KEYSTORE_BASE64 }}
+          IS_TAG: ${{ startsWith(github.ref, 'refs/tags/v') }}
+        run: |
+          if [ -n "$KS_BASE64" ]; then
+            mkdir -p keystore
+            printf '%s' "$KS_BASE64" | base64 -d > keystore/marknote.jks
+          elif [ "$IS_TAG" = "true" ]; then
+            echo "::error::缺少 secrets.SIGNING_KEYSTORE_BASE64：这样签出的包用户无法覆盖安装"
+            exit 1
+          fi
+
       - name: 构建 Debug APK
         run: ./gradlew assembleDebug --no-daemon
+
+      # 上面那道「密钥必须还原」的门禁挡不住「还原了但构建没用上」的情况，所以再核一次证书，
+      # 免得哪天又悄悄退回随机签名（那正是 v0.8 → v1.0 → v1.1 全都装不上的原因）。
+      - name: 校验签名确为固定密钥
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          set -euo pipefail
+          APK="app/build/outputs/apk/debug/app-debug.apk"
+          BT="$(ls -d "${ANDROID_HOME:-$ANDROID_SDK_ROOT}"/build-tools/*/ | sort -V | tail -1)"
+          CERT="$("$BT/apksigner" verify --print-certs "$APK" \
+                | grep -oE 'SHA-256 digest: [0-9a-f]+' | tail -1 | awk '{print $3}')"
+          echo "签名证书 SHA-256: ${CERT:-（取不到）}"
+          if [ "$CERT" != "c35357174c91412d1f8a9739ef815eceb88b520ae3fcd6244c609a6b0580b20d" ]; then
+            echo "::error::签名证书不是固定密钥，这样发出的包用户无法覆盖安装"
+            exit 1
+          fi
 
       - name: 上传 APK 构件
         uses: actions/upload-artifact@v4

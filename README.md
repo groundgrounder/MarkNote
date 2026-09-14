@@ -176,6 +176,11 @@ If not, see <https://www.gnu.org/licenses/>.
 - No Ctrl+Z shortcut, and that is deliberate: with a text field focused the letter key is handed to the IME first, and Gboard consumes the combination for its own per-character undo, so the app never sees it. Verified at all three hooks (Activity, pre-IME, Compose), and the handler was removed rather than shipped as dead code
 - Smaller cleanups: the version line in Settings now comes from the localized string resources, and an unused icon import in the editor screen is gone
 
+### v1.1.1
+
+- Fixed: every release was signed with a different key, so installing a new version over an old one was rejected with "App not installed". The default debug signing key is generated on the fly by the Android Gradle Plugin whenever `~/.android/debug.keystore` is missing — which is the case on every fresh CI runner. Releases are now signed with one fixed key, restored from a repository secret at build time, and the workflow fails if the resulting certificate is not the expected one
+- No functional changes
+
 ### v1.0.0
 
 - First stable release: the feature set, UI language handling and file-format behaviour are settled from here on
