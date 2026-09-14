@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  MarkNote 图标底色：靛蓝微渐变。原来那版 #4A5ACF 是纯平涂，偏亮偏"系统默认色"，
+  加一档纵向渐变（左上偏亮 → 右下压深）以后层次感明显好一些，也让白色前景更跳。
+
+  铺得比 108 视口大一圈：部分启动器会对背景层做轻微缩放或视差，这样不会露边。
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <path android:pathData="M-18,-18 L126,-18 L126,126 L-18,126 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:type="linear"
+                android:startX="0"
+                android:startY="0"
+                android:endX="42"
+                android:endY="108"
+                android:startColor="#4C58DA"
+                android:endColor="#2C35A0" />
+        </aapt:attr>
+    </path>
+</vector>

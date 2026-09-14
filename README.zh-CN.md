@@ -142,7 +142,7 @@ app/src/main/java/com/marknote/app/
 
 ## 图标
 
-自适应图标（Adaptive Icon）：Markdown「M↓」记号，白色 M + 琥珀色下箭头（#FFD54F），深靛蓝底（#4A5ACF）；支持 Android 13+ 主题图标（monochrome）。各密度 PNG 由 `tools/render_icon.py` 生成。
+自适应图标（Adaptive Icon）：Markdown「M↓」记号，白色 M + 浅蓝紫下箭头（#9AA8FF），靛蓝渐变底（#4C58DA → #2C35A0）；支持 Android 13+ 主题图标（monochrome）。各密度 PNG 由 `tools/render_icon.py` 生成，该脚本同时把 512px 商店图标与预览看板写到 `.workbuddy/artifacts/`。
 
 ## 许可证
 
@@ -178,6 +178,13 @@ MarkNote 的发布是希望它能有用，但不提供任何担保，甚至不�
 
 - 修复：每个版本的包签名都不一样，导致新版无法覆盖安装（提示「应用未安装」）。根因是默认的 debug 签名由 Android Gradle 插件在 `~/.android/debug.keystore` 不存在时**现场随机生成**，而 CI 每次都在全新机器上构建。现在统一用一把固定密钥签名：CI 从仓库 secret 还原密钥，工作流还会校验产物证书，对不上就直接失败
 - 无功能改动
+
+### v1.1.2
+
+- 重做应用图标：Markdown「M↓」记号重画。M 笔画加粗到 8，改成平口端点 + 直角接角（顶角是方的、中间 V 是尖的），不再是一团圆头涂鸦；下箭头改为与 M 同高同重、共用上沿与基线，此前它比 M 矮一截、头还偏大
+- 用色重排：强调色改为浅蓝紫 #9AA8FF（底色同色系的浅调），替掉和靛蓝对撞的琥珀 #FFD54F；底色由 #4A5ACF 平涂改为 #4C58DA → #2C35A0 渐变
+- 占地与旧版完全一致：新图形在自适应图标 108dp 视口里实测 57.6 × 33.3，圆角/圆形遮罩下都不会被切，缩到 16px 仍认得出是 M↓；Android 13+ 主题图标（单色层）结构不变，仍是两个全不透明形状的 alpha 并集
+- 顺手修好 `tools/render_icon.py`：它把仓库根写死成一个已不存在的绝对路径，根本跑不起来。现在由脚本自身位置推导，商店图标与预览看板改输出到 `.workbuddy/artifacts/`
 
 ### v1.0.0
 

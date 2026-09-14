@@ -1,5 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- MarkNote 图标前景：Markdown「M↓」记号，108x108 视口，图形收在中心 66dp 安全区内 -->
+<!--
+  MarkNote 图标前景：Markdown「M↓」记号，108x108 视口。
+
+  墨迹范围实测 57.6 x 33.3（中心 54,53.95，最远角距 33.3），与改版前占用一致。
+  与旧版的三点差别：
+    · M 收窄、笔画加到 8，四笔等宽，改成 miter 接角 —— 顶角是方的、中间 V 是尖的，
+      读起来是几何字形，不再是圆头涂鸦；
+    · ↓ 与 M 同高同重，共用上沿与基线（旧版箭头比 M 矮一截、头又过大）；
+    · 箭头收成浅蓝紫 #9AA8FF，取代和靛蓝打架的琥珀。
+-->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
@@ -8,24 +17,26 @@
 
     <!-- M -->
     <path
-        android:pathData="M30,70 L30,38 L42,56 L54,38 L54,70"
+        android:pathData="M29.25,70.6 L29.25,39.1 L40,61.15 L50.75,39.1 L50.75,70.6"
         android:strokeColor="#FFFFFF"
-        android:strokeWidth="7"
-        android:strokeLineCap="round"
-        android:strokeLineJoin="round"
+        android:strokeWidth="8"
+        android:strokeLineCap="butt"
+        android:strokeLineJoin="miter"
         android:fillColor="#00000000" />
 
-    <!-- ↓（强调色，monochrome 主题图标下自动统一为单色） -->
+    <!-- ↓ 的竖干 -->
     <path
-        android:pathData="M71,38 L71,61"
-        android:strokeColor="#FFD54F"
-        android:strokeWidth="7"
-        android:strokeLineCap="round"
+        android:pathData="M71.75,39.1 L71.75,66.6"
+        android:strokeColor="#9AA8FF"
+        android:strokeWidth="8"
+        android:strokeLineCap="butt"
         android:fillColor="#00000000" />
+
+    <!-- ↓ 的箭头 -->
     <path
-        android:pathData="M63,54 L71,64 L79,54"
-        android:strokeColor="#FFD54F"
-        android:strokeWidth="7"
+        android:pathData="M64.75,59.6 L71.75,66.6 L78.75,59.6"
+        android:strokeColor="#9AA8FF"
+        android:strokeWidth="8"
         android:strokeLineCap="round"
         android:strokeLineJoin="round"
         android:fillColor="#00000000" />
