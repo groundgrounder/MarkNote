@@ -18,8 +18,21 @@ jobs:
           distribution: temurin
           java-version: "17"
 
+      # 原来用的是 android-actions/setup-android@v3，它在 2026-09-15 上游坏掉了：
+      # 该 action 固定会执行 `sdkmanager tools`，而 `tools` 包已被 Google 的 SDK 仓库移除，
+      # 于是报 "Warning: Failed to find package 'tools'" 并以退出码 1 结束整个步骤
+      # （实测 main / tag 两次构建都在这里 17~26 秒内挂掉，与项目代码无关）。
+      # runner 镜像本来就带 Android SDK、licenses 也已接受，所以改成只补装本项目需要的那几个包。
       - name: Android SDK
-        uses: android-actions/setup-android@v3
+        run: |
+          set -euo pipefail
+          SDK="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
+          echo "ANDROID_HOME=$SDK"
+          test -d "$SDK" || { echo "::error::找不到 Android SDK 目录: $SDK"; exit 1; }
+          SDKMGR="$(ls -d "$SDK"/cmdline-tools/*/bin/sdkmanager | sort -V | tail -1)"
+          echo "sdkmanager=$SDKMGR"
+          yes | "$SDKMGR" --licenses > /dev/null 2>&1 || true
+          "$SDKMGR" --install "platform-tools" "platforms;android-35"
 
       # 默认的 debug 签名是 AGP 在 ~/.android/debug.keystore 不存在时**现场随机生成**的，
       # CI 每次在全新 runner 上都会换一把钥匙 —— 于是每个 Release 包签名都不同，用户覆盖
@@ -48,7 +61,8 @@ jobs:
         run: |
           set -euo pipefail
           APK="app/build/outputs/apk/debug/app-debug.apk"
-          BT="$(ls -d "${ANDROID_HOME:-$ANDROID_SDK_ROOT}"/build-tools/*/ | sort -V | tail -1)"
+          SDK="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
+          BT="$(ls -d "$SDK"/build-tools/*/ | sort -V | tail -1)"
           CERT="$("$BT/apksigner" verify --print-certs "$APK" \
                 | grep -oE 'SHA-256 digest: [0-9a-f]+' | tail -1 | awk '{print $3}')"
           echo "签名证书 SHA-256: ${CERT:-（取不到）}"
