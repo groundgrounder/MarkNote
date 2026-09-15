@@ -44,7 +44,7 @@
     <string name="stats_format">%1$d 字 · %2$d 行</string>
     <string name="regrant">重新授权</string>
     <string name="grant_image_folder">去授权</string>
-    <string name="image_folder_hint">文档中的图片需要授权所在文件夹才能显示</string>
+    <string name="image_folder_hint">请授权同时包含文档与图片的文件夹</string>
     <string name="notice_save_failed">保存失败：没有写入这个文件的权限</string>
     <string name="notice_read_only">只读打开：没有写入权限，修改不会被保存</string>
     <string name="document_unavailable_title">无法打开该文件</string>
@@ -101,5 +101,7 @@
     <string name="image_decode_failed">无法解码图片：%1$s</string>
     <string name="image_invalid_data">无效的 data 图片</string>
     <string name="image_decode_data_failed">无法解码 data 图片</string>
+    <string name="image_error_generic">图片无法显示</string>
+    <string name="image_not_found">已授权文件夹里没有这张图：%1$s</string>
 </resources>
 

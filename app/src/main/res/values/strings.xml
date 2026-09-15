@@ -45,7 +45,7 @@
     <string name="stats_format">%1$d chars · %2$d lines</string>
     <string name="regrant">Grant access</string>
     <string name="grant_image_folder">Grant</string>
-    <string name="image_folder_hint">Images in this document need access to their folder before they can be shown</string>
+    <string name="image_folder_hint">Grant the folder that contains both this document and its images</string>
     <string name="notice_save_failed">Save failed: no permission to write this file</string>
     <string name="notice_read_only">Opened read-only: no write permission, so changes will not be saved</string>
     <string name="document_unavailable_title">Cannot open this file</string>
@@ -102,5 +102,7 @@
     <string name="image_decode_failed">Cannot decode image: %1$s</string>
     <string name="image_invalid_data">Invalid data image</string>
     <string name="image_decode_data_failed">Cannot decode data image</string>
+    <string name="image_error_generic">Image failed to load</string>
+    <string name="image_not_found">Not in the granted folder: %1$s</string>
 </resources>
 

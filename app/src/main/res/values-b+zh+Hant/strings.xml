@@ -40,7 +40,7 @@
     <string name="stats_format">%1$d 字 · %2$d 行</string>
     <string name="regrant">重新授權</string>
     <string name="grant_image_folder">去授權</string>
-    <string name="image_folder_hint">文件中的圖片需要授權所在資料夾才能顯示</string>
+    <string name="image_folder_hint">請授權同時包含文件與圖片的資料夾</string>
     <string name="notice_save_failed">儲存失敗：沒有寫入這個檔案的權限</string>
     <string name="notice_read_only">以唯讀開啟：沒有寫入權限，修改不會被儲存</string>
     <string name="document_unavailable_title">無法開啟該檔案</string>
@@ -97,4 +97,6 @@
     <string name="image_decode_failed">無法解碼圖片：%1$s</string>
     <string name="image_invalid_data">無效的 data 圖片</string>
     <string name="image_decode_data_failed">無法解碼 data 圖片</string>
+    <string name="image_error_generic">圖片無法顯示</string>
+    <string name="image_not_found">已授權資料夾裡沒有這張圖：%1$s</string>
 </resources>

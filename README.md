@@ -43,7 +43,7 @@ Grab the latest APK (`MarkNote-vX.Y.Z.apk`) from [Releases](https://github.com/g
 
 - One-tap toggle, rendered with Markwon; supports GFM tables (header, zebra striping, column alignment), strikethrough and tappable links
 - Search and outline work in the read-only preview as well: search runs over the **rendered output** (what you see is what you search), every match is highlighted, the current one is solid and scrolled into view, with an n/m counter and up/down navigation; tapping an outline entry scrolls the body to that heading. Preview is read-only, so there is no replace
-- Images: relative-path images need a one-time folder grant — tap "Grant access" in the banner and pick the folder holding the document (the grant is persistent); `content://`, `file://` and base64 data URIs are supported; oversized images are downsampled to avoid OOM
+- Images: relative-path images resolve **relative to the document's own folder** (`..` walks up, as Markdown expects) inside a folder you grant once — tap "Grant access" in the banner and pick a folder containing both the document and its images (the grant is persistent); an image that resolves outside the grant shows an inline "not in the granted folder" placeholder instead of silently vanishing; `content://`, `file://` and base64 data URIs are supported; oversized images are downsampled to avoid OOM
 
 **UI & adaptation**
 
@@ -187,6 +187,13 @@ If not, see <https://www.gnu.org/licenses/>.
 - Colours reworked: the accent is now light periwinkle (#9AA8FF), a lighter tint of the background hue, replacing the amber (#FFD54F) that clashed with it, and the flat #4A5ACF background became a #4C58DA → #2C35A0 gradient
 - Occupies exactly the same space as before: the artwork measures 57.6 × 33.3 in the 108dp adaptive icon viewport, so nothing gets clipped under round or squircle masks, and the mark still reads down to 16px. The Android 13+ themed (monochrome) layer keeps the same structure — it is the alpha union of two fully opaque shapes
 - `tools/render_icon.py` works again: its repo root was hardcoded to an absolute path that no longer exists, so the script could not run at all. It now resolves the root from its own location, and writes the store icon and preview board into `.workbuddy/artifacts/` instead of the repo root
+
+### v1.1.3
+
+- Fixed: relative-path images silently disappeared. The path was resolved against the **root of the granted folder** rather than the document's own folder, and `..` was dropped instead of walking up — so `![](../img/a.png)`, and any note not sitting directly at the root of the grant, resolved to the wrong place. Worse, if a file of the same name happened to live there it was loaded **without any sign that it was the wrong image**. Paths now resolve relative to the document (`..` walks up, as Markdown expects), falling back to the granted root so layouts that already worked keep working
+- Failures are no longer invisible: a missing image used to leave nothing but a broken-image box, because Markwon only falls back to the alt text and `![]()` has none. The reason is now drawn where the image would have been
+- The preview banner comes back when a grant has gone stale (reinstall, revoked permission): the folder URI could still be on record while the grant itself was gone, and the preview then failed silently with no banner at all
+- The banner now says which folder to grant — one holding **both** the document and its images. The old wording pointed at the document's folder, which cannot work when the images live outside it
 
 ### v1.0.0
 

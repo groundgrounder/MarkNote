@@ -1,15 +1,23 @@
 package com.marknote.app.ui.editor
 
 import android.content.Context
+import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.Canvas
+import android.graphics.Paint
 import android.graphics.drawable.BitmapDrawable
+import android.graphics.drawable.Drawable
 import android.net.Uri
+import android.provider.DocumentsContract
 import android.text.Spannable
 import android.text.Spanned
+import android.text.TextPaint
+import android.text.TextUtils
 import android.text.method.LinkMovementMethod
 import android.text.style.BackgroundColorSpan
 import android.text.style.ForegroundColorSpan
 import android.util.Base64
+import android.util.TypedValue
 import android.widget.TextView
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -45,8 +53,9 @@ data class PreviewScroll(val offset: Int, val nonce: Int)
  * TextView 在竖向滚动容器内按内容高度展开，由 Compose 处理滚动。
  *
  * 图片：
- * - 相对路径（如 ![](img/a.png)）需要用户先授权文档所在文件夹，
- *   渲染前改写为自定义 marknote-rel:// scheme，由 handler 沿授权目录树查找
+ * - 相对路径（如 ![](img/a.png)）按**文档所在目录**解析（与 Markdown 惯例一致），`..` 可正常上行；
+ *   解析结果必须落在用户授权的目录树内，落在外面（或找不到）时显示可见的错误占位
+ * - 文档不在授权树内时，退回「相对授权根目录」解析（兼容早期写法）
  * - content:// / file:// 直接读（需已有权限）
  * - data:image/...;base64,... 内嵌图直接解码，无需任何权限
  *
@@ -68,8 +77,10 @@ fun MarkdownPreview(
     onRenderedText: (String) -> Unit = {},
 ) {
     val context = LocalContext.current
-    val markwon = remember { buildMarkwon(context) }
     val textColor = MaterialTheme.colorScheme.onSurface.toArgb()
+    val errorColor = MaterialTheme.colorScheme.error.toArgb()
+    // 加载失败的占位图要用主题的 error 色，主题切换后重建
+    val markwon = remember(errorColor) { buildMarkwon(context, errorColor) }
     val linkColor = MaterialTheme.colorScheme.primary.toArgb()
     val matchColor = MaterialTheme.colorScheme.primaryContainer.toArgb()
     val currentMatchColor = MaterialTheme.colorScheme.primary.toArgb()
@@ -97,7 +108,7 @@ fun MarkdownPreview(
             textView.textSize = textSizeSp.toFloat()
             // 内容没变就不要重设文本：Markwon.setMarkdown 会重建 Spannable，
             // 既会丢掉搜索高亮，也会把滚动位置弹回顶部
-            val rendered = rewriteRelativeImages(markdown, imageTree)
+            val rendered = rewriteRelativeImages(markdown, imageTree, docDirInTree(docUri, imageTree))
             if (rendered != holder.markdown) {
                 holder.markdown = rendered
                 holder.spans.clear()
@@ -175,15 +186,85 @@ private fun applyHighlights(
     textView.invalidate()
 }
 
-private fun buildMarkwon(context: Context): Markwon {
+private fun buildMarkwon(context: Context, errorColor: Int): Markwon {
     val appContext = context.applicationContext
     return Markwon.builder(context)
         .usePlugin(StrikethroughPlugin.create())
         .usePlugin(TablePlugin.create(context))
         .usePlugin(ImagesPlugin.create { plugin ->
             plugin.addSchemeHandler(LocalImageSchemeHandler(appContext))
+            // 必须显式注册：不注册时 Markwon 只把图片回落到 alt 文本（空 alt 就什么都不显示），
+            // 用户只看到一个破图小方块，拿不到任何线索
+            plugin.errorHandler { _, error -> imageErrorDrawable(appContext, errorColor, error) }
         })
         .build()
+}
+
+/** 加载失败时顶替图片的占位：一个描边框 + 失败原因（单行，超出宽度省略） */
+private fun imageErrorDrawable(context: Context, color: Int, error: Throwable): Drawable {
+    val metrics = context.resources.displayMetrics
+    // 用 TypedValue 换算（scaledDensity 已废弃），顺带尊重用户的字体缩放
+    fun sp(value: Float) = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_SP, value, metrics)
+    fun dp(value: Float) = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, value, metrics)
+
+    val reason = error.message?.takeIf { it.isNotBlank() }
+        ?: context.getString(R.string.image_error_generic)
+    val textPaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
+        this.color = color
+        textSize = sp(12f)
+    }
+    val pad = dp(12f)
+    val maxWidth = dp(260f)
+    val shown = TextUtils.ellipsize(
+        reason,
+        textPaint,
+        maxWidth - pad * 2,
+        TextUtils.TruncateAt.END,
+    ).toString()
+    val width = (textPaint.measureText(shown) + pad * 2).toInt().coerceIn(dp(120f).toInt(), maxWidth.toInt())
+    val height = (textPaint.textSize * 2.4f).toInt()
+    val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+    val canvas = Canvas(bitmap)
+    val inset = dp(1f) / 2
+    val radius = dp(6f)
+    val left = inset
+    val top = inset
+    val right = width - inset
+    val bottom = height - inset
+    canvas.drawRoundRect(
+        left, top, right, bottom, radius, radius,
+        Paint(Paint.ANTI_ALIAS_FLAG).apply { this.color = color; alpha = 0x1A },
+    )
+    canvas.drawRoundRect(
+        left, top, right, bottom, radius, radius,
+        Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            this.color = color
+            style = Paint.Style.STROKE
+            strokeWidth = dp(1f)
+        },
+    )
+    val baseline = height / 2f - (textPaint.ascent() + textPaint.descent()) / 2f
+    canvas.drawText(shown, pad, baseline, textPaint)
+    return BitmapDrawable(context.resources, bitmap)
+}
+
+/**
+ * 文档在授权目录树内的相对目录（如 "notes/img"，就在树根时为 ""）。
+ *
+ * 相对路径图片要按「文档所在目录」解析才符合 Markdown 惯例，所以改写时得把它带上。
+ * 文档与授权目录不在同一个 provider、或文档根本不在授权树内时返回 ""，
+ * 由调用方退回「相对授权根目录」的老行为。
+ */
+internal fun docDirInTree(docUri: String?, treeUri: String?): String {
+    if (docUri.isNullOrEmpty() || treeUri.isNullOrEmpty()) return ""
+    val doc = runCatching { Uri.parse(docUri) }.getOrNull() ?: return ""
+    val tree = runCatching { Uri.parse(treeUri) }.getOrNull() ?: return ""
+    if (doc.authority != tree.authority) return ""
+    val docId = runCatching { DocumentsContract.getDocumentId(doc) }.getOrNull() ?: return ""
+    val treeId = runCatching { DocumentsContract.getTreeDocumentId(tree) }.getOrNull() ?: return ""
+    val prefix = treeId.trimEnd('/') + "/"
+    if (!docId.startsWith(prefix)) return ""
+    return docId.substring(prefix.length).substringBeforeLast('/', "")
 }
 
 // ---------- 相对路径图片 ----------
@@ -199,10 +280,15 @@ internal fun hasRelativeImage(markdown: String): Boolean =
     markdown.contains("![") && imagePattern.findAll(markdown).any { !hasScheme(it.groupValues[2]) }
 
 /**
- * 把无 scheme 的图片相对路径改写为 marknote-rel://img/<tree>/<path…>。
+ * 把无 scheme 的图片相对路径改写为 marknote-rel://img/<tree>/<path…>?base=<文档所在目录>。
+ *
+ * `..` 必须原样留到 handler 里再结算——这里既不知道授权树里有什么，也不能做 I/O。
+ * 早期实现直接把它过滤掉，`../a.png` 会静默变成授权根下的 `a.png`：
+ * 找不到只是显示不出来，而那个位置**恰好有同名文件时会静默加载错的图**。
+ *
  * 未授权图片文件夹（imageTree == null）时原样保留，预览中显示占位与 alt 文本。
  */
-private fun rewriteRelativeImages(markdown: String, imageTree: String?): String {
+private fun rewriteRelativeImages(markdown: String, imageTree: String?, docDir: String): String {
     if (imageTree == null || !markdown.contains("![")) return markdown
     return imagePattern.replace(markdown) { m ->
         val path = m.groupValues[2]
@@ -210,6 +296,7 @@ private fun rewriteRelativeImages(markdown: String, imageTree: String?): String 
         else {
             val builder = Uri.Builder().scheme("marknote-rel").authority("img").appendPath(imageTree)
             path.split('/').filter { it.isNotEmpty() && it != "." }.forEach { builder.appendPath(it) }
+            if (docDir.isNotEmpty()) builder.appendQueryParameter("base", docDir)
             "![${m.groupValues[1]}]($builder${m.groupValues[3]})"
         }
     }
@@ -221,13 +308,21 @@ private fun rewriteRelativeImages(markdown: String, imageTree: String?): String 
 private class LocalImageSchemeHandler(private val context: Context) : SchemeHandler() {
 
     /**
-     * 注意：这里抛出的异常文案会被 Markwon 显示在图片位置上，属于用户可见文案，
+     * 注意：这里抛出的异常文案会经 ErrorHandler 显示在图片位置上，属于用户可见文案，
      * 必须走资源文件（context 是 applicationContext，语言跟随应用设置）。
-     * 而 openRelative() 里的 IOException 只会被记进 logcat，保持中文诊断信息即可。
+     * 连 openRelative() 里那条「找不到」也一并走资源——它现在同样会显示给用户。
      */
     override fun handle(raw: String, uri: Uri): ImageItem {
         if (uri.scheme == "data") return decodeDataUri(raw)
-        val target = uri.path ?: uri.toString()
+        // 出错文案会显示在图片位置，而 marknote-rel 的 path 是整条 tree URI，读起来没有意义，
+        // 换成能和文档里那行对上的相对路径
+        val target = if (uri.scheme == "marknote-rel") {
+            (uri.getQueryParameter("base").orEmpty().split('/') + uri.pathSegments.drop(1))
+                .filter { it.isNotEmpty() }
+                .joinToString("/")
+        } else {
+            uri.path ?: uri.toString()
+        }
         val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
         // 注意：inJustDecodeBounds 模式下 decodeStream 返回 null 是正常的，不能用它判断成败
         val s1 = open(uri) ?: throw IOException(context.getString(R.string.image_open_failed, target))
@@ -254,25 +349,57 @@ private class LocalImageSchemeHandler(private val context: Context) : SchemeHand
         else -> runCatching { context.contentResolver.openInputStream(uri) }.getOrNull()
     }
 
-    /** 沿授权的目录树逐段查找相对路径指向的图片文件 */
+    /**
+     * 沿授权的目录树查找相对路径指向的图片文件。
+     *
+     * 路径按「文档所在目录（uri 的 base 参数）＋ 相对路径」结算，`..` 正常上行；
+     * 结算结果越出授权根、或树里没有这个文件，就判定失败。文档不在授权树内时
+     * base 为空，此时再退回「相对授权根目录」解析一次，兼容早期写法。
+     *
+     * 失败时**必须把异常抛出去**（getOrThrow）：ErrorHandler 会把它显示在图片位置上。
+     * 早期这里 getOrNull() 吞掉异常，用户只看到一个破图小方块，没有任何线索。
+     */
     private fun openRelative(uri: Uri): InputStream? = runCatching {
         val segments = uri.pathSegments ?: return null
         if (segments.isEmpty()) return null
         val treeUri = Uri.parse(segments[0])
-        var dir = DocumentFile.fromTreeUri(context, treeUri)
-            ?: throw IOException("fromTreeUri 失败: $treeUri")
-        val parts = segments.drop(1).filter { it != "." && it != ".." }
-        for (name in parts.dropLast(1)) {
-            dir = dir.findFile(name)?.takeIf { it.isDirectory }
-                ?: throw IOException("目录不存在: $name")
-        }
-        val file = dir.findFile(parts.last())?.takeIf { it.isFile }
-            ?: throw IOException("文件不存在: ${parts.last()}")
-        context.contentResolver.openInputStream(file.uri)
-            ?: throw IOException("openInputStream 返回 null")
+        val rel = segments.drop(1)
+        if (rel.isEmpty()) throw IOException(context.getString(R.string.image_error_generic))
+        val base = uri.getQueryParameter("base").orEmpty()
+        resolve(treeUri, base, rel)
+            ?: (if (base.isNotEmpty()) resolve(treeUri, "", rel) else null)
+            ?: throw IOException(
+                context.getString(
+                    R.string.image_not_found,
+                    (base.split('/') + rel).filter { it.isNotEmpty() }.joinToString("/"),
+                ),
+            )
     }.onFailure {
         android.util.Log.w("MarkNote-img", "openRelative failed: $uri", it)
-    }.getOrNull()
+    }.getOrThrow()
+
+    /**
+     * 把 base 与相对路径结算成树内路径后逐级 findFile。
+     * 路径越出树根、目录不存在、文件不存在都返回 null（具体原因由调用方统一成一条用户文案）。
+     */
+    private fun resolve(treeUri: Uri, base: String, rel: List<String>): InputStream? {
+        val stack = ArrayDeque<String>()
+        base.split('/').filter { it.isNotEmpty() }.forEach { stack.addLast(it) }
+        for (seg in rel) {
+            when (seg) {
+                "", "." -> Unit
+                ".." -> if (stack.isEmpty()) return null else stack.removeLast()
+                else -> stack.addLast(seg)
+            }
+        }
+        if (stack.isEmpty()) return null
+        var dir = DocumentFile.fromTreeUri(context, treeUri) ?: return null
+        for (name in stack.dropLast(1)) {
+            dir = dir.findFile(name)?.takeIf { it.isDirectory } ?: return null
+        }
+        val file = dir.findFile(stack.last())?.takeIf { it.isFile } ?: return null
+        return context.contentResolver.openInputStream(file.uri)
+    }
 
     /** data:image/png;base64,.... 内嵌图 */
     private fun decodeDataUri(raw: String): ImageItem {

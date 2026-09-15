@@ -146,8 +146,15 @@ fun EditorScreen(
     val outline = remember(viewModel.content.text) { parseOutline(viewModel.content.text) }
     var showOutline by remember { mutableStateOf(false) }
 
-    // 图片文件夹授权：授权后相对路径图片可在预览中显示
-    var imageTree by remember(uriString) { mutableStateOf(repository.imageTreeFor(uriString)) }
+    // 图片文件夹授权：授权后相对路径图片可在预览中显示。
+    // 记在 prefs 里的 tree 串不代表授权还在（重装、用户撤销、系统回收都会让它失效），
+    // 失效时一律按「没授权」处理，好让引导条重新露出来，否则只会静默显示破图。
+    var imageTree by remember(uriString) {
+        mutableStateOf(
+            repository.imageTreeFor(uriString)
+                ?.takeIf { repository.hasPersistedPermission(Uri.parse(it)) },
+        )
+    }
     val treeLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocumentTree(),
     ) { tree ->
@@ -407,6 +414,7 @@ fun EditorScreen(
                 MarkdownPreview(
                     markdown = viewModel.content.text,
                     textSizeSp = settings.previewFontSp,
+                    docUri = uriString,
                     imageTree = imageTree,
                     highlights = matches,
                     currentHighlight = matches.getOrNull(clampedMatchIndex),
