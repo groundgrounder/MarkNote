@@ -639,8 +639,32 @@ internal fun findMatches(text: String, query: String): List<IntRange> {
 /** 标题里可能带行内标记（**加粗**、[文字](链接) 等），渲染后会消失，比较前先剥掉 */
 private val inlineMarkdownPattern = Regex("""\[([^\]]*)\]\([^)]*\)|[*_~`]""")
 
-private fun plainTitle(title: String): String =
-    title.replace(inlineMarkdownPattern) { it.groupValues[1] }.trim()
+/** 标题里的行内公式。渲染后 `$$` 会被剥掉、只留公式源，比较前要做同样的事 */
+private val headingMathPattern = Regex("""\$\$([\s\S]+?)\$\$""")
+
+/**
+ * 标题的源码 → 它在渲染文本里长什么样。
+ * internal 而非 private：纯逻辑，交给 tools/checks 断言（见 CheckHeadingOffset）。
+ *
+ * 公式要**先摘出来、再处理行内标记**：公式源里本来就带 `*` `_` `` ` `` 这些字符
+ * （`$$a*b$$`、`$$x_1$$`），先走行内标记规则会把它们吃掉，算出来的标题就跟渲染文本对不上，
+ * 于是 renderedOffsetOfHeading 里的 indexOf 落空、大纲跳转静默退化成「大概位置」。
+ * 所以这里用占位符把公式挡在行内标记处理之外，最后再放回去。
+ */
+internal fun plainTitle(title: String): String {
+    val math = mutableListOf<String>()
+    val masked = headingMathPattern.replace(title) { m ->
+        math.add(m.groupValues[1].trim())
+        "\u0000"
+    }.replace(inlineMarkdownPattern) { it.groupValues[1] }
+    if (math.isEmpty()) return masked.trim()
+    val out = StringBuilder(masked.length)
+    var next = 0
+    for (ch in masked) {
+        if (ch == '\u0000') out.append(math[next++]) else out.append(ch)
+    }
+    return out.toString().trim()
+}
 
 /**
  * 大纲里的源文本偏移 → 渲染文本偏移。
@@ -649,7 +673,7 @@ private fun plainTitle(title: String): String =
  * 所以两套偏移并不一致，不能直接拿去滚动。这里按「源文本长度比例」估算一个大概位置，
  * 再在渲染文本里找离它最近的一次标题文字；标题文字找不到（含行内标记等）时就用估算值。
  */
-private fun renderedOffsetOfHeading(
+internal fun renderedOffsetOfHeading(
     headingOffset: Int,
     sourceText: String,
     renderedText: String,

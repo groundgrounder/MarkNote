@@ -12,8 +12,8 @@ android {
         applicationId = "com.marknote.app"
         minSdk = 26
         targetSdk = 35
-        versionCode = 11
-        versionName = "1.1.4"
+        versionCode = 12
+        versionName = "1.2.0"
     }
 
     /**
@@ -81,6 +81,10 @@ dependencies {
     implementation("io.noties.markwon:ext-strikethrough:4.6.2")
     implementation("io.noties.markwon:image:4.6.2")
     implementation("io.noties.markwon:ext-tables:4.6.2")
+    // LaTeX 公式（$$…$$ 行内、独占一行的 $$ 块级）。ext-latex 的行内公式是装在
+    // inline-parser 上的，所以 inline-parser 必须一起引入
+    implementation("io.noties.markwon:inline-parser:4.6.2")
+    implementation("io.noties.markwon:ext-latex:4.6.2")
 
     debugImplementation("androidx.compose.ui:ui-tooling")
 }

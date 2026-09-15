@@ -33,11 +33,13 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.documentfile.provider.DocumentFile
 import com.marknote.app.R
 import io.noties.markwon.Markwon
+import io.noties.markwon.ext.latex.JLatexMathPlugin
 import io.noties.markwon.ext.strikethrough.StrikethroughPlugin
 import io.noties.markwon.ext.tables.TablePlugin
 import io.noties.markwon.image.ImageItem
 import io.noties.markwon.image.ImagesPlugin
 import io.noties.markwon.image.SchemeHandler
+import io.noties.markwon.inlineparser.MarkwonInlineParserPlugin
 import java.io.FileInputStream
 import java.io.IOException
 import java.io.InputStream
@@ -79,8 +81,11 @@ fun MarkdownPreview(
     val context = LocalContext.current
     val textColor = MaterialTheme.colorScheme.onSurface.toArgb()
     val errorColor = MaterialTheme.colorScheme.error.toArgb()
-    // 加载失败的占位图要用主题的 error 色，主题切换后重建
-    val markwon = remember(errorColor) { buildMarkwon(context, errorColor) }
+    // 失败占位图的颜色、公式的尺寸与颜色都是**烤进** Markwon 插件配置的（配置在 build 时就固定了），
+    // 所以这三样变了必须重建实例；重建后还要重渲，见 update 里对 holder.markwon 的比对
+    val markwon = remember(textSizeSp, textColor, errorColor) {
+        buildMarkwon(context, textSizeSp, textColor, errorColor)
+    }
     val linkColor = MaterialTheme.colorScheme.primary.toArgb()
     val matchColor = MaterialTheme.colorScheme.primaryContainer.toArgb()
     val currentMatchColor = MaterialTheme.colorScheme.primary.toArgb()
@@ -107,9 +112,12 @@ fun MarkdownPreview(
             textView.setLinkTextColor(linkColor)
             textView.textSize = textSizeSp.toFloat()
             // 内容没变就不要重设文本：Markwon.setMarkdown 会重建 Spannable，
-            // 既会丢掉搜索高亮，也会把滚动位置弹回顶部
+            // 既会丢掉搜索高亮，也会把滚动位置弹回顶部。
+            // 但 Markwon 实例换了（预览字号或主题色变了）必须重渲 —— 公式的尺寸与颜色、
+            // 占位图的颜色都是建实例时定死的，只改 TextView 的 textSize 它们不会跟着变
             val rendered = rewriteRelativeImages(markdown, imageTree, docDirInTree(docUri, imageTree))
-            if (rendered != holder.markdown) {
+            if (rendered != holder.markdown || holder.markwon !== markwon) {
+                holder.markwon = markwon
                 holder.markdown = rendered
                 holder.spans.clear()
                 markwon.setMarkdown(textView, rendered)
@@ -141,13 +149,16 @@ fun MarkdownPreview(
         val layout = textView.layout ?: return@LaunchedEffect
         val offset = request.offset.coerceIn(0, textView.text.length)
         val line = layout.getLineForOffset(offset)
+        // 目标行超出滚动上限时 animateScrollTo 会夹到 maxValue（滚到底）——
+        // 文末那几个标题本来就顶不到屏幕顶部，这是预期行为，不是算错了偏移
         scrollState.animateScrollTo(layout.getLineTop(line) + textView.totalPaddingTop)
     }
 }
 
-/** 预览渲染状态：TextView 引用、已渲染的 Markdown、当前施加的高亮 span */
+/** 预览渲染状态：TextView 引用、上次渲染用的 Markwon、已渲染的 Markdown、当前施加的高亮 span */
 private class PreviewHolder {
     var textView: TextView? = null
+    var markwon: Markwon? = null
     var markdown: String? = null
     val spans = mutableListOf<Any>()
 }
@@ -186,11 +197,35 @@ private fun applyHighlights(
     textView.invalidate()
 }
 
-private fun buildMarkwon(context: Context, errorColor: Int): Markwon {
+private fun buildMarkwon(context: Context, textSizeSp: Int, textColor: Int, errorColor: Int): Markwon {
     val appContext = context.applicationContext
+    // JLaTeXMath 的 textSize 是**像素**：它直接拿去 setSize 算位图尺寸，中间没有任何密度换算。
+    // 而 TextView 的 textSize 走的是 sp，所以这里必须自己换算 —— 直接把 sp 传进去公式会小一圈
+    val mathTextPx = TypedValue.applyDimension(
+        TypedValue.COMPLEX_UNIT_SP,
+        textSizeSp.toFloat(),
+        context.resources.displayMetrics,
+    )
     return Markwon.builder(context)
         .usePlugin(StrikethroughPlugin.create())
         .usePlugin(TablePlugin.create(context))
+        // 行内公式（$$…$$）由 ext-latex 装在 MarkwonInlineParser 上：它的 configure() 里
+        // require 了这个插件，不装会在 build() 处直接抛。代价是它会接管**整个**行内解析
+        //（emphasis / code / link / autolink 都换成 Markwon 的实现）—— 回归风险来自这里，
+        // 不是来自公式本身
+        .usePlugin(MarkwonInlineParserPlugin.create())
+        .usePlugin(
+            JLatexMathPlugin.create(mathTextPx) { plugin ->
+                // 行内公式默认是**关**的：Builder 里只有 blocksEnabled 被初始化成 true，
+                // inlinesEnabled 保持 boolean 的默认值 false，不显式打开就只能写块级公式
+                plugin.inlinesEnabled(true)
+                // 公式颜色必须跟随主题：不给就是 JLaTeXMath 的默认黑色，深色主题下黑字黑底
+                plugin.theme()
+                    .textColor(textColor)
+                    .inlineTextColor(textColor)
+                    .blockTextColor(textColor)
+            },
+        )
         .usePlugin(ImagesPlugin.create { plugin ->
             plugin.addSchemeHandler(LocalImageSchemeHandler(appContext))
             // 必须显式注册：不注册时 Markwon 只把图片回落到 alt 文本（空 alt 就什么都不显示），

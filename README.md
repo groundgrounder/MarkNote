@@ -42,6 +42,7 @@ Grab the latest APK (`MarkNote-vX.Y.Z.apk`) from [Releases](https://github.com/g
 **Preview**
 
 - One-tap toggle, rendered with Markwon; supports GFM tables (header, zebra striping, column alignment), strikethrough and tappable links
+- LaTeX formulas: `$$…$$` renders inline and `$$` on a line of its own renders a centred display formula — matrices (`\begin{pmatrix} a & b \\ c & d \end{pmatrix}`), fractions, integrals, sums, Greek letters and the rest of the common TeX vocabulary. They are drawn in the theme's text colour, so they stay readable in dark mode, and they scale with the preview font size. Only `$$` counts as math — a lone `$` is left as written, so text like "from $5 to $10" stays literal
 - Search and outline work in the read-only preview as well: search runs over the **rendered output** (what you see is what you search), every match is highlighted, the current one is solid and scrolled into view, with an n/m counter and up/down navigation; tapping an outline entry scrolls the body to that heading. Preview is read-only, so there is no replace
 - Images: relative-path images resolve **relative to the document's own folder** (`..` walks up, as Markdown expects) inside a folder you grant once — tap "Grant access" in the banner and pick a folder containing both the document and its images (the grant is persistent); an image that resolves outside the grant shows an inline "not in the granted folder" placeholder instead of silently vanishing; `content://`, `file://` and base64 data URIs are supported; oversized images are downsampled to avoid OOM
 
@@ -161,7 +162,7 @@ If not, see <https://www.gnu.org/licenses/>.
 
 ## Roadmap
 
-- v1.2: "Save as", image insertion
+- v1.3: "Save as", image insertion
 - v2.0: WebDAV sync, custom themes, multi-tab editing
 
 <details>
@@ -205,6 +206,14 @@ If not, see <https://www.gnu.org/licenses/>.
 - The recent list is capped at 100 entries, oldest by open time evicted — rendering it costs two cross-process queries per entry, so it used to get slower the more you used the app
 - When a provider cannot truncate on write, saving now checks the resulting file length, so a short write cannot silently leave the tail of the old content behind
 - A corrupt recent-list JSON is backed up before being overwritten instead of quietly emptying the list
+
+### v1.2.0
+
+- LaTeX formulas in the preview: `$$…$$` renders inline and `$$` on a line of its own renders a centred display formula. Matrices, fractions, integrals, sums and Greek letters all work, the formulas are drawn in the theme's text colour so they stay readable in dark mode, and they scale with the preview font size
+- Only `$$` counts as math, deliberately: a lone `$` is left exactly as written, so prose like "from $5 to $10" is not turned into a formula. Inline code keeps its `$` for the same reason
+- Formula rendering is asynchronous — a formula briefly shows its source and is then replaced by the typeset result, so a document full of formulas does not block the preview while it renders
+- The `$$` delimiters are not part of the rendered text, so searching for `$$` matches in the editor but not in the preview. Everything inside the formula is searched normally
+- Fixed: the outline jumped to the wrong place for a heading that contains a formula. Converting a source offset to a rendered offset relied on finding the heading's text in the rendered output, and that step did not know the `$$` delimiters disappear during rendering — so the lookup failed and the jump fell back to a rough proportional estimate
 
 ### v1.0.0
 
