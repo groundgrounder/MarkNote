@@ -142,9 +142,13 @@ fun EditorScreen(
         VisualTransformation { TransformedText(highlighted, OffsetMapping.Identity) }
     }
 
-    // 大纲：内容变化时重新解析
-    val outline = remember(viewModel.content.text) { parseOutline(viewModel.content.text) }
     var showOutline by remember { mutableStateOf(false) }
+
+    // 大纲：只在面板打开时才算。解析是 O(全文) 的，而它唯一的用处就是那个面板
+    // （两处渲染都判了 showOutline），按内容缓存挡不住「每敲一键重算一次」，纯属白烧。
+    val outline = remember(viewModel.content.text, showOutline) {
+        if (showOutline) parseOutline(viewModel.content.text) else emptyList()
+    }
 
     // 图片文件夹授权：授权后相对路径图片可在预览中显示。
     // 记在 prefs 里的 tree 串不代表授权还在（重装、用户撤销、系统回收都会让它失效），
@@ -614,13 +618,20 @@ private fun DocumentUnavailable(
 }
 
 /** 找出 query 在 text 中的全部命中位置（左闭右开区间），供高亮与跳转使用 */
-private fun findMatches(text: String, query: String): List<IntRange> {
+/**
+ * 找出 query 的全部**非重叠**命中区间。
+ *
+ * 口径必须和 `EditorViewModel.replaceAll` 一致（那里也按非重叠推进）：早期这里用
+ * `indexOf(query, i + 1)` 会数出重叠命中，于是 `aaaa` 里搜 `aa` 显示 3 处、
+ * 「全部替换」却只换掉 2 处——用户看到的数字和实际结果对不上。
+ */
+internal fun findMatches(text: String, query: String): List<IntRange> {
     if (query.isEmpty() || text.isEmpty()) return emptyList()
     val result = mutableListOf<IntRange>()
     var i = text.indexOf(query)
     while (i >= 0) {
         result.add(i until i + query.length)
-        i = text.indexOf(query, i + 1)
+        i = text.indexOf(query, i + query.length)
     }
     return result
 }

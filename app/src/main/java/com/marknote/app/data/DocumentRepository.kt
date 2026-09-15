@@ -44,6 +44,12 @@ class DocumentRepository(private val context: Context) {
     private var timeFormat: SimpleDateFormat? = null
     private var formattedLocale: Locale? = null
 
+    /**
+     * 只守 [timeFormat] 的锁。不复用 `@Synchronized`：那会把格式化与 `load()/save()`
+     * 串到同一把锁上，列表滚动时会被最近列表的读写堵住。
+     */
+    private val timeFormatLock = Any()
+
     // ---------- 读写 ----------
 
     /**
@@ -82,16 +88,32 @@ class DocumentRepository(private val context: Context) {
         withContext(Dispatchers.IO) {
             runCatching {
                 val bytes = TextEncoding.encode(content, encoding)
-                val truncated = runCatching {
-                    context.contentResolver.openOutputStream(uri, "wt")?.use { it.write(bytes) } != null
-                }.getOrDefault(false)
-                if (truncated) {
-                    true
-                } else {
-                    context.contentResolver.openOutputStream(uri, "w")?.use { it.write(bytes) } != null
-                }
+                writeTruncating(uri, bytes) || writeAndVerify(uri, bytes)
             }.getOrDefault(false)
         }
+
+    /** 截断写（"wt"）。provider 不支持这个模式时返回 false，交给调用方走退路 */
+    private fun writeTruncating(uri: Uri, bytes: ByteArray): Boolean = runCatching {
+        context.contentResolver.openOutputStream(uri, "wt")?.use { it.write(bytes) } != null
+    }.getOrDefault(false)
+
+    /**
+     * 退路：用 "w" 写，然后核对文件实际长度。
+     *
+     * "w" 在部分 provider 上**并不截断**，内容变短时旧尾巴会留在文件末尾——文件看着正常，
+     * 末尾却多出一段旧文字。核对长度能把这种情况变成一次**可见的失败**（由上层提示用户），
+     * 而不是静默留下脏数据。量不到长度时按成功算，保持原有行为，只对「确实短了」下结论。
+     */
+    private fun writeAndVerify(uri: Uri, bytes: ByteArray): Boolean {
+        val written = runCatching {
+            context.contentResolver.openOutputStream(uri, "w")?.use { it.write(bytes) } != null
+        }.getOrDefault(false)
+        if (!written) return false
+        val size = runCatching {
+            context.contentResolver.openFileDescriptor(uri, "r")?.use { it.statSize }
+        }.getOrNull()
+        return size == null || size == bytes.size.toLong()
+    }
 
     /**
      * 查询文档显示名。优先问 provider；查不到（已没有权限）时回退到最近列表里
@@ -241,11 +263,15 @@ class DocumentRepository(private val context: Context) {
     fun formatTime(epochMillis: Long): String {
         if (epochMillis <= 0) return ""
         val locale = context.resources.configuration.locales[0] ?: Locale.getDefault()
-        if (timeFormat == null || formattedLocale != locale) {
-            timeFormat = SimpleDateFormat(DateFormat.getBestDateTimePattern(locale, TIME_SKELETON), locale)
-            formattedLocale = locale
+        // SimpleDateFormat 不是线程安全的，而这份缓存会被列表里每一项调用；
+        // 两个线程同时 format 会把结果算花，所以复制/格式化都得在锁内。
+        synchronized(timeFormatLock) {
+            if (timeFormat == null || formattedLocale != locale) {
+                timeFormat = SimpleDateFormat(DateFormat.getBestDateTimePattern(locale, TIME_SKELETON), locale)
+                formattedLocale = locale
+            }
+            return timeFormat!!.format(Date(epochMillis))
         }
-        return timeFormat!!.format(Date(epochMillis))
     }
 
     // ---------- 存取 ----------
@@ -264,29 +290,48 @@ class DocumentRepository(private val context: Context) {
     @Synchronized
     private fun load(): List<Entry> {
         val raw = prefs.getString(KEY_DOCS, null) ?: return migrateLegacy()
-        return runCatching {
-            val arr = JSONArray(raw)
-            (0 until arr.length()).mapNotNull { i ->
-                val obj = arr.optJSONObject(i) ?: return@mapNotNull null
-                val uri = obj.optString(FIELD_URI)
-                if (uri.isBlank()) {
-                    null
-                } else {
-                    Entry(
-                        uri = uri,
-                        name = obj.optString(FIELD_NAME),
-                        time = obj.optLong(FIELD_TIME, 0L),
-                        tree = obj.optString(FIELD_TREE).ifBlank { null },
-                    )
-                }
-            }
-        }.getOrDefault(emptyList())
+        parseEntries(raw)?.let { return it }
+        // 解析失败不能就这么返回空列表：紧接着的任何一次 save() 都会把空列表写回去，
+        // 用户的最近列表就永久没了，而且全程没有任何提示。先把原始串挪到备份键，
+        // 留一条能捞回来的路（至少能在 logcat 与 prefs 里找到它）。
+        android.util.Log.w(TAG_RECENTS, "最近列表 JSON 解析失败，原文已备份到 $KEY_DOCS_BACKUP")
+        runCatching { prefs.edit().putString(KEY_DOCS_BACKUP, raw).apply() }
+        return emptyList()
     }
 
+    /** 解析列表 JSON；格式不合法返回 null，由 [load] 决定怎么兜底 */
+    private fun parseEntries(raw: String): List<Entry>? = runCatching {
+        val arr = JSONArray(raw)
+        (0 until arr.length()).mapNotNull { i ->
+            val obj = arr.optJSONObject(i) ?: return@mapNotNull null
+            val uri = obj.optString(FIELD_URI)
+            if (uri.isBlank()) {
+                null
+            } else {
+                Entry(
+                    uri = uri,
+                    name = obj.optString(FIELD_NAME),
+                    time = obj.optLong(FIELD_TIME, 0L),
+                    tree = obj.optString(FIELD_TREE).ifBlank { null },
+                )
+            }
+        }
+    }.getOrNull()
+
+    /**
+     * 写回列表。这里统一按「最近打开」保留最多 [MAX_ENTRIES] 条：列表原本只增不减，
+     * 而 [recentDocuments] 对每条都要跨进程 probe 一次正文头、再查一次写权限，
+     * 条目越多列表页越慢。上限放在唯一的写入口，任何增删路径都自动受约束。
+     */
     @Synchronized
     private fun save(entries: List<Entry>) {
+        val kept = if (entries.size > MAX_ENTRIES) {
+            entries.sortedByDescending { it.time }.take(MAX_ENTRIES)
+        } else {
+            entries
+        }
         val arr = JSONArray()
-        entries.forEach { e ->
+        kept.forEach { e ->
             arr.put(
                 JSONObject()
                     .put(FIELD_URI, e.uri)
@@ -335,6 +380,15 @@ class DocumentRepository(private val context: Context) {
 
     private companion object {
         const val KEY_DOCS = "docs_json"
+
+        /** 列表 JSON 解析失败时，原始串挪到这里，避免被下一次写入静默覆盖掉 */
+        const val KEY_DOCS_BACKUP = "docs_json_corrupt_backup"
+
+        const val TAG_RECENTS = "MarkNote-recents"
+
+        /** 最近列表最多保留多少条（超出按打开时间淘汰最旧的） */
+        const val MAX_ENTRIES = 100
+
         const val FIELD_URI = "uri"
         const val FIELD_NAME = "name"
         const val FIELD_TIME = "time"

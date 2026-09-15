@@ -37,24 +37,60 @@ data class MarkdownAction(
 /** 一个大纲条目：标题层级、文字、在全文中的字符偏移 */
 data class Heading(val level: Int, val title: String, val offset: Int)
 
-/** 从 Markdown 全文解析标题大纲（跳过代码块内部） */
+/**
+ * 从 Markdown 全文解析标题大纲（跳过代码块内部）。
+ *
+ * 围栏两种都认（``` 与 ~~~，CommonMark 皆然），且**只有同种字符、长度不短于开头**才算闭合。
+ * 早期只写死 ` ``` ` 且一遇到就取反，于是 `~~~` 块会被当成正文（里面的 `#` 进了大纲），
+ * 而 `~~~` 后面那个 ``` 又会被误当成闭合，把真正的正文当成代码块跳过。
+ *
+ * 四空格缩进的代码块没有处理：那需要完整的块级解析，而误判的代价只是大纲里多一条、
+ * 少一条，不值得把一整条 Markdown 解析链引进来。
+ */
 fun parseOutline(text: String): List<Heading> {
     val result = mutableListOf<Heading>()
     val headingRegex = Regex("^(#{1,6})\\s+(.+?)\\s*$")
     var offset = 0
-    var inCodeBlock = false
+    // 当前代码围栏：字符（` 或 ~）与开头的连续长度；null 表示不在围栏里
+    var fenceChar: Char? = null
+    var fenceLen = 0
     for (line in text.split("\n")) {
-        if (line.trimStart().startsWith("```")) {
-            inCodeBlock = !inCodeBlock
-        } else if (!inCodeBlock) {
-            val m = headingRegex.matchEntire(line)
-            if (m != null) {
-                result.add(Heading(m.groupValues[1].length, m.groupValues[2], offset))
+        val trimmed = line.trimStart()
+        if (fenceChar == null) {
+            val open = fenceOf(trimmed)
+            if (open != null) {
+                fenceChar = open.first
+                fenceLen = open.second
+            } else {
+                val m = headingRegex.matchEntire(line)
+                if (m != null) {
+                    result.add(Heading(m.groupValues[1].length, m.groupValues[2], offset))
+                }
+            }
+        } else {
+            // 闭合行必须只有围栏字符本身（后面至多留空白），否则 ```` ```foo ```` 会误闭合
+            val close = fenceOf(trimmed)
+            if (close != null && close.first == fenceChar && close.second >= fenceLen &&
+                trimmed.substring(close.second).isBlank()
+            ) {
+                fenceChar = null
+                fenceLen = 0
             }
         }
         offset += line.length + 1
     }
     return result
+}
+
+/** 这行是不是代码围栏，是则返回（围栏字符, 连续长度） */
+private fun fenceOf(line: String): Pair<Char, Int>? {
+    val c = line.firstOrNull() ?: return null
+    if (c != '`' && c != '~') return null
+    val len = line.takeWhile { it == c }.length
+    if (len < 3) return null
+    // 反引号围栏的信息串里不允许再出现反引号（CommonMark），`~~~` 无此限制
+    if (c == '`' && line.substring(len).contains('`')) return null
+    return c to len
 }
 
 /**
@@ -219,10 +255,15 @@ class EditorViewModel(
      */
     fun syncFromDiskIfClean() {
         if (!isLoaded || hasUnsavedChanges) return
+        // 记下发起时的正文。readDocument 会挂起（跨进程读盘），这期间用户完全可能已经开始输入；
+        // 不核对就恢复的话，会把刚敲进去的字整份替换成磁盘内容——静默丢字。
+        val snapshot = content.text
         viewModelScope.launch {
             val document = repository.readDocument(uri) ?: return@launch
+            // 读盘期间正文被动过（输入 / 撤销 / 替换）：放弃这次同步，用户的东西优先
+            if (content.text != snapshot) return@launch
             // 磁盘上还是同一份内容：什么都不动，避免打断光标与滚动位置
-            if (document.text == content.text) return@launch
+            if (document.text == snapshot) return@launch
             encoding = document.encoding
             lastSavedText = document.text
             val cursor = content.selection.start.coerceAtMost(document.text.length)

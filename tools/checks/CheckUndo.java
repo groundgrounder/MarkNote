@@ -40,6 +40,7 @@ public class CheckUndo {
         noCoalesceAcrossKinds();
         noCoalesceAfterPause();
         noCoalesceWhenDisabled();
+        noCoalesceBarrierForNext();
         redoClearedOnNewEdit();
         entryCap();
         charCap();
@@ -169,6 +170,26 @@ public class CheckUndo {
         s.record("", "a", 0L);
         s.record("a", "ab", 10L, false);
         check("coalesce=false 不合并", s.getUndoDepth() == 2);
+    }
+
+    /**
+     * coalesce=false 是双向屏障：它自己不与之前的输入合并，也要挡住紧随其后的输入。
+     *
+     * 真实场景：点工具栏 H1 插入「# 」后立刻打标题——若让后面的输入并进来，
+     * 撤销一次会把「# 」和刚打的标题一起退掉，与「工具栏插入各自单独成步」的意图相反。
+     * （这条曾经漏测：原断言只验了「不并进上一条」这一个方向。）
+     */
+    static void noCoalesceBarrierForNext() {
+        UndoStack s = new UndoStack();
+        s.record("", "ab", 0L);
+        s.record("ab", "ab# ", 10L, false);   // 工具栏插入：独立一步
+        int afterToolbar = s.getUndoDepth();
+        s.record("ab# ", "ab# x", 20L);        // 紧随其后的打字（远在合并阈值内）
+        check("工具栏插入后紧接着打字不会并进去", s.getUndoDepth() == afterToolbar + 1);
+        // 而且撤销这一次只应退回刚打的字，工具栏那次还得留着
+        UndoOutcome first = s.undo("ab# x");
+        check("撤销一次只退掉刚打的字", first != null && first.getText().equals("ab# "));
+        check("工具栏插入仍在栈上", s.getCanUndo());
     }
 
     static void redoClearedOnNewEdit() {

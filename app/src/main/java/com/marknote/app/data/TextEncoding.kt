@@ -76,16 +76,26 @@ object TextEncoding {
      * 末尾出现「�」」的问题。
      */
     fun decodeTruncated(bytes: ByteArray): DecodedText {
-        for (charset in candidates) {
+        // 与 decode() 一样先把 BOM 剥掉：BOM 是文件自己声明的编码，没有猜测成分。
+        // 不剥的话列表摘要的首字符会是零宽的 U+FEFF，和编辑器里看到的正文对不上
+        // （列表摘要是拿 decodeTruncated 解的，正文是拿 decode 解的）。
+        val bom = bomAt(bytes)
+        val body = if (bom == null) bytes else bytes.copyOfRange(bom.second, bytes.size)
+        val order = if (bom == null) candidates else listOf(bom.first)
+        for (charset in order) {
+            // 每个候选都额外容忍丢掉末尾 1~3 个残字节：这里的末尾很可能是被切开的
+            // 半个多字节字符，逐字节严格解码必然失败。
+            // 注意是 `<= 0` 而不是 `< 0`：usable 归零时 strictDecode(空, UTF-8) 会返回
+            // 空串，让 UTF-8 用一个空结果"抢先命中"，后面的 GB18030 就永远轮不到了。
             for (dropped in 0..3) {
-                val usable = bytes.size - dropped
+                val usable = body.size - dropped
                 if (usable <= 0) break
-                strictDecode(bytes.copyOf(usable), charset)?.let {
-                    return DecodedText(it, DocumentEncoding(charset))
+                strictDecode(body.copyOf(usable), charset)?.let {
+                    return DecodedText(it, DocumentEncoding(charset, withBom = bom != null))
                 }
             }
         }
-        return DecodedText(String(bytes, Charsets.UTF_8), DocumentEncoding.UTF8)
+        return DecodedText(String(body, Charsets.UTF_8), DocumentEncoding.UTF8)
     }
 
     fun encode(text: String, encoding: DocumentEncoding): ByteArray {

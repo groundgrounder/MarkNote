@@ -195,6 +195,17 @@ If not, see <https://www.gnu.org/licenses/>.
 - The preview banner comes back when a grant has gone stale (reinstall, revoked permission): the folder URI could still be on record while the grant itself was gone, and the preview then failed silently with no banner at all
 - The banner now says which folder to grant — one holding **both** the document and its images. The old wording pointed at the document's folder, which cannot work when the images live outside it
 
+### v1.1.4
+
+- Undo no longer swallows what you type after a toolbar insert: a "standalone" step (toolbar insert, replace all) is now a two-way barrier, so pressing H1 and then typing no longer collapses into one undo that removes both. The old test only covered one direction of that rule
+- The editor could overwrite freshly typed text on re-entering a document: the "is there anything unsaved?" guard was evaluated *before* the (suspending) disk read, so anything typed while the read was in flight was replaced by the disk contents
+- The outline now understands `~~~` fences as well as backtick ones, and only a fence of the same character and at least the same length closes it — a `~~~` block used to leak its `#` headings into the outline, while a backtick fence inside it closed the block early
+- Search match count and "replace all" now agree: the counter used to include overlapping matches (`aaaa` searching `aa` reported 3, while replace actually changed 2)
+- List snippets no longer start with a zero-width U+FEFF for BOM-prefixed files
+- The recent list is capped at 100 entries, oldest by open time evicted — rendering it costs two cross-process queries per entry, so it used to get slower the more you used the app
+- When a provider cannot truncate on write, saving now checks the resulting file length, so a short write cannot silently leave the tail of the old content behind
+- A corrupt recent-list JSON is backed up before being overwritten instead of quietly emptying the list
+
 ### v1.0.0
 
 - First stable release: the feature set, UI language handling and file-format behaviour are settled from here on

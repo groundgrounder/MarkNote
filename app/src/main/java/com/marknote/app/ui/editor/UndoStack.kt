@@ -88,8 +88,9 @@ class UndoStack @JvmOverloads constructor(
      * [nowMs] 由调用方传入而不是在这里取时间：本类不许依赖 Android，
      * 而 `SystemClock.elapsedRealtime()` 正好是调用方该给的单调时钟（不受用户改表影响）。
      *
-     * [coalesce] 传 false 用于「工具栏插入」「替换全部」这类**独立操作**——它们不该与之前的
-     * 手打输入并成一步，否则撤销一次会连带上一段输入。
+     * [coalesce] 传 false 用于「工具栏插入」「替换全部」这类**独立操作**——它是一道双向屏障：
+     * 既不该与之前的手打输入并成一步，也不该吞掉紧随其后的输入。两个方向都要挡，
+     * 否则撤销一次会把两件事一起退掉。
      */
     @JvmOverloads
     fun record(oldText: String, newText: String, nowMs: Long, coalesce: Boolean = true) {
@@ -117,7 +118,10 @@ class UndoStack @JvmOverloads constructor(
         }
         undoList.add(edit)
         totalChars += edit.removed.length + edit.inserted.length
-        lastAtMs = nowMs
+        // coalesce=false 是「独立操作」，它既不该并进上一条，也**不该让下一条并进来**：
+        // 否则点完工具栏按钮立刻打字，撤销一次会把「# 」和刚打的标题一起退掉。
+        // 置为 MIN_VALUE 相当于在栈上放一道屏障（与撤销/重做之后的处理一致）。
+        lastAtMs = if (coalesce) nowMs else Long.MIN_VALUE
         trim()
     }
 
