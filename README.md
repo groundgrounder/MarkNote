@@ -1,6 +1,6 @@
 # MarkNote
 
-A lightweight Android Markdown editor · file-first · Kotlin + Jetpack Compose + Material 3
+A lightweight Android Markdown editor · edits the `.md` files already on your device · no storage permission, no network
 
 **English** | [简体中文](README.zh-CN.md)
 
@@ -12,153 +12,63 @@ A lightweight Android Markdown editor · file-first · Kotlin + Jetpack Compose 
   <img src="docs/screenshots/landscape.png" width="19%" alt="Landscape two-pane">
 </p>
 
-MarkNote is a **file-first** Markdown editor: it keeps no private note database — it reads and writes `.md` files anywhere on your device. Tap a `.md` file in a file manager and pick MarkNote; your edits are saved back to the original location.
+MarkNote is a **file-first** Markdown editor: it keeps no private note database — it reads and writes `.md` files anywhere on your device. Tap a `.md` file in a file manager and pick MarkNote; your edits are saved back to the original location. No account, no network, no storage permission — your notes stay simply your own files.
 
 ## Download
 
-Grab the latest APK (`MarkNote-vX.Y.Z.apk`) from [Releases](https://github.com/groundgrounder/MarkNote/releases). minSdk 26 (Android 8.0+).
+Grab the latest APK (`MarkNote-vX.Y.Z.apk`) from [Releases](https://github.com/groundgrounder/MarkNote/releases).
+
+- Requires Android 8.0 or newer
+- The APK does not come from an app store, so on first install the system will ask you to allow installs from unknown sources
+- **Updating**: from v1.1.1 onwards you can install over the previous version; earlier versions must be uninstalled first
 
 ## Features
 
 **Files**
 
-- Open straight from a file manager: registers VIEW/EDIT intents for `text/markdown` / `text/plain` / `.md` / `.markdown`, so MarkNote appears in the system "Open with" sheet (singleTask — reopening reuses the same instance)
-- Read/write any folder via SAF: open or create with the system document picker, no storage permission needed, edits are written back to the original file
-- Encoding preserved: UTF-8 (with or without BOM) and GB18030/GBK are read correctly, and edits are written back in the encoding the file came in with — a GBK note is never silently converted to UTF-8
-- Recent files with persisted permission: keep editing after a restart; entries can be removed without touching the file; unavailable files are marked in red with a one-tap "Re-authorize"
-- Permission source warning: files handed over by other apps (file manager "Open with", chat history, …) usually cannot be granted persistent access — FileProvider and MediaStore do not support it. MarkNote says so immediately and walks you through re-picking the same file in the system picker to obtain a lasting grant
-- Read-only notice: without write access the editor shows "changes will not be saved" instead of silently dropping your edits
-- Auto-save: writes to disk 800 ms after you stop typing, and forcibly saves before leaving the editor or switching to preview; can be switched to manual (the save button in the top bar highlights while there are unsaved changes)
+- Open straight from a file manager: tap a `.md` / `.markdown` or plain-text file anywhere and choose MarkNote in the system "Open with" sheet; reopening reuses the same window
+- Or use "Open file" inside the app to read and write **any folder** through the system document picker (external storage and cloud-sync folders included), no storage permission needed, edits written back to the original file
+- Encoding preserved: UTF-8 (with or without BOM), UTF-16 and GB18030/GBK are read correctly, and edits are written back in the encoding the file came in with — a GBK note stays GBK instead of being silently converted to UTF-8
+- Recent files: everything you have opened stays on the home screen and is still editable after a reboot; entries can be removed (from the list only — the file is untouched); a file that was moved or whose access expired is flagged in red, and "Re-authorize" brings it back
+- Read-only files are called out: without write access the editor shows "changes will not be saved" instead of silently dropping your edits
+- Auto-save: writes to disk 800 ms after you stop typing, and saves before you leave the editor or switch to preview; can be switched to manual in Settings (the save button in the top bar highlights while there are unsaved changes)
 
 **Editing**
 
-- Syntax highlighting in the editor: lightweight and regex-based — headings, bold, italic, strikethrough, quotes, code, links and list markers are coloured live
-- Symbol toolbar: H1/H2/B/I/S plus quote / list / link / code / horizontal rule, docked above the keyboard, wraps the current selection
-- Search & replace: match counter (n/m), wrapping navigation with highlighted matches, replace one or all
-- Undo/redo: two buttons in the top bar (a burst of typing collapses into a single step — same-kind edits within 600ms merge — while toolbar inserts and replace-all each stay a step of their own; the caret returns to the change and the buttons dim when there is nothing left to undo). No Ctrl+Z shortcut: while a text field has focus the key is handed to the IME first, and Gboard consumes it for its own per-character undo, so the app never sees it — verified at all three hooks (Activity, pre-IME, Compose)
-- Outline navigation: slides in from the right on landscape/tablet, bottom sheet on narrow screens; tapping jumps to the heading (available in preview too)
+- Syntax highlighting in the editor: headings, bold, italic, strikethrough, quotes, code, links and list markers are coloured live
+- Symbol toolbar: H1/H2/bold/italic/strikethrough plus quote / list / link / code / horizontal rule, docked above the keyboard, wrapping the current selection
+- Search & replace: match counter (n/m), wrapping navigation with highlighted matches, replace one or replace all
+- Undo/redo: two buttons in the top bar. A burst of typing collapses into a single step (a pause splits it), while toolbar inserts and replace-all each stay a step of their own; the caret returns to the change and the buttons dim when there is nothing left to undo
+- Outline navigation: slides in from the right on landscape/tablet, bottom sheet on narrow screens; tapping jumps straight to that heading (available in preview too)
 - Word count: live "N chars · M lines" in the top bar
 
 **Preview**
 
-- One-tap toggle, rendered with Markwon; supports GFM tables (header, zebra striping, column alignment), strikethrough and tappable links
-- LaTeX formulas: `$$…$$` and a single `$…$` both render inline, while `$$` on a line of its own renders a centred display formula — matrices (`\begin{pmatrix} a & b \\ c & d \end{pmatrix}`), fractions, integrals, sums, Greek letters and the rest of the common TeX vocabulary. They are drawn in the theme's text colour, so they stay readable in dark mode, and they scale with the preview font size. Delimiters follow Pandoc's rules, so `from $5 to $10`, `$ x$`, `$x $` and `$x$1` all stay literal. A formula that cannot be typeset shows its source in the error colour inside a thin outline instead of quietly staying as plain text
-- Search and outline work in the read-only preview as well: search runs over the **rendered output** (what you see is what you search), every match is highlighted, the current one is solid and scrolled into view, with an n/m counter and up/down navigation; tapping an outline entry scrolls the body to that heading. Preview is read-only, so there is no replace
-- Images: relative-path images resolve **relative to the document's own folder** (`..` walks up, as Markdown expects) inside a folder you grant once — tap "Grant access" in the banner and pick a folder containing both the document and its images (the grant is persistent); an image that resolves outside the grant shows an inline "not in the granted folder" placeholder instead of silently vanishing; `content://`, `file://` and base64 data URIs are supported; oversized images are downsampled to avoid OOM
+- One-tap toggle between editing and preview: supports GFM tables (header, zebra striping, column alignment), strikethrough and tappable links
+- LaTeX formulas: `$$…$$` and a single `$…$` both render inline, while `$$` on a line of its own renders a centred display formula — matrices (`\begin{pmatrix} a & b \\ c & d \end{pmatrix}`), fractions, integrals, sums, Greek letters and the rest of the common vocabulary. They are drawn in the theme's text colour, so they stay readable in dark mode, and they scale with the preview font size. Delimiters follow Pandoc's rules, so `from $5 to $10`, `$ x$`, `$x $` and `$x$1` all stay literal. A formula that cannot be typeset shows its source in the error colour inside a thin outline instead of quietly staying as plain text
+- Search and outline work in the preview as well: search runs over the **rendered output** (what you see is what you search), every match is highlighted, the current one is solid and scrolled into view, with an n/m counter and up/down navigation; tapping an outline entry scrolls the body to that heading. Preview is read-only, so there is no replace
+- Images: relative-path images resolve **relative to the document's own folder** (`..` walks up, as Markdown expects) inside a folder you grant once — tap "Grant access" in the banner and pick a folder containing **both** the document and its images (the grant is persistent); an image that resolves outside the grant shows an inline "not in the granted folder" placeholder instead of silently vanishing; `content://`, `file://` and base64 data URIs are supported; oversized images are downsampled to avoid running out of memory
 
 **UI & adaptation**
 
 - Material You: dynamic colour on Android 12+, light/dark can follow the system or be locked manually, edge-to-edge layout
-- Tablet / landscape two-pane: wide screens (≥840dp) switch automatically to a file list on the left and the editor on the right, live on rotation; the sidebar collapses to a narrow strip
-- Settings: theme mode, app language, independent font sizes for editor and preview, auto-save switch
-- Localization: 9 built-in languages — English, Simplified Chinese, Traditional Chinese, Japanese, French, German, Spanish, Italian and Latin; follows the system by default and can be pinned in Settings, applying immediately; unmatched languages (Korean, Portuguese, …) fall back to English
-- System language entry point: declares `android:localeConfig`, so on Android 13+ the UI language can also be changed from system Settings → Apps → MarkNote → Language, kept in sync with the in-app picker
+- Tablet / landscape two-pane: wide screens switch automatically to a file list on the left and the editor on the right, live on rotation; the sidebar collapses to a narrow strip
+- Settings: theme mode, app language, independent font sizes for editor and preview, auto-save switch, version info
+- The launcher icon supports Android 13+ themed icons, following the system's monochrome setting
 
-## Localization
+## Tips & troubleshooting
 
-Every UI string lives in `app/src/main/res/values*/strings.xml`, and the code reads them only through `stringResource(...)` (Compose) or `context.getString(...)` (repositories).
+- **Searching for `$` or `$$` finds nothing in the preview**: the formula delimiters are removed when rendering, so they match in the editor but not in the preview. Text inside a formula is searched normally
+- **An image does not show up**: relative-path images resolve against the document's own folder. If you see "not in the granted folder", grant the folder that contains **both** the document and its images — granting only the document's folder fails whenever the images live outside it
+- **A file opened from a chat app or via "Open with" stops working after a while**: files handed over by other apps usually cannot be granted lasting access. MarkNote tells you straight away when it detects this — follow the prompt and re-pick the same file in the system picker to obtain a durable grant, after which the recent list works too
+- **Why there is no Ctrl+Z shortcut**: while a text field has focus the letter key is handed to the IME first, and keyboards such as Gboard consume the combination for their own per-character undo, so the app never sees it. Use the undo button in the top bar instead
+- **A formula appears in the error colour inside a box**: one unrecognised command in it (say `\zzzz`) fails the whole formula; fix that command and it renders. Note that the formula fonts contain no CJK glyphs, so `\text{中文}` cannot be typeset — keep Chinese outside the formula
 
-| Directory | Language |
-|---|---|
-| `values/` | English (default directory, fallback for unmatched locales) |
-| `values-en/` | English (same content as the default directory; declared explicitly so `localeConfig` has an owner for `en`) |
-| `values-b+zh+Hans/` | Simplified Chinese (BCP 47 script qualifier — matches zh-CN / zh-SG / zh-Hans-*) |
-| `values-b+zh+Hant/` | Traditional Chinese (BCP 47 script qualifier — matches zh-TW / zh-HK / zh-MO) |
-| `values-ja/` | 日本語 |
-| `values-fr/` | Français |
-| `values-de/` | Deutsch |
-| `values-es/` | Español |
-| `values-it/` | Italiano |
-| `values-la/` | Latina |
+## App language
 
-The timestamp format in the recent-files list follows the language too (generated from the ICU skeleton `yMdHm` per locale).
+**9 built-in UI languages**: English, Simplified Chinese, Traditional Chinese, Japanese, French, German, Spanish, Italian and Latin. It follows the system by default and can be pinned in Settings, applying immediately while keeping the document you are editing; unmatched languages (Korean, Portuguese, …) fall back to English. Timestamps in the recent-files list follow the language too.
 
-Language switching deliberately does **not** pull in AppCompat — the app theme extends `android:Theme.Material.NoActionBar`, so `AppCompatDelegate.setApplicationLocales` is unavailable. It is implemented in-house instead: an `AppLanguage` enum plus a language preference in SharedPreferences, with the Activity recreated on change. Two context wrappers do the real work, and both are required:
-
-- `MainActivity.attachBaseContext` — wraps the Activity context so `stringResource` inside Compose resolves to the target language
-- `MarkNoteApplication.getResources()` — resolves dynamically against the current preference, so `applicationContext` (used by the repository layer for strings) follows the language as well, without restarting the process
-
-Those two wrappers are the entire mechanism, which makes it **API-level independent** — Android 8.0+ throughout.
-
-Android 13+ adds a second channel: with `android:localeConfig` declared in `AndroidManifest` (pointing at `res/xml/locales_config.xml`), MarkNote shows up in system Settings → Apps → Language. `AppLocaleStore` keeps the two sides aligned:
-
-- Set in the system → the system wins, and the value is written back to the local preference so the in-app "Language" row follows
-- Not set in the system (follow system) → the local preference is used, keeping in-app switching reliable on every device
-
-`AppLocaleStore` keeps an **in-process cache** of the resolved language: `MarkNoteApplication.getResources()` is called extremely often, while querying the system per-app language is an IPC round trip, so it cannot be asked on every call. The cache is refreshed in `MainActivity.attachBaseContext` (changing the language in system settings always recreates the Activity) and on every write.
-
-### Adding a language
-
-1. Create `res/values-xx/strings.xml` and translate every string from `values/strings.xml` (currently 80) — **key names must match exactly**
-2. Add an entry to the `AppLanguage` enum in `data/AppLanguage.kt`: `tag` is the BCP 47 tag, `endonym` is the language's own name
-3. Add `<locale android:name="xx" />` to `res/xml/locales_config.xml`, otherwise it will not appear in the Android 13+ system language list
-4. Build — the language list in Settings picks it up automatically
-
-The Chinese variants are tagged by BCP 47 **script** (`zh-Hans` / `zh-Hant`) with the resource directories `values-b+zh+Hans` / `values-b+zh+Hant`, so a single translation covers several regions sharing the same script, instead of one copy per region.
-
-## Tech stack
-
-| Item | Choice |
-|---|---|
-| Language | Kotlin 2.0 |
-| UI | Jetpack Compose + Material 3 (edge-to-edge, LargeTopAppBar) |
-| Markdown rendering | Markwon 4.6.2 (core + ext-strikethrough + ext-tables + image), embedded via AndroidView |
-| Architecture | MVVM (ViewModel + Compose State), single Activity with lightweight state-based navigation |
-| Storage | SAF + SharedPreferences (recent list and settings), no storage permission |
-| Localization | In-house (no AppCompat): `AppLanguage` enum + `attachBaseContext` / `getResources` wrappers + 9 sets of `values-*/strings.xml`; Android 13+ hooks into the system per-app language via `android:localeConfig` |
-| Compatibility | minSdk 26 / targetSdk 35 |
-
-## Build
-
-```bash
-./gradlew assembleDebug        # requires JDK 17+ and the Android SDK (sdk.dir in local.properties)
-```
-
-Output: `app/build/outputs/apk/debug/app-debug.apk`. You can also open this directory directly in Android Studio.
-
-GitHub Actions is configured: pushing to main builds the app and uploads the APK as an artifact; pushing a `v*` tag creates a Release with the APK attached.
-
-## Project structure
-
-```
-app/src/main/java/com/marknote/app/
-├── MainActivity.kt              # entry point + external open intents + lightweight navigation + app-language wrapper
-├── MarkNoteApplication.kt       # makes applicationContext resources follow the in-app language
-├── data/
-│   ├── DocumentRepository.kt    # SAF document I/O + recent list + image folder grants
-│   ├── TextEncoding.kt          # charset detection (BOM / UTF-8 / GB18030) so files keep their encoding
-│   ├── SettingsRepository.kt    # settings (SharedPreferences + Compose state)
-│   └── AppLanguage.kt           # language enum / persistence (incl. system per-app language sync) / context wrapper
-└── ui/
-    ├── theme/Theme.kt           # M3 dynamic colour theme (supports locking light/dark)
-    ├── common/                  # document picker, context extensions and other shared pieces
-    ├── files/                   # recent files screen + ViewModel
-    ├── settings/                # settings screen (incl. language picker)
-    └── editor/                  # editor screen, toolbar, syntax highlighting, outline, undo stack, Markwon preview
-```
-
-There is also `app/src/main/res/xml/locales_config.xml` — the list of languages offered by the Android 13+ system "App language" screen, referenced by `android:localeConfig` in the manifest.
-
-After touching the editor's text-mutation logic, run `tools/run_checks.sh`: it compiles `UndoStack` (pure Kotlin, zero Android dependencies) and runs JVM assertions over diff edge cases, coalescing rules, stack limits and the self-healing clear. No emulator needed, results in seconds.
-
-## Icon
-
-Adaptive icon: the Markdown "M↓" mark — a white M with a light periwinkle down arrow (#9AA8FF) on an indigo gradient (#4C58DA → #2C35A0); supports Android 13+ themed icons (monochrome). The density-specific PNGs are generated by `tools/render_icon.py`, which also writes the 512px store icon and a preview board into `.workbuddy/artifacts/`.
-
-## License
-
-Copyright (C) 2026 groundgrounder
-
-MarkNote is free software: you can redistribute it and/or modify it under the terms of the
-**GNU General Public License** as published by the Free Software Foundation, either version 3
-of the License, or (at your option) any later version.
-
-MarkNote is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without
-even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-[GNU General Public License](https://www.gnu.org/licenses/gpl-3.0.html) for more details.
-
-You should have received a copy of the GNU General Public License along with this program.
-If not, see <https://www.gnu.org/licenses/>.
+On Android 13 and newer there is a second entry point: change it directly under system Settings → Apps → MarkNote → Language, kept in sync with the in-app picker.
 
 ## Roadmap
 
@@ -170,55 +80,52 @@ If not, see <https://www.gnu.org/licenses/>.
 
 ### v1.1.0
 
-- Editor undo/redo, driven by two top-bar buttons (edit mode only — the preview has nothing to undo). The history is a hand-written differential stack: pure Kotlin, zero Android dependencies, covered by JVM assertions in `tools/run_checks.sh`
-- A burst of typing collapses into a single step (same-kind edits within 600 ms merge, a pause splits them), while toolbar inserts and replace-all each stay a step of their own. The caret returns to the change, and the buttons dim when there is nothing left to undo
-- The stack is bounded twice over (200 entries and 500k characters of diff), so one large paste cannot grow it without limit. Every diff is validated against the live text before it is applied — a stale entry clears the history instead of silently corrupting the document
-- Replacing the whole text invalidates the history: opening or reloading a document, and re-reading it from disk when there are no unsaved changes, both clear the stack, so a re-read can never be undone through a stale diff
-- No Ctrl+Z shortcut, and that is deliberate: with a text field focused the letter key is handed to the IME first, and Gboard consumes the combination for its own per-character undo, so the app never sees it. Verified at all three hooks (Activity, pre-IME, Compose), and the handler was removed rather than shipped as dead code
-- Smaller cleanups: the version line in Settings now comes from the localized string resources, and an unused icon import in the editor screen is gone
+- Editor undo/redo, driven by two top-bar buttons (edit mode only — the preview has nothing to undo)
+- A burst of typing collapses into a single step: a pause of 600 ms splits it, so one undo never rolls back a whole paragraph; toolbar inserts and replace-all each stay a step of their own. The caret returns to the change, and the buttons dim when there is nothing left to undo
+- The history is bounded (both in entries and in total diff size), so one large paste cannot grow it without limit; every entry is checked against the live text before it is applied, and a stale one is dropped rather than corrupting the document
+- Opening or reloading a document invalidates the history, so a re-read can never be undone through a stale entry
+- Note: there is no Ctrl+Z shortcut yet — see "Tips & troubleshooting" for why
 
 ### v1.1.1
 
-- Fixed: every release was signed with a different key, so installing a new version over an old one was rejected with "App not installed". The default debug signing key is generated on the fly by the Android Gradle Plugin whenever `~/.android/debug.keystore` is missing — which is the case on every fresh CI runner. Releases are now signed with one fixed key, restored from a repository secret at build time, and the workflow fails if the resulting certificate is not the expected one
+- Fixed: every release used to be signed with a different key, so installing a new version over an old one was rejected with "App not installed". All releases now use one fixed signing key and update over the previous version normally
 - No functional changes
 
 ### v1.1.2
 
-- New app icon: the Markdown "M↓" mark redrawn from scratch. The M is bolder (8-wide strokes) with flat terminals and mitered corners — square at the top, pointed at the middle V — instead of a round-capped blob; the arrow now matches the M's height, weight, cap line and baseline, where it used to sit short and oversized beside it
+- New app icon: the Markdown "M↓" mark redrawn from scratch. The M is bolder with flat terminals and mitered corners — square at the top, pointed at the middle V — instead of a round-capped blob; the arrow now matches the M's height, weight, cap line and baseline, where it used to sit short and oversized beside it
 - Colours reworked: the accent is now light periwinkle (#9AA8FF), a lighter tint of the background hue, replacing the amber (#FFD54F) that clashed with it, and the flat #4A5ACF background became a #4C58DA → #2C35A0 gradient
-- Occupies exactly the same space as before: the artwork measures 57.6 × 33.3 in the 108dp adaptive icon viewport, so nothing gets clipped under round or squircle masks, and the mark still reads down to 16px. The Android 13+ themed (monochrome) layer keeps the same structure — it is the alpha union of two fully opaque shapes
-- `tools/render_icon.py` works again: its repo root was hardcoded to an absolute path that no longer exists, so the script could not run at all. It now resolves the root from its own location, and writes the store icon and preview board into `.workbuddy/artifacts/` instead of the repo root
+- Occupies exactly the same space as before: nothing gets clipped under round or squircle masks, and the mark still reads down to 16px; Android 13+ themed icons keep working
 
 ### v1.1.3
 
-- Fixed: relative-path images silently disappeared. The path was resolved against the **root of the granted folder** rather than the document's own folder, and `..` was dropped instead of walking up — so `![](../img/a.png)`, and any note not sitting directly at the root of the grant, resolved to the wrong place. Worse, if a file of the same name happened to live there it was loaded **without any sign that it was the wrong image**. Paths now resolve relative to the document (`..` walks up, as Markdown expects), falling back to the granted root so layouts that already worked keep working
-- Failures are no longer invisible: a missing image used to leave nothing but a broken-image box, because Markwon only falls back to the alt text and `![]()` has none. The reason is now drawn where the image would have been
-- The preview banner comes back when a grant has gone stale (reinstall, revoked permission): the folder URI could still be on record while the grant itself was gone, and the preview then failed silently with no banner at all
-- The banner now says which folder to grant — one holding **both** the document and its images. The old wording pointed at the document's folder, which cannot work when the images live outside it
+- Fixed: relative-path images resolved to the wrong place, and could even load a different image of the same name without any sign of it. Paths used to be resolved against the **root of the granted folder**, with `..` dropped instead of walking up — so `![](../img/a.png)` and any note not sitting at the root of the grant were wrong. They now resolve against the **document's own folder** (`..` walks up, as Markdown expects), and layouts that already worked are unaffected
+- Failed loads are no longer invisible: the reason is drawn where the image would have been, instead of leaving an empty box
+- The grant banner comes back when access has gone stale (reinstall, revoked permission) instead of failing silently
+- The banner now says which folder to grant — one holding **both** the document and its images; the old wording pointed at the document's folder, which cannot work when the images live outside it
 
 ### v1.1.4
 
-- Undo no longer swallows what you type after a toolbar insert: a "standalone" step (toolbar insert, replace all) is now a two-way barrier, so pressing H1 and then typing no longer collapses into one undo that removes both. The old test only covered one direction of that rule
-- The editor could overwrite freshly typed text on re-entering a document: the "is there anything unsaved?" guard was evaluated *before* the (suspending) disk read, so anything typed while the read was in flight was replaced by the disk contents
+- Undo no longer swallows what you type after a toolbar insert: pressing H1 and then typing no longer collapses into one undo that removes both
+- Fixed: re-entering a document could overwrite freshly typed text with the contents read from disk
 - The outline now understands `~~~` fences as well as backtick ones, and only a fence of the same character and at least the same length closes it — a `~~~` block used to leak its `#` headings into the outline, while a backtick fence inside it closed the block early
 - Search match count and "replace all" now agree: the counter used to include overlapping matches (`aaaa` searching `aa` reported 3, while replace actually changed 2)
-- List snippets no longer start with a zero-width U+FEFF for BOM-prefixed files
-- The recent list is capped at 100 entries, oldest by open time evicted — rendering it costs two cross-process queries per entry, so it used to get slower the more you used the app
-- When a provider cannot truncate on write, saving now checks the resulting file length, so a short write cannot silently leave the tail of the old content behind
-- A corrupt recent-list JSON is backed up before being overwritten instead of quietly emptying the list
+- List snippets no longer start with an invisible blank character for BOM-prefixed files
+- The recent list is capped at 100 entries, oldest by open time evicted, so it no longer gets slower the more you use the app
+- Two more edge cases fixed: a short write can no longer leave the tail of the old content behind in the file, and a corrupt recent-list record is backed up instead of emptying the list
 
 ### v1.2.0
 
 - LaTeX formulas in the preview: `$$…$$` renders inline and `$$` on a line of its own renders a centred display formula. Matrices, fractions, integrals, sums and Greek letters all work, the formulas are drawn in the theme's text colour so they stay readable in dark mode, and they scale with the preview font size
-- Only `$$` counts as math, deliberately: a lone `$` is left exactly as written, so prose like "from $5 to $10" is not turned into a formula. Inline code keeps its `$` for the same reason
-- Formula rendering is asynchronous — a formula briefly shows its source and is then replaced by the typeset result, so a document full of formulas does not block the preview while it renders
+- Only `$$` counts as math, deliberately: a lone `$` is left exactly as written, so prose like "from $5 to $10" is not turned into a formula, and inline code keeps its `$` for the same reason
+- A document full of formulas does not block the preview: each formula briefly shows its source and is then replaced by the typeset result
 - The `$$` delimiters are not part of the rendered text, so searching for `$$` matches in the editor but not in the preview. Everything inside the formula is searched normally
-- Fixed: the outline jumped to the wrong place for a heading that contains a formula. Converting a source offset to a rendered offset relied on finding the heading's text in the rendered output, and that step did not know the `$$` delimiters disappear during rendering — so the lookup failed and the jump fell back to a rough proportional estimate
+- Fixed: the outline jumped to the wrong place for a heading that contains a formula; it now lands exactly on it
 
 ### v1.2.1
 
 - Inline math with a single `$`: `$\alpha$`, `$x^2 + y^2$` and `$\frac{a}{b}$` now render, alongside the existing `$$…$$`. Delimiters follow Pandoc's rules, so `$5 to $10`, `$ x$`, `$x $` and `$x$1` all stay literal
-- A formula that cannot be typeset now shows its source in the error colour inside a thin outline, instead of quietly staying as plain text. One undefined command (`\zzzz`) still fails the whole formula — that is how the library parses — but you can now see which one it is
+- A formula that cannot be typeset now shows its source in the error colour inside a thin outline, instead of quietly staying as plain text. One undefined command (`\zzzz`) still fails the whole formula, but you can now see which one it is
 - Fixed: a lone `$` used to swallow the text up to a following `$$…$$`, so `costs $5, $$E=mc^2$$` silently lost the `$5, `
 - The outline now knows that single-`$` delimiters also disappear during rendering, so jumping to a heading that contains one lands exactly on it
 
@@ -228,51 +135,50 @@ If not, see <https://www.gnu.org/licenses/>.
 - Encoding is detected on read and reused on write: UTF-8 (with or without BOM), UTF-16LE/BE and GB18030/GBK all read correctly, and a GBK note is saved back as GBK instead of being silently converted to UTF-8 (previously a single edit mangled any non-UTF-8 file)
 - A UTF-8 BOM is stripped on read and restored on write, so the first heading of a BOM-prefixed file is now parsed into the outline and highlighted like any other
 - Reopening a document re-reads it from disk when there are no unsaved changes, so edits made in another app are no longer overwritten by a stale in-memory copy
-- Saving re-checks the current text inside the write lock, so a slow first save can no longer land old content and leave the editor permanently dirty
-- Replace-all counts matches the same way `String.replace` does (non-overlapping); overlapping matches used to be counted twice
-- Provider queries (file name lookup, permission persistence) moved off the main thread, and the word/line count is memoized instead of recomputed on every recomposition
+- Saving no longer writes stale content, and the editor can no longer get stuck showing unsaved changes forever
+- Replace-all counts matches the same way the result is produced (non-overlapping); overlapping matches used to be counted twice
+- The UI no longer stutters on large documents: file-name lookups and similar slow work moved off the main thread, and the word/line count is no longer recomputed on every redraw
 
 ### v0.11.0
 
-- Fallback language is now English: the default resource directory `values/` switched from Simplified Chinese to English, and Simplified Chinese moved to `values-b+zh+Hans/` (BCP 47 script qualifier). Languages that previously fell through now see English instead of Chinese
-- Added `res/xml/locales_config.xml` and declared `android:localeConfig` in the manifest, so Android 13+ users can switch the UI language from system Settings → Apps → MarkNote → Language
-- In-app selection and the system per-app language are synced both ways: `AppLocaleStore` keeps both ends aligned and caches the language in-process (`getResources()` is called very frequently, so an IPC query per call is not acceptable)
-- Chinese tags moved from region to script (`zh-CN` → `zh-Hans`, `zh-TW` → `zh-Hant`), with backwards compatibility for region tags persisted by older versions
+- The fallback language is now English instead of Chinese: users whose language is not built in used to see Chinese and now see English
+- Added a system language entry point, so on Android 13+ the UI language can be changed from system Settings → Apps → MarkNote → Language
+- In-app selection and the system per-app language are synced both ways, and either change applies immediately
+- Chinese tags moved from region to script, covering several regions that share the same script in one go
 
 ### v0.10.0
 
 - Localization: new "Language" setting with 9 built-in UI languages — Simplified Chinese, Traditional Chinese, English, Japanese, French, German, Spanish, Italian and Latin; follows the system by default and shows each language by its own endonym
-- All UI strings moved out of Kotlin into `strings.xml` (80 strings × 9 locales), and the code now reads them via `stringResource` / `getString`
-- Switching applies immediately and keeps the current screen and the document being edited; timestamp formatting in the recent list follows the language as well
-- No AppCompat (the theme extends `android:Theme.Material.NoActionBar`), so switching is implemented in-house with `attachBaseContext` + `Application.getResources`
+- Switching applies immediately and keeps the current screen and the document being edited
+- Timestamp formatting in the recent list follows the language as well
 
 ### v0.9.0
 
-- Search and outline now work in the read-only preview: previously the preview top bar kept only edit/preview and hid both entrances. Both are available in preview now — search runs over the **rendered output** (what you see is what you search), all matches are lightly highlighted with the current one solid and scrolled into view, plus an n/m counter and up/down navigation; tapping an outline entry scrolls the body straight to that heading (bottom sheet on narrow screens / right panel on wide ones). Preview is read-only, so no replace
+- Search and outline now work in the read-only preview: previously the preview top bar kept only edit/preview and hid both entrances. Both are available in preview now — search runs over the **rendered output** (what you see is what you search), every match is highlighted with the current one solid and scrolled into view, plus an n/m counter and up/down navigation; tapping an outline entry scrolls the body straight to that heading. Preview is read-only, so no replace
 - Preview body avoids the keyboard: the IME no longer covers matches while searching
-- Shortened the "This file cannot be accessed long-term" dialog (two 90-character paragraphs → one 41-character paragraph), dropping the explanation the buttons already carry
+- Shortened the "This file cannot be accessed long-term" dialog, dropping the explanation the buttons already carry
 
 ### v0.8.1
 
-- Fixed "file not found after reopening the app": `content://` URIs handed over by external apps mostly cannot be granted persistent access (neither FileProvider nor MediaStore supports it) — the failure used to be swallowed and the grant died with the process. It is now reported immediately, with a prompt to re-pick the same file through the system picker to get a durable URI
+- Fixed "file not found after reopening the app": files handed over by external apps mostly cannot be granted lasting access, and the failure used to be swallowed. It is now reported immediately, with a prompt to re-pick the same file through the system picker
 - Write access is checked when opening: a read-only grant (or a failed save) shows a banner plus "Re-authorize" in the editor instead of silently losing changes
 - Read failures are no longer disguised as empty documents: there is an explicit error screen (Re-authorize / Retry / Back), and writing is disabled while the read failed so empty content cannot overwrite the original file
-- The recent list now stores JSON (URI, file name, timestamp, image folder grants): entry times and ordering are no longer lost, entries no longer only grow, re-authorizing replaces the old entry automatically, and stale entries no longer show up as resource ids (e.g. "72")
+- The recent list no longer loses entry times and ordering, and entries no longer only grow; re-authorizing replaces the old entry automatically, and stale entries no longer show up as a number
 
 ### v0.8.0
 
-- Images in preview: relative-path images are resolved through a custom scheme + an SAF tree grant (a one-time banner appears at the top of the preview — tap "Grant access" and pick the folder holding the document; the grant is persistent); supports content://, file:// and data: base64 inline images; images larger than 4096 px are downsampled
-- GFM table rendering in preview (markwon ext-tables), with header, zebra striping and column alignment
+- Images in preview: relative-path images display after a one-time grant (a banner appears at the top of the preview — tap "Grant access" and pick the document's folder; the grant is persistent); supports `content://`, `file://` and base64 inline images; images larger than 4096 px are downsampled
+- GFM table rendering in preview, with header, zebra striping and column alignment
 
 ### v0.7.2
 
-- Unified the home-screen floating buttons: "Open file" lost its label and became a small icon-only FAB matching "New" (folder icon); the two are stacked vertically in the same colour scheme
+- Unified the home-screen floating buttons: "Open file" lost its label and became a small icon-only button matching "New"; the two are stacked vertically in the same colour scheme
 
 ### v0.7.1
 
-- Landscape/tablet fixes: 176dp bottom padding in the sidebar list so file cards are no longer covered by the new/open FABs; long outline titles are ellipsized on a single line instead of squeezing the panel
+- Landscape/tablet fixes: bottom padding in the sidebar list so file cards are no longer covered by the floating buttons; long outline titles are ellipsized on a single line instead of squeezing the panel
 - Wide-screen interaction fix: tapping a file on the left (or opening from a file manager) while Settings is open now correctly switches the right pane back to the editor
-- Settings screen now leaves room for the gesture navigation bar
+- The Settings screen now leaves room for the gesture navigation bar
 
 ### v0.7.0
 
@@ -280,12 +186,12 @@ If not, see <https://www.gnu.org/licenses/>.
 
 ### v0.6.2
 
-- Dark mode fix: the theme sets `forceDarkAllowed=false` explicitly to stop ROMs (MIUI/HyperOS etc.) from force-inverting the dark UI and turning the editor white; added a values-night theme variant so cold starts in dark mode no longer flash white
+- Dark mode fix: some ROMs (MIUI/HyperOS and friends) force-invert the dark UI and turn the editor white; cold starts in dark mode no longer flash white either
 
 ### v0.6.1
 
-- UI consistency: all icons switched to Outlined, the outline uses a dedicated Toc icon (no longer clashing with the list icon), the secondary theme colour matches the icon family (indigo), the toolbar avoids the gesture navigation bar and collapsing the sidebar avoids the status bar
-- Bug fixes: serialized save coroutines (so stale content cannot overwrite newer content), correct selection/counter after search & replace, the list summary refreshes after returning from the editor, preview links are tappable, and file-name lookups are cached
+- UI consistency: all icons switched to Outlined, the outline uses a dedicated icon (no longer clashing with the list icon), the secondary theme colour matches the icon family, the toolbar avoids the gesture navigation bar and collapsing the sidebar avoids the status bar
+- Bug fixes: saving can no longer be overwritten by stale content, selection and counter are correct after search & replace, the list summary refreshes after returning from the editor, and preview links are tappable
 
 ### v0.5.0
 
@@ -301,10 +207,25 @@ If not, see <https://www.gnu.org/licenses/>.
 
 ### v0.2.0
 
-- Editor syntax highlighting, outline navigation; Compose BOM upgraded to 2024.12.01 (fixes BottomSheet misplacement after the keyboard)
+- Editor syntax highlighting, outline navigation
 
 ### v0.1.0 (MVP)
 
-- Plain source editing with a preview toggle, Markwon rendering, file management, auto-save, Material You theming
+- Plain source editing with a preview toggle, rendering, file management, auto-save, Material You theming
 
 </details>
+
+## License
+
+Copyright (C) 2026 groundgrounder
+
+MarkNote is free software: you can redistribute it and/or modify it under the terms of the
+**GNU General Public License** as published by the Free Software Foundation, either version 3
+of the License, or (at your option) any later version.
+
+MarkNote is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without
+even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+[GNU General Public License](https://www.gnu.org/licenses/gpl-3.0.html) for more details.
+
+You should have received a copy of the GNU General Public License along with this program.
+If not, see <https://www.gnu.org/licenses/>.
