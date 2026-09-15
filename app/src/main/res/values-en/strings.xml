@@ -101,5 +101,7 @@
     <string name="image_decode_failed">Cannot decode image: %1$s</string>
     <string name="image_invalid_data">Invalid data image</string>
     <string name="image_decode_data_failed">Cannot decode data image</string>
+    <string name="image_error_generic">Image failed to load</string>
+    <string name="image_not_found">Not in the granted folder: %1$s</string>
 </resources>
 

@@ -2,7 +2,7 @@
 <!--
   默认资源目录 = 英文，同时作为未匹配语言的兜底（例如韩语、葡语用户看到英文）。
   简体中文简体见 values-b+zh+Hans，繁體中文见 values-b+zh+Hant，
-  其余语言见 values-ja / values-fr / values-de / values-es / values-it / values-la。
+  英语另有一份显式声明见 values-en，拉丁语见 values-la。
   键名必须与本文件完全一致；新增文案时请同步补全所有语言目录。
 -->
 <resources>

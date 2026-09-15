@@ -97,4 +97,6 @@
     <string name="image_decode_failed">Imago decodificari non potest: %1$s</string>
     <string name="image_invalid_data">Imago data invalida</string>
     <string name="image_decode_data_failed">Imago data decodificari non potest</string>
+    <string name="image_error_generic">Imago ostendi non potest</string>
+    <string name="image_not_found">Haec imago in plica permissa non est: %1$s</string>
 </resources>

@@ -66,13 +66,13 @@ Grab the latest APK (`MarkNote-vX.Y.Z.apk`) from [Releases](https://github.com/g
 
 ## App language
 
-**9 built-in UI languages**: English, Simplified Chinese, Traditional Chinese, Japanese, French, German, Spanish, Italian and Latin. It follows the system by default and can be pinned in Settings, applying immediately while keeping the document you are editing; unmatched languages (Korean, Portuguese, …) fall back to English. Timestamps in the recent-files list follow the language too.
+**4 built-in UI languages**: English, Simplified Chinese, Traditional Chinese and Latin. It follows the system by default and can be pinned in Settings, applying immediately while keeping the document you are editing; unmatched languages (Japanese, French, Korean, …) fall back to English. Timestamps in the recent-files list follow the language too.
 
 On Android 13 and newer there is a second entry point: change it directly under system Settings → Apps → MarkNote → Language, kept in sync with the in-app picker.
 
 ## Roadmap
 
-- v1.3: "Save as", image insertion
+- v1.4: "Save as", image insertion
 - v2.0: WebDAV sync, custom themes, multi-tab editing
 
 <details>
@@ -128,6 +128,12 @@ On Android 13 and newer there is a second entry point: change it directly under 
 - A formula that cannot be typeset now shows its source in the error colour inside a thin outline, instead of quietly staying as plain text. One undefined command (`\zzzz`) still fails the whole formula, but you can now see which one it is
 - Fixed: a lone `$` used to swallow the text up to a following `$$…$$`, so `costs $5, $$E=mc^2$$` silently lost the `$5, `
 - The outline now knows that single-`$` delimiters also disappear during rendering, so jumping to a heading that contains one lands exactly on it
+
+### v1.3.0
+
+- Four UI languages now: English, Simplified Chinese, Traditional Chinese and Latin. Japanese, French, German, Spanish and Italian are gone, and users of those languages see English
+- The Latin UI gained the two image-loading error messages that used to appear in English
+- Fixed: if you had previously picked one of the removed languages, Settings showed "System default" while the UI stayed English; that leftover choice is now cleared and the system language is followed from the second launch on
 
 ### v1.0.0
 

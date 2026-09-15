@@ -19,18 +19,16 @@ import java.util.Locale
  * 这样无论当前界面是什么语言，用户都能一眼认出自己的语言。
  *
  * 注意：新增语言时除了在这里加一项，还要在 res/ 下新建对应的 values-xx/strings.xml、
- * 在 res/xml/locales_config.xml 里加一条，并把 values/strings.xml 的 80 条文案翻译过去。
+ * 在 res/xml/locales_config.xml 里加一条，并把 values/strings.xml 的 84 条文案翻译过去。
+ *
+ * 目前只保留简体中文、繁體中文、英语、拉丁语四种（外加「跟随系统」）。日语、法语、德语、
+ * 西语、意语曾有过资源目录，已随相关目录一起移除。
  */
 enum class AppLanguage(val tag: String, val endonym: String) {
     SYSTEM("", ""),
     CHINESE_SIMPLIFIED("zh-Hans", "简体中文"),
     CHINESE_TRADITIONAL("zh-Hant", "繁體中文"),
     ENGLISH("en", "English"),
-    JAPANESE("ja", "日本語"),
-    FRENCH("fr", "Français"),
-    GERMAN("de", "Deutsch"),
-    SPANISH("es", "Español"),
-    ITALIAN("it", "Italiano"),
     LATIN("la", "Latina"),
     ;
 
@@ -130,13 +128,27 @@ object AppLocaleStore {
                 context.getSystemService(LocaleManager::class.java)?.applicationLocales
             }.getOrNull()
             if (locales != null) {
-                val language = if (locales.isEmpty) {
-                    AppLanguage.SYSTEM
-                } else {
-                    AppLanguage.fromTag(locales[0].toLanguageTag())
+                val reported = if (locales.isEmpty) null else locales[0].toLanguageTag()
+                val language = AppLanguage.fromTag(reported)
+                // 系统那侧可能留着已被移除的语言（旧版本选过 ja / de 之类）。它不命中任何
+                // values-* 目录，资源会悄悄回退到默认目录（英文），而应用内选择器却显示
+                // 「跟随系统」—— 用户明明跟的是系统，看到的却是另一种语言。这里清掉这个遗留值，
+                // 让系统侧回到「未设置」，真正的「跟随系统」才名副其实。
+                //
+                // 注意：这次清理对**本进程**不生效 —— 进程的 Resources 在启动时就已经按旧语言
+                // 建好了，框架不会因为应用自己改语言而重建它（实测连重建 Activity 都没用）。
+                // 所以升级后的第一次启动仍会显示兜底英文，从第二次启动起才是系统语言。
+                if (reported != null && language == AppLanguage.SYSTEM) {
+                    runCatching {
+                        context.getSystemService(LocaleManager::class.java)
+                            ?.setApplicationLocales(LocaleList.getEmptyLocaleList())
+                    }
                 }
-                // 与本地偏好对齐：在系统设置里改过之后，应用内选择器要显示同一种语言
-                if (prefs(context).getString(KEY, null)?.let { AppLanguage.fromTag(it) } != language) {
+                // 与本地偏好对齐：在系统设置里改过之后，应用内选择器要显示同一种语言。
+                // 按**原始字符串**比而不是按解析结果比：这样顺带把认不出的遗留值也清掉
+                // （旧版本存的 ja / de 之类，解析后一律等于「跟随系统」，按解析结果比会认为
+                // 「已经一致」而不改写，文件里就留下一个当前版本已不存在的语言）。
+                if (prefs(context).getString(KEY, null).orEmpty() != language.tag) {
                     prefs(context).edit().putString(KEY, language.tag).apply()
                 }
                 return language
