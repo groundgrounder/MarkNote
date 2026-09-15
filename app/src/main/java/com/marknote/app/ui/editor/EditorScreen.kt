@@ -639,22 +639,26 @@ internal fun findMatches(text: String, query: String): List<IntRange> {
 /** 标题里可能带行内标记（**加粗**、[文字](链接) 等），渲染后会消失，比较前先剥掉 */
 private val inlineMarkdownPattern = Regex("""\[([^\]]*)\]\([^)]*\)|[*_~`]""")
 
-/** 标题里的行内公式。渲染后 `$$` 会被剥掉、只留公式源，比较前要做同样的事 */
-private val headingMathPattern = Regex("""\$\$([\s\S]+?)\$\$""")
+/**
+ * 标题里的行内公式。渲染后分隔符会被剥掉、只留公式源，比较前要做同样的事。
+ * 两种写法都要认：`$$…$$` 与单 `$…$`（pattern 与渲染时的判定共用，见 LatexMath.kt）。
+ */
+private val headingMathPattern = mathSegmentPattern
 
 /**
  * 标题的源码 → 它在渲染文本里长什么样。
- * internal 而非 private：纯逻辑，交给 tools/checks 断言（见 CheckHeadingOffset）。
+ * internal 而非 private：纯逻辑，交给 tools/checks 断言（见 CheckHeadingOffset / CheckLatexMath）。
  *
  * 公式要**先摘出来、再处理行内标记**：公式源里本来就带 `*` `_` `` ` `` 这些字符
- * （`$$a*b$$`、`$$x_1$$`），先走行内标记规则会把它们吃掉，算出来的标题就跟渲染文本对不上，
+ * （`$$a*b$$`、`$x_1$`），先走行内标记规则会把它们吃掉，算出来的标题就跟渲染文本对不上，
  * 于是 renderedOffsetOfHeading 里的 indexOf 落空、大纲跳转静默退化成「大概位置」。
  * 所以这里用占位符把公式挡在行内标记处理之外，最后再放回去。
  */
 internal fun plainTitle(title: String): String {
     val math = mutableListOf<String>()
     val masked = headingMathPattern.replace(title) { m ->
-        math.add(m.groupValues[1].trim())
+        // group 1 是 `$$…$$` 的公式源，group 2 是单 `$…$` 的；不匹配的那个 group 为空串
+        math.add(m.groupValues[1].ifEmpty { m.groupValues[2] }.trim())
         "\u0000"
     }.replace(inlineMarkdownPattern) { it.groupValues[1] }
     if (math.isEmpty()) return masked.trim()

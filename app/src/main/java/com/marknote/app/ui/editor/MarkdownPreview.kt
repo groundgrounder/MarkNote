@@ -33,13 +33,16 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.documentfile.provider.DocumentFile
 import com.marknote.app.R
 import io.noties.markwon.Markwon
+import io.noties.markwon.ext.latex.JLatexMathNode
 import io.noties.markwon.ext.latex.JLatexMathPlugin
 import io.noties.markwon.ext.strikethrough.StrikethroughPlugin
 import io.noties.markwon.ext.tables.TablePlugin
 import io.noties.markwon.image.ImageItem
 import io.noties.markwon.image.ImagesPlugin
 import io.noties.markwon.image.SchemeHandler
+import io.noties.markwon.inlineparser.InlineProcessor
 import io.noties.markwon.inlineparser.MarkwonInlineParserPlugin
+import org.commonmark.node.Node
 import java.io.FileInputStream
 import java.io.IOException
 import java.io.InputStream
@@ -209,11 +212,15 @@ private fun buildMarkwon(context: Context, textSizeSp: Int, textColor: Int, erro
     return Markwon.builder(context)
         .usePlugin(StrikethroughPlugin.create())
         .usePlugin(TablePlugin.create(context))
-        // 行内公式（$$…$$）由 ext-latex 装在 MarkwonInlineParser 上：它的 configure() 里
-        // require 了这个插件，不装会在 build() 处直接抛。代价是它会接管**整个**行内解析
-        //（emphasis / code / link / autolink 都换成 Markwon 的实现）—— 回归风险来自这里，
-        // 不是来自公式本身
-        .usePlugin(MarkwonInlineParserPlugin.create())
+        // 行内公式装在 MarkwonInlineParser 上：ext-latex 的 configure() 里 require 了这个插件，
+        // 不装会在 build() 处直接抛。代价是它会接管**整个**行内解析（emphasis / code / link /
+        // autolink 都换成 Markwon 的实现）—— 回归风险来自这里，不是来自公式本身。
+        // 这里额外注册自己的 `$` 处理器，单 `$…$` 与 `$$…$$` 都归它管
+        .usePlugin(
+            MarkwonInlineParserPlugin.create { builder ->
+                builder.addInlineProcessor(DollarMathInlineProcessor())
+            },
+        )
         .usePlugin(
             JLatexMathPlugin.create(mathTextPx) { plugin ->
                 // 行内公式默认是**关**的：Builder 里只有 blocksEnabled 被初始化成 true，
@@ -224,6 +231,21 @@ private fun buildMarkwon(context: Context, textSizeSp: Int, textColor: Int, erro
                     .textColor(textColor)
                     .inlineTextColor(textColor)
                     .blockTextColor(textColor)
+                // 公式写错时的可见占位。不接的话默认只写一条 logcat，
+                // 界面上虽然还留着公式源，但没有任何「这里出错了」的信号 —— 与图片失败的处理也不一致
+                plugin.errorHandler { rawLatex, error ->
+                    // 块级公式的 destination 带首尾换行，trim 掉：否则占位里公式源前后会多出空白
+                    val latex = rawLatex.trim()
+                    // ⚠️ 接了 errorHandler 之后，ext-latex 自己那条
+                    // `Error displaying latex: \`…\`` 就**不再写了** —— 看它的字节码，
+                    // Log.e 只出现在 errorHandler == null 的那个分支里。
+                    // 所以这里自己补一条同 tag、同格式的日志，保住「grep 一次列全本文档
+                    // 所有渲染失败的公式」这个排查手段；换行压成字面 \n 以保持一条日志一行：
+                    //   adb logcat -d | grep "Error displaying latex" | sed 's/.*E JLatexMathPlugin: //' | sort -u
+                    val onOneLine = latex.replace("\n", "\\n")
+                    android.util.Log.e("JLatexMathPlugin", "Error displaying latex: `$onOneLine`", error)
+                    latexErrorDrawable(appContext, errorColor, textSizeSp, latex)
+                }
             },
         )
         .usePlugin(ImagesPlugin.create { plugin ->
@@ -233,6 +255,42 @@ private fun buildMarkwon(context: Context, textSizeSp: Int, textColor: Int, erro
             plugin.errorHandler { _, error -> imageErrorDrawable(appContext, errorColor, error) }
         })
         .build()
+}
+
+/**
+ * 行内公式的分隔符处理：单 `$…$`（Pandoc 边界规则见 [inlineMathPattern]）与 `$$…$$`。
+ *
+ * 为什么连 `$$` 也由自己接管：ext-latex 自带的那个处理器内部是 `match(RE)` → `Matcher.find()`，
+ * 而 find() **允许跳过前面的字符**。于是轮到「孤立的 `$`」时
+ * （例如 `价格 $5，$$E=mc^2$$`），它会一路往后找到那个 `$$…$$`、把 index 直接推到公式末尾——
+ * 中间的 `$5，` 就跟着被吞掉了。多个同字符处理器的尝试顺序由注册顺序决定，
+ * 靠「谁先谁后」规避并不可靠，所以这里让本处理器对 `$` **永不返回 null**：
+ * 认得出公式就造节点，认不出就消费掉这一个字符。这样 ext-latex 那个处理器永远轮不到 `$`，
+ * 越位问题从根上不存在。
+ *
+ * 不能改用 `plugin.inlinesEnabled(false)` 关掉它：同一个开关也门控着 addInlineVisitor，
+ * 关掉之后这里造出的 JLatexMathNode 就没有 visitor 去渲染了（公式整体消失）。
+ */
+private class DollarMathInlineProcessor : InlineProcessor() {
+
+    override fun specialCharacter(): Char = '$'
+
+    override fun parse(): Node? {
+        // 两个 pattern 都用 matchAt：必须**从当前位置开始**匹配，绝不许往后跳。
+        // 两个都失败时返回 null 是安全的——框架会把 index 回滚（见 MarkwonInlineParser.parseInline）
+        val match = doubleDollarMathPattern.matchAt(input, index)
+            ?: inlineMathPattern.matchAt(input, index)
+            ?: return consumeLoneDollar()
+        index = match.range.last + 1
+        // 节点只带公式源（分隔符已由 pattern 排除在捕获组外），与 ext-latex 自带处理器的行为一致
+        return JLatexMathNode().apply { latex(match.groupValues[1]) }
+    }
+
+    /** 认不出的 `$` 原样输出——但必须自己把这一位消费掉，不给后面的处理器留越位的机会 */
+    private fun consumeLoneDollar(): Node {
+        index += 1
+        return text("$")
+    }
 }
 
 /** 加载失败时顶替图片的占位：一个描边框 + 失败原因（单行，超出宽度省略） */
@@ -280,6 +338,70 @@ private fun imageErrorDrawable(context: Context, color: Int, error: Throwable): 
     )
     val baseline = height / 2f - (textPaint.ascent() + textPaint.descent()) / 2f
     canvas.drawText(shown, pad, baseline, textPaint)
+    return BitmapDrawable(context.resources, bitmap)
+}
+
+/**
+ * 公式渲染失败时顶替公式的占位：错误色的公式源 + 描边框。
+ *
+ * 为什么必须自己接 errorHandler：默认（不接）时 ext-latex 只在
+ * `catch (Throwable)` 里写一条 `Log.e("JLatexMathPlugin", "Error displaying latex: …")` 就结束，
+ * 既不设置渲染结果、placeholder() 又返回 null —— 界面上虽然还留着公式源
+ * （ReplacementSpan 的占位文本仍在，所以失败时不会变成一片空白），
+ * 但**没有任何「这里出错了」的视觉信号**，用户只会以为「这个公式没渲染」。
+ * 图片那边已经接了 errorHandler 显示失败原因，公式这边不对齐说不过去。
+ *
+ * 只画公式源、**不画失败原因**：公式多在行内，两行高的占位会把行距撑坏；
+ * 而错误色的公式源本身就够指出「是哪条命令写坏了」。具体原因
+ * （`Unknown symbol or command or predefined TeXFormula: 'xxx'`）仍写在 logcat 里。
+ *
+ * 注意 errorHandler 返回的 drawable 是**整体替换**公式绘制的，
+ * 所以这里必须把公式源画上，否则连「原本写了什么」都看不见了。
+ */
+private fun latexErrorDrawable(context: Context, color: Int, textSizeSp: Int, latex: String): Drawable {
+    val metrics = context.resources.displayMetrics
+    fun dp(value: Float) = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, value, metrics)
+
+    val textPaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
+        this.color = color
+        textSize = TypedValue.applyDimension(
+            TypedValue.COMPLEX_UNIT_SP,
+            textSizeSp.toFloat(),
+            metrics,
+        )
+    }
+    val padH = dp(8f)
+    val padV = dp(3f)
+    // 行内公式的占位不能宽到把整行撑破 —— 撑破的后果是「同一段里后面的文字被挤到下一行」，
+    // 看起来像段落断了。所以上限只取屏宽的七成，超长就中间省略：
+    // 两头各留一点，好让「\begin{...} … \end{...}」这类长公式也能看出是哪一条
+    val maxTextWidth = metrics.widthPixels * 0.7f - padH * 2
+    val shown = TextUtils.ellipsize(latex, textPaint, maxTextWidth, TextUtils.TruncateAt.MIDDLE).toString()
+    val width = (textPaint.measureText(shown) + padH * 2).toInt().coerceAtLeast(dp(28f).toInt())
+    val height = (textPaint.textSize * 1.5f + padV * 2).toInt()
+
+    val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+    val canvas = Canvas(bitmap)
+    val inset = dp(1f) / 2
+    val radius = dp(4f)
+    val left = inset
+    val top = inset
+    val right = width - inset
+    val bottom = height - inset
+    canvas.drawRoundRect(
+        left, top, right, bottom, radius, radius,
+        Paint(Paint.ANTI_ALIAS_FLAG).apply { this.color = color; alpha = 0x14 },
+    )
+    canvas.drawRoundRect(
+        left, top, right, bottom, radius, radius,
+        Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            this.color = color
+            style = Paint.Style.STROKE
+            strokeWidth = dp(1f)
+        },
+    )
+    val baseline = height / 2f - (textPaint.ascent() + textPaint.descent()) / 2f
+    canvas.drawText(shown, padH, baseline, textPaint)
     return BitmapDrawable(context.resources, bitmap)
 }
 
