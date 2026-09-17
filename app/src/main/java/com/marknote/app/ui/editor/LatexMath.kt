@@ -37,7 +37,7 @@ internal val inlineMathPattern = Regex("""\$([^\s$](?:[^\n$]*[^\s$])?)\$(?![\d$]
 internal val doubleDollarMathPattern = Regex("""\$\$([\s\S]+?)\$\$""")
 
 /**
- * 一次扫出两种写法，供大纲跳转做「源码 → 渲染文本」换算用（见 EditorScreen.plainTitle）。
+ * 一次扫出两种写法，供大纲跳转做「源码 → 渲染文本」换算用（见 [plainTitle]）。
  * 渲染后分隔符会被剥掉、只留公式源，所以估算标题文字时必须做同样的事。
  *
  * group 1 = `$$` 的公式源，group 2 = 单 `$` 的公式源。

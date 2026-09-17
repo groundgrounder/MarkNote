@@ -3,6 +3,11 @@
   英语。内容与默认目录 values/ 相同：默认目录本身兜底英文，这里再显式声明一份 en，
   一是让 android:localeConfig / 系统「应用语言」里的 English 有明确的资源归属，
   二是区域变体（en-GB、en-US…）命中 values-en 后不再往默认目录回退。
+
+  ⚠️ **值必须与 values/strings.xml 逐条一致**（不只是键名）。两份都是英文，但命中哪个
+  取决于是不是「应用语言 = English / 系统语言 = en」：是 → 本文件；跟着系统且系统语言没有
+  对应的 values-* 目录（如韩语、葡语用户）→ 默认目录 values/。值一旦分叉，同一句英文会
+  因为用户的系统语言不同而显示两种文案，且不会报任何错。
 -->
 <resources>
     <string name="app_name">MarkNote</string>
@@ -44,7 +49,7 @@
     <string name="stats_format">%1$d chars · %2$d lines</string>
     <string name="regrant">Grant access</string>
     <string name="grant_image_folder">Grant</string>
-    <string name="image_folder_hint">Images in this document need access to their folder before they can be shown</string>
+    <string name="image_folder_hint">Grant the folder that contains both this document and its images</string>
     <string name="notice_save_failed">Save failed: no permission to write this file</string>
     <string name="notice_read_only">Opened read-only: no write permission, so changes will not be saved</string>
     <string name="document_unavailable_title">Cannot open this file</string>

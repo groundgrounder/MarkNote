@@ -1,6 +1,6 @@
 import com.marknote.app.data.DecodedText;
 import com.marknote.app.data.TextEncoding;
-import com.marknote.app.ui.editor.EditorViewModelKt;
+import com.marknote.app.ui.editor.MarkdownSyntaxKt;
 import com.marknote.app.ui.editor.Heading;
 
 import java.nio.charset.Charset;
@@ -10,8 +10,9 @@ import java.util.List;
  * TextEncoding 与 parseOutline 的纯逻辑断言。不需要模拟器，秒级完成。
  *
  * 为什么走 JVM 而不是 app/src/test：那个源集要引 JUnit，引就得联网拉包；
- * 这两个函数本身零 Android 依赖（parseOutline 所在的 EditorViewModelKt 里其它函数依赖 Compose，
- * 但静态调用不触达它们）。
+ * 这两个函数本身零 Android 依赖：它们在 TextEncoding.kt 与 MarkdownSyntax.kt 里，
+ * 后者一个 import 都没有（早先 parseOutline 住在 EditorViewModel.kt，那里依赖 Compose，
+ * 只靠「静态调用不触达」才跑得起来，已经搬走了）。
  *
  * 用法：tools/run_checks.sh
  */
@@ -96,7 +97,7 @@ public class CheckEncodingOutline {
     }
 
     static void outlineBasics() {
-        List<Heading> hs = EditorViewModelKt.parseOutline("# 一\n正文\n## 二\n");
+        List<Heading> hs = MarkdownSyntaxKt.parseOutline("# 一\n正文\n## 二\n");
         check("基本标题：数量", hs.size() == 2);
         check("基本标题：层级", hs.get(0).getLevel() == 1 && hs.get(1).getLevel() == 2);
         check("基本标题：文字", hs.get(0).getTitle().equals("一") && hs.get(1).getTitle().equals("二"));
@@ -104,33 +105,33 @@ public class CheckEncodingOutline {
     }
 
     static void outlineBacktickFence() {
-        List<Heading> hs = EditorViewModelKt.parseOutline("```\n# 不是标题\n```\n# 是标题\n");
+        List<Heading> hs = MarkdownSyntaxKt.parseOutline("```\n# 不是标题\n```\n# 是标题\n");
         check("``` 围栏里的 # 不进大纲", hs.size() == 1 && hs.get(0).getTitle().equals("是标题"));
     }
 
     /** 新增：~~~ 围栏此前完全不认，里面的 # 会跑进大纲 */
     static void outlineTildeFence() {
-        List<Heading> hs = EditorViewModelKt.parseOutline("~~~\n# 不是标题\n~~~\n# 是标题\n");
+        List<Heading> hs = MarkdownSyntaxKt.parseOutline("~~~\n# 不是标题\n~~~\n# 是标题\n");
         check("~~~ 围栏里的 # 不进大纲", hs.size() == 1 && hs.get(0).getTitle().equals("是标题"));
     }
 
     /** 围栏必须「同种字符 + 不短于开头」才闭合，且信息串不能当闭合行 */
     static void outlineFenceLengthAndInfoString() {
         // ~~~ 块里出现 ``` 不该闭合，所以后面那个 # 仍在代码块里
-        List<Heading> hs = EditorViewModelKt.parseOutline("~~~\n```\n# 还在代码块里\n~~~\n# 出来了\n");
+        List<Heading> hs = MarkdownSyntaxKt.parseOutline("~~~\n```\n# 还在代码块里\n~~~\n# 出来了\n");
         check("``` 不会闭合 ~~~ 块", hs.size() == 1 && hs.get(0).getTitle().equals("出来了"));
 
         // 四个反引号开的块，三个反引号关不掉
-        List<Heading> hs2 = EditorViewModelKt.parseOutline("````\n```\n# 还在块里\n````\n# 出来了\n");
+        List<Heading> hs2 = MarkdownSyntaxKt.parseOutline("````\n```\n# 还在块里\n````\n# 出来了\n");
         check("短围栏关不掉长围栏", hs2.size() == 1 && hs2.get(0).getTitle().equals("出来了"));
 
         // 带信息串的开头照样算围栏
-        List<Heading> hs3 = EditorViewModelKt.parseOutline("```kotlin\n# 不是标题\n```\n# 是标题\n");
+        List<Heading> hs3 = MarkdownSyntaxKt.parseOutline("```kotlin\n# 不是标题\n```\n# 是标题\n");
         check("带信息串的开头也算围栏", hs3.size() == 1 && hs3.get(0).getTitle().equals("是标题"));
     }
 
     static void outlineRealHeadingAfterFence() {
-        List<Heading> hs = EditorViewModelKt.parseOutline("# 前\n```\ncode\n```\n## 后\n```\nmore\n```\n### 末\n");
+        List<Heading> hs = MarkdownSyntaxKt.parseOutline("# 前\n```\ncode\n```\n## 后\n```\nmore\n```\n### 末\n");
         check("多个围栏之间穿插的标题都在", hs.size() == 3
                 && hs.get(0).getTitle().equals("前")
                 && hs.get(1).getTitle().equals("后")

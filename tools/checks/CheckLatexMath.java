@@ -1,4 +1,4 @@
-import com.marknote.app.ui.editor.EditorScreenKt;
+import com.marknote.app.ui.editor.MarkdownSyntaxKt;
 import com.marknote.app.ui.editor.LatexMathKt;
 
 import java.util.ArrayList;
@@ -102,7 +102,7 @@ public class CheckLatexMath {
     // ---------- 大纲跳转：标题里的单 $ 公式 ----------
 
     static String plainTitle(String s) {
-        return EditorScreenKt.plainTitle(s);
+        return MarkdownSyntaxKt.plainTitle(s);
     }
 
     static void plainTitleSingleDollar() {
@@ -124,7 +124,7 @@ public class CheckLatexMath {
         String rendered = "标题一\n垫一段够长的正文文字，让按长度比例估算出来的位置偏掉。\n"
                 + "关于 \\alpha 的推导\n";
         int headingOffset = source.indexOf("## 关于");
-        int offset = EditorScreenKt.renderedOffsetOfHeading(headingOffset, source, rendered);
+        int offset = MarkdownSyntaxKt.renderedOffsetOfHeading(headingOffset, source, rendered);
         check("带单 $ 公式的标题：偏移在合法范围内", offset >= 0 && offset <= rendered.length());
         check("带单 $ 公式的标题：跳转正好落在标题上",
                 rendered.startsWith("关于 \\alpha 的推导", offset));

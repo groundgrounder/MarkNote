@@ -1,49 +1,34 @@
 package com.marknote.app.ui.editor
 
+import android.net.Uri
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import android.net.Uri
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.Redo
 import androidx.compose.material.icons.automirrored.outlined.Toc
 import androidx.compose.material.icons.automirrored.outlined.Undo
-import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Edit
-import androidx.compose.material.icons.outlined.ErrorOutline
 import androidx.compose.material.icons.outlined.Image
-import androidx.compose.material.icons.outlined.KeyboardArrowDown
-import androidx.compose.material.icons.outlined.KeyboardArrowUp
 import androidx.compose.material.icons.outlined.Save
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Visibility
-import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -58,18 +43,16 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.OffsetMapping
 import androidx.compose.ui.text.input.TransformedText
 import androidx.compose.ui.text.input.VisualTransformation
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -78,6 +61,9 @@ import com.marknote.app.data.DocumentRepository
 import com.marknote.app.data.SettingsRepository
 import com.marknote.app.ui.common.OpenDocumentWithInitialUri
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -104,13 +90,20 @@ fun EditorScreen(
     // 重新授权：内容读不出来（权限失效）或只读打开时，用系统文档选择器重选该文件。
     // 选择器返回的 Uri 一定能持久化，因此重选一次后可长期编辑；授权后替换最近列表里的旧条目。
     val regrantUri = remember(uriString) { Uri.parse(uriString) }
+    val scope = rememberCoroutineScope()
     val regrantLauncher = rememberLauncherForActivityResult(
         remember(regrantUri) { OpenDocumentWithInitialUri(regrantUri) },
     ) { picked ->
         if (picked != null) {
-            repository.persistPermission(picked)
-            repository.replaceRecent(uriString, picked)
-            onRelocated(picked.toString())
+            // 这两步都要跨进程问 provider（persistPermission 是 IPC、replaceRecent 内部要查显示名），
+            // 与文件列表那条路同一个理由：放 IO 做，别让回调所在的主线程被 provider 的响应时间拖住
+            scope.launch {
+                withContext(Dispatchers.IO) {
+                    repository.persistPermission(picked)
+                    repository.replaceRecent(uriString, picked)
+                }
+                onRelocated(picked.toString())
+            }
         }
     }
     val regrant: () -> Unit = {
@@ -133,10 +126,12 @@ fun EditorScreen(
     // 读取失败时只提供错误提示，不进入编辑/预览（避免空内容被误写回原文件）
     val usable = viewModel.isLoaded
 
-    // 语法高亮：内容或主题变化时重算
+    // 语法高亮：高亮器只在主题色变化时重建（它内部那 10 条正则是 lazy 编译的，重建 = 全部重编，
+    // 早先按正文做 key 等于每敲一键重编一遍），正文变化只重跑扫描
     val colorScheme = MaterialTheme.colorScheme
-    val highlighted = remember(viewModel.content.text, colorScheme) {
-        MarkdownHighlighter(colorScheme).highlight(viewModel.content.text)
+    val highlighter = remember(colorScheme) { MarkdownHighlighter(colorScheme) }
+    val highlighted = remember(viewModel.content.text, highlighter) {
+        highlighter.highlight(viewModel.content.text)
     }
     val highlightTransformation = remember(highlighted) {
         VisualTransformation { TransformedText(highlighted, OffsetMapping.Identity) }
@@ -153,19 +148,33 @@ fun EditorScreen(
     // 图片文件夹授权：授权后相对路径图片可在预览中显示。
     // 记在 prefs 里的 tree 串不代表授权还在（重装、用户撤销、系统回收都会让它失效），
     // 失效时一律按「没授权」处理，好让引导条重新露出来，否则只会静默显示破图。
-    var imageTree by remember(uriString) {
-        mutableStateOf(
+    //
+    // 初值要读 prefs 再跨进程问一次授权，不能放在组合里同步做（会拖住主线程），所以改成异步取。
+    // 取回来之前 imageTree 是 null，用 imageTreeResolved 把已经授权过的文档挡在引导条之外，
+    // 否则每次进已授权的文档都会先闪一下「去授权」。
+    var imageTree by remember(uriString) { mutableStateOf<String?>(null) }
+    var imageTreeResolved by remember(uriString) { mutableStateOf(false) }
+    LaunchedEffect(uriString) {
+        imageTree = withContext(Dispatchers.IO) {
             repository.imageTreeFor(uriString)
-                ?.takeIf { repository.hasPersistedPermission(Uri.parse(it)) },
-        )
+                ?.takeIf { repository.hasPersistedPermission(Uri.parse(it)) }
+        }
+        imageTreeResolved = true
     }
     val treeLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocumentTree(),
     ) { tree ->
         if (tree != null) {
-            repository.persistPermission(tree)
-            repository.setImageTree(uriString, tree.toString())
+            // 选择器刚授过权、本进程内立刻可用，所以先更新界面让预览马上能显示图片；
+            // 落库那两步（IPC + prefs 读改写）挪到 IO
             imageTree = tree.toString()
+            imageTreeResolved = true
+            scope.launch {
+                withContext(Dispatchers.IO) {
+                    repository.persistPermission(tree)
+                    repository.setImageTree(uriString, tree.toString())
+                }
+            }
         }
     }
 
@@ -359,7 +368,7 @@ fun EditorScreen(
                     // 搜索时要弹键盘，预览没有底栏，得自己避让，否则命中被键盘挡住
                     .imePadding(),
             ) {
-                // 只读预览同样支持搜索：只找位置不改内容，所以不显示替换行
+                // 只读预览同样支持搜索：只找位置不改内容，所以不传替换回调（面板就不渲染替换行）
                 if (searchOpen) {
                     SearchPanel(
                         query = query,
@@ -367,15 +376,10 @@ fun EditorScreen(
                             query = it
                             matchIndex = 0
                         },
-                        replacement = replacement,
-                        onReplacementChange = { replacement = it },
                         matchCount = matches.size,
                         matchIndex = clampedMatchIndex,
                         onPrev = { jumpToMatch(matchIndex - 1) },
                         onNext = { jumpToMatch(matchIndex + 1) },
-                        onReplace = {},
-                        onReplaceAll = {},
-                        showReplace = false,
                         onClose = {
                             searchOpen = false
                             query = ""
@@ -384,7 +388,8 @@ fun EditorScreen(
                     )
                 }
                 // 文档含相对路径图片但尚未授权图片文件夹时，显示一次性引导条
-                if (hasRelativeImage(viewModel.content.text) && imageTree == null) {
+                // （imageTreeResolved 之前不显示：异步查询还没回来，先别急着让用户去授权）
+                if (imageTreeResolved && imageTree == null && hasRelativeImage(viewModel.content.text)) {
                     Surface(
                         color = MaterialTheme.colorScheme.secondaryContainer,
                         contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
@@ -539,384 +544,5 @@ fun EditorScreen(
             },
             onDismiss = { showOutline = false },
         )
-    }
-}
-
-/** 顶部提示条：只读打开 / 保存失败时告知改动没有落盘，并给出重新授权入口 */
-@Composable
-private fun DocumentNotice(
-    message: String,
-    actionLabel: String,
-    onAction: () -> Unit,
-) {
-    Surface(
-        color = MaterialTheme.colorScheme.errorContainer,
-        contentColor = MaterialTheme.colorScheme.onErrorContainer,
-        shape = MaterialTheme.shapes.medium,
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 20.dp, vertical = 8.dp),
-    ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.padding(start = 16.dp, end = 4.dp),
-        ) {
-            Icon(
-                Icons.Outlined.ErrorOutline,
-                contentDescription = null,
-                modifier = Modifier.width(18.dp),
-            )
-            Text(
-                text = message,
-                style = MaterialTheme.typography.bodySmall,
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(horizontal = 12.dp, vertical = 8.dp),
-            )
-            TextButton(onClick = onAction) { Text(actionLabel) }
-        }
-    }
-}
-
-/** 读取失败时的整页提示：权限已失效，或文件被移动/删除 */
-@Composable
-private fun DocumentUnavailable(
-    onRegrant: () -> Unit,
-    onRetry: () -> Unit,
-    onBack: () -> Unit,
-) {
-    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier.padding(32.dp),
-        ) {
-            Icon(
-                Icons.Outlined.ErrorOutline,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.error,
-            )
-            Spacer(Modifier.height(12.dp))
-            Text(
-                stringResource(R.string.document_unavailable_title),
-                style = MaterialTheme.typography.titleMedium,
-            )
-            Spacer(Modifier.height(8.dp))
-            Text(
-                text = stringResource(R.string.document_unavailable_message),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center,
-            )
-            Spacer(Modifier.height(20.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(onClick = onRegrant) { Text(stringResource(R.string.regrant)) }
-                TextButton(onClick = onRetry) { Text(stringResource(R.string.retry)) }
-                TextButton(onClick = onBack) { Text(stringResource(R.string.back)) }
-            }
-        }
-    }
-}
-
-/** 找出 query 在 text 中的全部命中位置（左闭右开区间），供高亮与跳转使用 */
-/**
- * 找出 query 的全部**非重叠**命中区间。
- *
- * 口径必须和 `EditorViewModel.replaceAll` 一致（那里也按非重叠推进）：早期这里用
- * `indexOf(query, i + 1)` 会数出重叠命中，于是 `aaaa` 里搜 `aa` 显示 3 处、
- * 「全部替换」却只换掉 2 处——用户看到的数字和实际结果对不上。
- */
-internal fun findMatches(text: String, query: String): List<IntRange> {
-    if (query.isEmpty() || text.isEmpty()) return emptyList()
-    val result = mutableListOf<IntRange>()
-    var i = text.indexOf(query)
-    while (i >= 0) {
-        result.add(i until i + query.length)
-        i = text.indexOf(query, i + query.length)
-    }
-    return result
-}
-
-/** 标题里可能带行内标记（**加粗**、[文字](链接) 等），渲染后会消失，比较前先剥掉 */
-private val inlineMarkdownPattern = Regex("""\[([^\]]*)\]\([^)]*\)|[*_~`]""")
-
-/**
- * 标题里的行内公式。渲染后分隔符会被剥掉、只留公式源，比较前要做同样的事。
- * 两种写法都要认：`$$…$$` 与单 `$…$`（pattern 与渲染时的判定共用，见 LatexMath.kt）。
- */
-private val headingMathPattern = mathSegmentPattern
-
-/**
- * 标题的源码 → 它在渲染文本里长什么样。
- * internal 而非 private：纯逻辑，交给 tools/checks 断言（见 CheckHeadingOffset / CheckLatexMath）。
- *
- * 公式要**先摘出来、再处理行内标记**：公式源里本来就带 `*` `_` `` ` `` 这些字符
- * （`$$a*b$$`、`$x_1$`），先走行内标记规则会把它们吃掉，算出来的标题就跟渲染文本对不上，
- * 于是 renderedOffsetOfHeading 里的 indexOf 落空、大纲跳转静默退化成「大概位置」。
- * 所以这里用占位符把公式挡在行内标记处理之外，最后再放回去。
- */
-internal fun plainTitle(title: String): String {
-    val math = mutableListOf<String>()
-    val masked = headingMathPattern.replace(title) { m ->
-        // group 1 是 `$$…$$` 的公式源，group 2 是单 `$…$` 的；不匹配的那个 group 为空串
-        math.add(m.groupValues[1].ifEmpty { m.groupValues[2] }.trim())
-        "\u0000"
-    }.replace(inlineMarkdownPattern) { it.groupValues[1] }
-    if (math.isEmpty()) return masked.trim()
-    val out = StringBuilder(masked.length)
-    var next = 0
-    for (ch in masked) {
-        if (ch == '\u0000') out.append(math[next++]) else out.append(ch)
-    }
-    return out.toString().trim()
-}
-
-/**
- * 大纲里的源文本偏移 → 渲染文本偏移。
- *
- * Markdown 语法在渲染后会消失（`# 标题` 变成 `标题`、列表标记等也不占字符），
- * 所以两套偏移并不一致，不能直接拿去滚动。这里按「源文本长度比例」估算一个大概位置，
- * 再在渲染文本里找离它最近的一次标题文字；标题文字找不到（含行内标记等）时就用估算值。
- */
-internal fun renderedOffsetOfHeading(
-    headingOffset: Int,
-    sourceText: String,
-    renderedText: String,
-): Int {
-    if (renderedText.isEmpty()) return 0
-    val ratio = if (sourceText.isEmpty()) 0.0 else headingOffset.toDouble() / sourceText.length
-    val estimate = (ratio * renderedText.length).toInt().coerceIn(0, renderedText.length)
-    val headingLine = sourceText.substring(headingOffset).lineSequence().firstOrNull().orEmpty()
-    val title = plainTitle(headingLine.trimStart('#').trim())
-    if (title.isBlank()) return estimate
-    var best = -1
-    var bestDistance = Int.MAX_VALUE
-    var i = renderedText.indexOf(title)
-    while (i >= 0) {
-        val distance = kotlin.math.abs(i - estimate)
-        if (distance < bestDistance) {
-            bestDistance = distance
-            best = i
-        }
-        i = renderedText.indexOf(title, i + 1)
-    }
-    return if (best >= 0) best else estimate
-}
-
-@Composable
-private fun SearchPanel(
-    query: String,
-    onQueryChange: (String) -> Unit,
-    replacement: String,
-    onReplacementChange: (String) -> Unit,
-    matchCount: Int,
-    matchIndex: Int,
-    onPrev: () -> Unit,
-    onNext: () -> Unit,
-    onReplace: () -> Unit,
-    onReplaceAll: () -> Unit,
-    onClose: () -> Unit,
-    showReplace: Boolean = true,
-) {
-    Surface {
-        Column {
-            HorizontalDivider()
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.padding(start = 8.dp),
-            ) {
-                TextField(
-                    value = query,
-                    onValueChange = onQueryChange,
-                    placeholder = { Text(stringResource(R.string.search)) },
-                    singleLine = true,
-                    modifier = Modifier.weight(1f),
-                    colors = TextFieldDefaults.colors(
-                        focusedContainerColor = Color.Transparent,
-                        unfocusedContainerColor = Color.Transparent,
-                        focusedIndicatorColor = Color.Transparent,
-                        unfocusedIndicatorColor = Color.Transparent,
-                    ),
-                )
-                Text(
-                    text = if (query.isEmpty()) "" else "${if (matchCount == 0) 0 else matchIndex + 1}/$matchCount",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                IconButton(onClick = onPrev, enabled = matchCount > 0) {
-                    Icon(
-                        Icons.Outlined.KeyboardArrowUp,
-                        contentDescription = stringResource(R.string.previous_match),
-                    )
-                }
-                IconButton(onClick = onNext, enabled = matchCount > 0) {
-                    Icon(
-                        Icons.Outlined.KeyboardArrowDown,
-                        contentDescription = stringResource(R.string.next_match),
-                    )
-                }
-                IconButton(onClick = onClose) {
-                    Icon(
-                        Icons.Outlined.Close,
-                        contentDescription = stringResource(R.string.close_search),
-                    )
-                }
-            }
-            // 预览是只读视图，没有"替换"这回事，只留查找与上下跳转
-            if (showReplace) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.padding(start = 8.dp),
-                ) {
-                    TextField(
-                        value = replacement,
-                        onValueChange = onReplacementChange,
-                        placeholder = { Text(stringResource(R.string.replace_placeholder)) },
-                        singleLine = true,
-                        modifier = Modifier.weight(1f),
-                        colors = TextFieldDefaults.colors(
-                            focusedContainerColor = Color.Transparent,
-                            unfocusedContainerColor = Color.Transparent,
-                            focusedIndicatorColor = Color.Transparent,
-                            unfocusedIndicatorColor = Color.Transparent,
-                        ),
-                    )
-                    TextButton(onClick = onReplace, enabled = matchCount > 0) {
-                        Text(stringResource(R.string.replace))
-                    }
-                    TextButton(onClick = onReplaceAll, enabled = matchCount > 0) {
-                        Text(stringResource(R.string.replace_all))
-                    }
-                }
-            }
-            HorizontalDivider()
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun OutlineSheet(
-    outline: List<Heading>,
-    onJump: (Int) -> Unit,
-    onDismiss: () -> Unit,
-) {
-    ModalBottomSheet(onDismissRequest = onDismiss) {
-        Text(
-            text = stringResource(R.string.outline),
-            style = MaterialTheme.typography.titleMedium,
-            modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
-        )
-        OutlineList(outline = outline, onJump = onJump)
-    }
-}
-
-/** 宽屏右侧大纲面板：与左侧文件列表栏一致的侧栏风格（标题栏 + 分隔线 + 列表） */
-@Composable
-private fun OutlinePanel(
-    outline: List<Heading>,
-    onJump: (Int) -> Unit,
-    onClose: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    Surface(modifier = modifier) {
-        Column {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(start = 24.dp, end = 4.dp),
-            ) {
-                Text(
-                    text = stringResource(R.string.outline),
-                    style = MaterialTheme.typography.titleMedium,
-                    modifier = Modifier.weight(1f),
-                )
-                IconButton(onClick = onClose) {
-                    Icon(
-                        Icons.Outlined.Close,
-                        contentDescription = stringResource(R.string.close_outline),
-                    )
-                }
-            }
-            HorizontalDivider()
-            OutlineList(outline = outline, onJump = onJump)
-        }
-    }
-}
-
-@Composable
-private fun OutlineList(
-    outline: List<Heading>,
-    onJump: (Int) -> Unit,
-) {
-    if (outline.isEmpty()) {
-        Text(
-            text = stringResource(R.string.outline_empty),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp),
-        )
-    } else {
-        LazyColumn(
-            contentPadding = PaddingValues(bottom = 32.dp),
-        ) {
-            items(outline) { heading ->
-                Text(
-                    text = heading.title,
-                    style = if (heading.level <= 2) MaterialTheme.typography.titleSmall
-                    else MaterialTheme.typography.bodyMedium,
-                    fontWeight = if (heading.level <= 2) FontWeight.Bold else FontWeight.Normal,
-                    color = if (heading.level <= 2) MaterialTheme.colorScheme.onSurface
-                    else MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { onJump(heading.offset) }
-                        .padding(
-                            start = (16 + (heading.level - 1) * 20).dp,
-                            end = 24.dp,
-                            top = 12.dp,
-                            bottom = 12.dp,
-                        ),
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun MarkdownToolbar(
-    onAction: (MarkdownAction) -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    Surface(modifier = modifier.fillMaxWidth()) {
-        Column {
-            HorizontalDivider()
-            // 动作文案随界面语言变化，在 composable 作用域内现取
-            val actions = markdownActions()
-            LazyRow(
-                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp),
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
-            ) {
-                items(actions) { action ->
-                    IconButton(onClick = { onAction(action) }) {
-                        if (action.icon != null) {
-                            Icon(
-                                action.icon,
-                                contentDescription = action.label,
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        } else {
-                            Text(
-                                text = action.label,
-                                style = MaterialTheme.typography.labelLarge,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-                    }
-                }
-            }
-        }
     }
 }

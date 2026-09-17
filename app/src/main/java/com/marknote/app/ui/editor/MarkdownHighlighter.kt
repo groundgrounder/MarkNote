@@ -13,6 +13,10 @@ import androidx.compose.ui.text.style.TextDecoration
  * 轻量 Markdown 语法高亮：纯正则扫描，只做样式叠加、不改变文本长度，
  * 配合 VisualTransformation + OffsetMapping.Identity 使用。
  * 后添加的样式在重叠处优先，因此先处理大范围（代码块），再处理行内元素。
+ *
+ * ⚠️ 调用方必须**只按 [colors] remember 一个实例**（见 EditorScreen）：`rules` 是 lazy 的，
+ * 但它一旦重建就是 10 条正则全部重新编译 + 全量重扫。早先按正文做 remember key，
+ * 等于每敲一个键都重编一遍。
  */
 class MarkdownHighlighter(private val colors: ColorScheme) {
 

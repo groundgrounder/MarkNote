@@ -36,6 +36,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -43,16 +44,19 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.marknote.app.data.AppLocaleStore
+import com.marknote.app.data.AppThemeStore
 import com.marknote.app.data.DocumentRepository
 import com.marknote.app.data.SettingsRepository
 import com.marknote.app.data.ThemeMode
 import com.marknote.app.data.localizedContext
+import com.marknote.app.data.themedContext
 import com.marknote.app.ui.common.OpenDocumentWithInitialUri
 import com.marknote.app.ui.editor.EditorScreen
 import com.marknote.app.ui.files.FileListScreen
 import com.marknote.app.ui.settings.SettingsScreen
 import com.marknote.app.ui.theme.MarkNoteTheme
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 class MainActivity : ComponentActivity() {
@@ -61,16 +65,19 @@ class MainActivity : ComponentActivity() {
     private var externalUri by mutableStateOf<Uri?>(null)
 
     /**
-     * 套用应用内语言。必须在 attachBaseContext 阶段完成：此时 Activity 的 Resources
-     * 还没被使用，包一层之后 Compose 的 stringResource、Material 组件的默认文案
-     * 才都是目标语言。切换语言时会重建 Activity，本方法随之重新执行。
+     * 套用应用内语言与深浅色。必须在 attachBaseContext 阶段完成：此时 Activity 的 Resources
+     * 还没被使用，包一层之后 Compose 的 stringResource、Material 组件的默认文案、
+     * **以及系统栏图标与窗口背景**（后者走的是 `values-night/` 这种 night 限定符）才都是目标设定。
+     * 两个设定都会改 Configuration，各包一层 —— 后一层是基于前一层复制的配置，不会互相覆盖。
+     * 切换语言或主题时会重建 Activity，本方法随之重新执行。
      *
-     * 这里用 refresh 而不是读缓存：Android 13+ 用户可能在系统「应用语言」里改过，
+     * 语言用 refresh 而不是读缓存：Android 13+ 用户可能在系统「应用语言」里改过，
      * 系统改完会重建 Activity，而 attachBaseContext 正是唯一「早于 Resources 被使用」的
      * 时机，在这里重新解析才能让新语言立刻生效。
      */
     override fun attachBaseContext(newBase: Context) {
-        super.attachBaseContext(localizedContext(newBase, AppLocaleStore.refresh(newBase)))
+        val themed = themedContext(newBase, AppThemeStore.forcedDark(newBase))
+        super.attachBaseContext(localizedContext(themed, AppLocaleStore.refresh(newBase)))
     }
 
     @OptIn(ExperimentalMaterial3WindowSizeClassApi::class)
@@ -168,15 +175,23 @@ fun MarkNoteApp(
     }
 
     // 重新授权：用系统文档选择器重选同一个文件，换来可持久化的授权
+    val scope = rememberCoroutineScope()
     val regrantTarget = pendingRegrant
     val regrantLauncher = rememberLauncherForActivityResult(
         remember(regrantTarget) { OpenDocumentWithInitialUri(regrantTarget?.let(Uri::parse)) },
     ) { picked ->
         val old = regrantTarget
         if (picked != null && old != null) {
-            repository.persistPermission(picked)
-            repository.replaceRecent(old, picked)
-            openDocument(picked.toString())
+            // 与上面外部打开那条路同一个理由：persistPermission 要跨进程问 provider，
+            // replaceRecent 内部还要查一次显示名（ContentProvider 查询）。都放 IO 做，
+            // 别让回调所在的主线程被 provider 的响应时间拖住。
+            scope.launch {
+                withContext(Dispatchers.IO) {
+                    repository.persistPermission(picked)
+                    repository.replaceRecent(old, picked)
+                }
+                openDocument(picked.toString())
+            }
         }
         pendingRegrant = null
     }

@@ -135,6 +135,14 @@ On Android 13 and newer there is a second entry point: change it directly under 
 - The Latin UI gained the two image-loading error messages that used to appear in English
 - Fixed: if you had previously picked one of the removed languages, Settings showed "System default" while the UI stayed English; that leftover choice is now cleared and the system language is followed from the second launch on
 
+### v1.3.1
+
+- Dark mode now reaches the system bars and the launch window too: forcing Dark while the system is light used to leave dark status-bar icons on a dark background, effectively invisible
+- Fixed: with some sources a save that had actually succeeded was reported as "save failed" — the file-length check read "unknown length" as a mismatch
+- Fixed: re-granting access to a document, or granting the image folder, no longer freezes the UI while it waits for the system
+- Typing in large documents is smoother: the syntax highlighter no longer recompiles its rules on every keystroke
+- The English wording of the "grant the image folder" prompt now matches the other languages
+
 ### v1.0.0
 
 - First stable release: the feature set, UI language handling and file-format behaviour are settled from here on

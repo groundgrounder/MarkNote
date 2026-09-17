@@ -96,7 +96,17 @@ fun SettingsScreen(
                     items.forEachIndexed { index, (mode, label) ->
                         SegmentedButton(
                             selected = settings.themeMode == mode,
-                            onClick = { settings.updateThemeMode(mode) },
+                            onClick = {
+                                if (settings.themeMode != mode) {
+                                    settings.updateThemeMode(mode)
+                                    // 与语言同理：深浅色是 attachBaseContext 阶段套到 Context 上的
+                                    // （`values-night` 与系统栏图标看的都是 Configuration 的 uiMode，
+                                    // 而不是 Compose 的配色），运行中改不了已经用出去的 Resources。
+                                    // 重建一次后窗口背景、系统栏图标与新配色才会一致生效；
+                                    // rememberSaveable 会保住停留在这页、以及正在编辑的文档。
+                                    context.findActivity()?.recreate()
+                                }
+                            },
                             shape = SegmentedButtonDefaults.itemShape(
                                 index = index, count = items.size,
                             ),

@@ -1,4 +1,4 @@
-import com.marknote.app.ui.editor.EditorScreenKt;
+import com.marknote.app.ui.editor.MarkdownSyntaxKt;
 
 /**
  * 大纲跳转用的两个纯函数（plainTitle / renderedOffsetOfHeading）的断言，不需要模拟器。
@@ -32,7 +32,7 @@ public class CheckHeadingOffset {
     }
 
     static String plainTitle(String s) {
-        return EditorScreenKt.plainTitle(s);
+        return MarkdownSyntaxKt.plainTitle(s);
     }
 
     /** 源码里的标题 → 渲染后应当出现的文字；断言返回的偏移正好指在这段文字上 */
@@ -42,7 +42,7 @@ public class CheckHeadingOffset {
             check(name + "（用例自身写错了：源码里没有 " + marker + "）", false);
             return;
         }
-        int offset = EditorScreenKt.renderedOffsetOfHeading(headingOffset, source, rendered);
+        int offset = MarkdownSyntaxKt.renderedOffsetOfHeading(headingOffset, source, rendered);
         boolean inRange = offset >= 0 && offset <= rendered.length();
         check(name + "：偏移在合法范围内", inRange);
         if (inRange) {
@@ -124,7 +124,7 @@ public class CheckHeadingOffset {
         String source = "# 标题一\n\n垫一段正文。\n\n## $$没闭合\n";
         String rendered = "标题一\n垫一段正文。\n$$没闭合\n";
         int headingOffset = source.indexOf("## $$没闭合");
-        int offset = EditorScreenKt.renderedOffsetOfHeading(headingOffset, source, rendered);
+        int offset = MarkdownSyntaxKt.renderedOffsetOfHeading(headingOffset, source, rendered);
         check("未闭合公式：退回估算且不越界", offset >= 0 && offset <= rendered.length());
     }
 

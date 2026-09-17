@@ -1,137 +1,19 @@
 package com.marknote.app.ui.editor
 
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.FormatListBulleted
-import androidx.compose.material.icons.outlined.Code
-import androidx.compose.material.icons.outlined.FormatQuote
-import androidx.compose.material.icons.outlined.HorizontalRule
-import androidx.compose.material.icons.outlined.Link
-import androidx.compose.runtime.Composable
+import android.net.Uri
+import android.os.SystemClock
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.TextFieldValue
-import android.net.Uri
-import android.os.SystemClock
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.marknote.app.R
 import com.marknote.app.data.DocumentEncoding
 import com.marknote.app.data.DocumentRepository
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-
-/** 工具栏上的一种 Markdown 插入动作。icon 非空时工具栏显示图标，否则显示 label 文字 */
-data class MarkdownAction(
-    val label: String,
-    val prefix: String,
-    val suffix: String = "",
-    val placeholder: String = "",
-    val icon: ImageVector? = null,
-)
-
-/** 一个大纲条目：标题层级、文字、在全文中的字符偏移 */
-data class Heading(val level: Int, val title: String, val offset: Int)
-
-/**
- * 从 Markdown 全文解析标题大纲（跳过代码块内部）。
- *
- * 围栏两种都认（``` 与 ~~~，CommonMark 皆然），且**只有同种字符、长度不短于开头**才算闭合。
- * 早期只写死 ` ``` ` 且一遇到就取反，于是 `~~~` 块会被当成正文（里面的 `#` 进了大纲），
- * 而 `~~~` 后面那个 ``` 又会被误当成闭合，把真正的正文当成代码块跳过。
- *
- * 四空格缩进的代码块没有处理：那需要完整的块级解析，而误判的代价只是大纲里多一条、
- * 少一条，不值得把一整条 Markdown 解析链引进来。
- */
-fun parseOutline(text: String): List<Heading> {
-    val result = mutableListOf<Heading>()
-    val headingRegex = Regex("^(#{1,6})\\s+(.+?)\\s*$")
-    var offset = 0
-    // 当前代码围栏：字符（` 或 ~）与开头的连续长度；null 表示不在围栏里
-    var fenceChar: Char? = null
-    var fenceLen = 0
-    for (line in text.split("\n")) {
-        val trimmed = line.trimStart()
-        if (fenceChar == null) {
-            val open = fenceOf(trimmed)
-            if (open != null) {
-                fenceChar = open.first
-                fenceLen = open.second
-            } else {
-                val m = headingRegex.matchEntire(line)
-                if (m != null) {
-                    result.add(Heading(m.groupValues[1].length, m.groupValues[2], offset))
-                }
-            }
-        } else {
-            // 闭合行必须只有围栏字符本身（后面至多留空白），否则 ```` ```foo ```` 会误闭合
-            val close = fenceOf(trimmed)
-            if (close != null && close.first == fenceChar && close.second >= fenceLen &&
-                trimmed.substring(close.second).isBlank()
-            ) {
-                fenceChar = null
-                fenceLen = 0
-            }
-        }
-        offset += line.length + 1
-    }
-    return result
-}
-
-/** 这行是不是代码围栏，是则返回（围栏字符, 连续长度） */
-private fun fenceOf(line: String): Pair<Char, Int>? {
-    val c = line.firstOrNull() ?: return null
-    if (c != '`' && c != '~') return null
-    val len = line.takeWhile { it == c }.length
-    if (len < 3) return null
-    // 反引号围栏的信息串里不允许再出现反引号（CommonMark），`~~~` 无此限制
-    if (c == '`' && line.substring(len).contains('`')) return null
-    return c to len
-}
-
-/**
- * 工具栏动作列表。
- *
- * 做成 @Composable 而不是顶层常量，是因为 label（图标按钮的无障碍描述）与 placeholder
- * （无选区时插入的占位文字）都要跟随界面语言；H1/H2/B/I/S 这类符号本身是语言无关的，
- * 保持原样输出成 Markdown 语法。
- */
-@Composable
-fun markdownActions(): List<MarkdownAction> = listOf(
-    MarkdownAction("H1", "# ", placeholder = stringResource(R.string.md_heading)),
-    MarkdownAction("H2", "## ", placeholder = stringResource(R.string.md_heading)),
-    MarkdownAction("B", "**", "**", stringResource(R.string.md_bold)),
-    MarkdownAction("I", "*", "*", stringResource(R.string.md_italic)),
-    MarkdownAction("S", "~~", "~~", stringResource(R.string.md_strikethrough)),
-    MarkdownAction(
-        stringResource(R.string.md_quote), "> ",
-        placeholder = stringResource(R.string.md_quote),
-        icon = Icons.Outlined.FormatQuote,
-    ),
-    MarkdownAction(
-        stringResource(R.string.md_list), "- ",
-        placeholder = stringResource(R.string.md_list_item),
-        icon = Icons.AutoMirrored.Outlined.FormatListBulleted,
-    ),
-    MarkdownAction(
-        stringResource(R.string.md_link), "[", "](https://)",
-        stringResource(R.string.md_link_text),
-        icon = Icons.Outlined.Link,
-    ),
-    MarkdownAction(
-        stringResource(R.string.md_code), "```\n", "\n```",
-        stringResource(R.string.md_code),
-        icon = Icons.Outlined.Code,
-    ),
-    MarkdownAction(
-        stringResource(R.string.md_divider), "\n---\n",
-        icon = Icons.Outlined.HorizontalRule,
-    ),
-)
 
 class EditorViewModel(
     private val repository: DocumentRepository,
@@ -391,7 +273,7 @@ class EditorViewModel(
     }
 
     /** 应用一个工具栏插入动作：有选区则包裹选区，无选区则插入占位文本 */
-    fun applyAction(action: MarkdownAction) {
+    internal fun applyAction(action: MarkdownAction) {
         val current = content
         val sel = current.selection
         val selected = current.text.substring(sel.min, sel.max)

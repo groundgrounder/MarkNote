@@ -72,7 +72,10 @@ class UndoStack @JvmOverloads constructor(
 
     val canRedo: Boolean get() = redoList.isNotEmpty()
 
-    /** 撤销步数。界面上用不到，但断言里要确认合并真的发生了 */
+    /**
+     * 撤销步数。界面上用不到，但断言里要确认合并真的发生了
+     * （tools/checks/CheckUndo.java 调的是 JVM getter `getUndoDepth()`，别当死代码删）。
+     */
     val undoDepth: Int get() = undoList.size
 
     fun clear() {

@@ -154,40 +154,34 @@ fun FileListScreen(
                     .padding(padding),
             ) {
                 val wide = maxWidth >= 600.dp
+                // 底部留出 FAB 区域，避免卡片被遮挡
+                val listPadding = PaddingValues(
+                    start = 16.dp, end = 16.dp, top = 8.dp, bottom = 176.dp,
+                )
+                // 卡片内容只写一份：宽屏网格与窄屏列表的 items 是同一套渲染
+                val card: @Composable (DocumentMeta) -> Unit = { doc ->
+                    DocumentCard(
+                        doc = doc,
+                        timeText = viewModel.formatTime(doc.openedAt),
+                        onClick = { onOpenDocument(doc.uri) },
+                        onRemove = { pendingRemove = doc },
+                    )
+                }
                 if (wide) {
                     LazyVerticalGrid(
                         columns = GridCells.Adaptive(minSize = 340.dp),
-                        // 底部留出 FAB 区域，避免卡片被遮挡
-                        contentPadding = PaddingValues(
-                            start = 16.dp, end = 16.dp, top = 8.dp, bottom = 176.dp,
-                        ),
+                        contentPadding = listPadding,
                         horizontalArrangement = Arrangement.spacedBy(12.dp),
                         verticalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
-                        items(viewModel.documents, key = { it.uri }) { doc ->
-                            DocumentCard(
-                                doc = doc,
-                                timeText = viewModel.formatTime(doc.openedAt),
-                                onClick = { onOpenDocument(doc.uri) },
-                                onRemove = { pendingRemove = doc },
-                            )
-                        }
+                        items(viewModel.documents, key = { it.uri }) { card(it) }
                     }
                 } else {
                     LazyColumn(
-                        contentPadding = PaddingValues(
-                            start = 16.dp, end = 16.dp, top = 8.dp, bottom = 176.dp,
-                        ),
+                        contentPadding = listPadding,
                         verticalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
-                        items(viewModel.documents, key = { it.uri }) { doc ->
-                            DocumentCard(
-                                doc = doc,
-                                timeText = viewModel.formatTime(doc.openedAt),
-                                onClick = { onOpenDocument(doc.uri) },
-                                onRemove = { pendingRemove = doc },
-                            )
-                        }
+                        items(viewModel.documents, key = { it.uri }) { card(it) }
                     }
                 }
             }

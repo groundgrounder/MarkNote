@@ -1,4 +1,4 @@
-import com.marknote.app.ui.editor.EditorScreenKt;
+import com.marknote.app.ui.editor.MarkdownSyntaxKt;
 
 import java.util.List;
 
@@ -27,7 +27,7 @@ public class CheckFindMatches {
     }
 
     static List<?> m(String text, String query) {
-        return EditorScreenKt.findMatches(text, query);
+        return MarkdownSyntaxKt.findMatches(text, query);
     }
 
     public static void main(String[] args) {

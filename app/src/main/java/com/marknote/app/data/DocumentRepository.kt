@@ -22,7 +22,6 @@ data class DocumentMeta(
     val name: String,          // 显示文件名（含后缀）
     val snippet: String,       // 正文摘要，读取失败时为空
     val accessible: Boolean,   // 当前是否还能读到该文档
-    val writable: Boolean,     // 当前是否还能写回（只读打开时为 false）
     val openedAt: Long,
 )
 
@@ -112,7 +111,10 @@ class DocumentRepository(private val context: Context) {
         val size = runCatching {
             context.contentResolver.openFileDescriptor(uri, "r")?.use { it.statSize }
         }.getOrNull()
-        return size == null || size == bytes.size.toLong()
+        // ⚠️ getStatSize() 在长度未知时返回 **-1**（不是 null）。早先只判了 null，
+        // provider 报 -1 时就被当成「长度不符」→ 明明写成功却给出假的「保存失败」，
+        // 用户会以为内容没保住而反复重试。这里把负数一并算作「量不到」，与上面那段注释的口径一致。
+        return size == null || size < 0 || size == bytes.size.toLong()
     }
 
     /**
@@ -221,7 +223,13 @@ class DocumentRepository(private val context: Context) {
         save(load().filterNot { it.uri == uriString })
     }
 
-    /** 最近打开列表，按打开时间倒序；附带摘要、可访问性与可写性检测 */
+    /**
+     * 最近打开列表，按打开时间倒序；附带摘要与可访问性检测。
+     *
+     * 只探测「读得到读不到」：[DocumentMeta] 不再带可写性，因为列表页不显示它 —— 而
+     * 判定可写要走一次跨进程 `checkUriPermission`，每条记录都问一遍纯属白烧。
+     * 写权限由编辑器在打开文档时单独查（见 [canWrite]）。
+     */
     suspend fun recentDocuments(): List<DocumentMeta> = withContext(Dispatchers.IO) {
         load().sortedByDescending { it.time }.map { entry ->
             val uri = Uri.parse(entry.uri)
@@ -236,7 +244,6 @@ class DocumentRepository(private val context: Context) {
                     .joinToString("  ")
                     .take(80),
                 accessible = head != null,
-                writable = canWrite(uri),
                 openedAt = entry.time,
             )
         }
@@ -320,8 +327,8 @@ class DocumentRepository(private val context: Context) {
 
     /**
      * 写回列表。这里统一按「最近打开」保留最多 [MAX_ENTRIES] 条：列表原本只增不减，
-     * 而 [recentDocuments] 对每条都要跨进程 probe 一次正文头、再查一次写权限，
-     * 条目越多列表页越慢。上限放在唯一的写入口，任何增删路径都自动受约束。
+     * 而 [recentDocuments] 对每条都要跨进程 probe 一次正文头，条目越多列表页越慢。
+     * 上限放在唯一的写入口，任何增删路径都自动受约束。
      */
     @Synchronized
     private fun save(entries: List<Entry>) {
