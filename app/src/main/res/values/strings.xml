@@ -14,6 +14,8 @@
     <string name="expand_sidebar">Expand sidebar</string>
     <string name="new_file">New file</string>
     <string name="open_file">Open file</string>
+    <string name="open_in_new_window">Open in new window</string>
+    <string name="already_open_in_a_window">This document is already open in a window</string>
     <string name="untitled_md">Untitled.md</string>
     <string name="remove_from_list">Remove from list</string>
     <string name="remove_dialog_message">Remove “%1$s” from the recent list? The file on your device will not be deleted.</string>

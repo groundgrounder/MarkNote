@@ -55,6 +55,13 @@ class EditorViewModel(
     /** 串行化写盘：防止连续编辑时多个保存协程并发写同一文件造成旧内容覆盖新内容 */
     private val saveMutex = Mutex()
 
+    /**
+     * 上次从磁盘读出正文的时刻（`elapsedRealtime`，0 表示本实例还没成功读过）。
+     * 只给 [syncFromDiskIfClean] 做节流用。哨兵值不能取 `Long.MIN_VALUE`：
+     * 第一次比较时 `now - Long.MIN_VALUE` 会溢出成负数，「刚读过」的判断就永远为真。
+     */
+    private var lastSyncAtMs = 0L
+
     /** 撤销栈。纯 Kotlin、不依赖 Android，所以它能在 JVM 上被断言实测（tools/run_checks.sh） */
     private val undoStack = UndoStack()
 
@@ -122,6 +129,7 @@ class EditorViewModel(
             loadFailed = false
             saveFailed = false
             readOnly = !repository.canWrite(uri)
+            lastSyncAtMs = SystemClock.elapsedRealtime()
         }
     }
 
@@ -137,6 +145,12 @@ class EditorViewModel(
      */
     fun syncFromDiskIfClean() {
         if (!isLoaded || hasUnsavedChanges) return
+        // 节流：旋转、进出分屏、切语言/主题都会重建 Activity 并重新进入组合，每次重入都会走到这里，
+        // 而一次同步就是一次**全量读盘**（大文件上是可感的卡顿）。刚读过就不必再读 —— 那点时间里
+        // 外部应用改不了什么，而用户自己的自动保存本来就落在 800ms 这个量级上，仍远在窗口之内。
+        val now = SystemClock.elapsedRealtime()
+        if (now - lastSyncAtMs < SYNC_THROTTLE_MS) return
+        lastSyncAtMs = now
         // 记下发起时的正文。readDocument 会挂起（跨进程读盘），这期间用户完全可能已经开始输入；
         // 不核对就恢复的话，会把刚敲进去的字整份替换成磁盘内容——静默丢字。
         val snapshot = content.text
@@ -290,5 +304,10 @@ class EditorViewModel(
         // 工具栏插入是一次独立意图：不合并，撤销一次就干净退回插入前
         recordEdit(current.text, newText, coalesce = false)
         content = TextFieldValue(newText, TextRange(cursor))
+    }
+
+    private companion object {
+        /** [syncFromDiskIfClean] 的节流窗口：窗口内刚读过盘就不再重读 */
+        const val SYNC_THROTTLE_MS = 2_000L
     }
 }

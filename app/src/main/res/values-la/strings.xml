@@ -9,6 +9,8 @@
     <string name="expand_sidebar">Latus pande</string>
     <string name="new_file">Novus fasciculus</string>
     <string name="open_file">Fasciculum aperire</string>
+    <string name="open_in_new_window">In nova fenestra aperire</string>
+    <string name="already_open_in_a_window">Hoc documentum iam in fenestra quadam apertum est</string>
     <string name="untitled_md">Sine titulo.md</string>
     <string name="remove_from_list">E tabula tolle</string>
     <string name="remove_dialog_message">«%1$s» e tabula recentium tollere? Fasciculus in instrumento tuo non delebitur.</string>

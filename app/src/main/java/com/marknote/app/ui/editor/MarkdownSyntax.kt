@@ -17,6 +17,16 @@ package com.marknote.app.ui.editor
 data class Heading(val level: Int, val title: String, val offset: Int)
 
 /**
+ * 界面上给人看的标题：文件名去掉 `.md` / `.markdown` 后缀。
+ *
+ * 编辑器顶栏标题用它。**别在别处再写一遍 `removeSuffix`**：两处各写一遍迟早分叉，而分叉的样子
+ * 很难看 —— 曾经标签条漏了去后缀，同一份文档顶栏写 `tabA`、标签条写 `tabA.md`，像两份不同的文件。
+ *
+ * 只认小写后缀（与顶栏一直以来的行为一致）：`README.MD` 保留后缀不变。
+ */
+fun fileTitle(name: String): String = name.removeSuffix(".md").removeSuffix(".markdown")
+
+/**
  * 从 Markdown 全文解析标题大纲（跳过代码块内部）。
  *
  * 围栏两种都认（``` 与 ~~~，CommonMark 皆然），且**只有同种字符、长度不短于开头**才算闭合。

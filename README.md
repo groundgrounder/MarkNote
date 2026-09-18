@@ -30,6 +30,7 @@ Grab the latest APK (`MarkNote-vX.Y.Z.apk`) from [Releases](https://github.com/g
 - Or use "Open file" inside the app to read and write **any folder** through the system document picker (external storage and cloud-sync folders included), no storage permission needed, edits written back to the original file
 - Encoding preserved: UTF-8 (with or without BOM), UTF-16 and GB18030/GBK are read correctly, and edits are written back in the encoding the file came in with — a GBK note stays GBK instead of being silently converted to UTF-8
 - Recent files: everything you have opened stays on the home screen and is still editable after a reboot; entries can be removed (from the list only — the file is untouched); a file that was moved or whose access expired is flagged in red, and "Re-authorize" brings it back
+- Side-by-side windows: MarkNote can hold several windows at once (system split screen, desktop windows on tablets), each editing its own document with no interference; long-press a file in the recent list and pick “Open in new window” to get another one. Long-pressing a file that is already open does not give you a second editor — MarkNote says so and declines, and it recognises the very same file opened from a different source
 - Read-only files are called out: without write access the editor shows "changes will not be saved" instead of silently dropping your edits
 - Auto-save: writes to disk 800 ms after you stop typing, and saves before you leave the editor or switch to preview; can be switched to manual in Settings (the save button in the top bar highlights while there are unsaved changes)
 
@@ -64,6 +65,8 @@ Grab the latest APK (`MarkNote-vX.Y.Z.apk`) from [Releases](https://github.com/g
 - **Why there is no Ctrl+Z shortcut**: while a text field has focus the letter key is handed to the IME first, and keyboards such as Gboard consume the combination for their own per-character undo, so the app never sees it. Use the undo button in the top bar instead
 - **A formula appears in the error colour inside a box**: one unrecognised command in it (say `\zzzz`) fails the whole formula; fix that command and it renders. Note that the formula fonts contain no CJK glyphs, so `\text{中文}` cannot be typeset — keep Chinese outside the formula
 
+- **To see two documents side by side**: long-press the file in the recent list, pick “Open in new window”, then put the two windows into split screen (top/bottom or left/right). Inside each window the back button still returns to the file list; close a window from the system recents. The same file never opens in two editors at once
+
 ## App language
 
 **4 built-in UI languages**: English, Simplified Chinese, Traditional Chinese and Latin. It follows the system by default and can be pinned in Settings, applying immediately while keeping the document you are editing; unmatched languages (Japanese, French, Korean, …) fall back to English. Timestamps in the recent-files list follow the language too.
@@ -72,8 +75,8 @@ On Android 13 and newer there is a second entry point: change it directly under 
 
 ## Roadmap
 
-- v1.4: "Save as", image insertion
-- v2.0: WebDAV sync, custom themes, multi-tab editing
+- v1.5: "Save as", image insertion
+- v2.0: WebDAV sync, custom themes
 
 <details>
 <summary>Version history</summary>
@@ -142,6 +145,13 @@ On Android 13 and newer there is a second entry point: change it directly under 
 - Fixed: re-granting access to a document, or granting the image folder, no longer freezes the UI while it waits for the system
 - Typing in large documents is smoother: the syntax highlighter no longer recompiles its rules on every keystroke
 - The English wording of the "grant the image folder" prompt now matches the other languages
+
+### v1.4.0
+
+- One document per window: MarkNote can now hold several windows at once (system split screen, desktop windows on tablets), each editing its own file with no interference; the title in each window is the file it is editing
+- Long-press a file in the recent list and pick “Open in new window” for another one; a document that is already open is not opened a second time (MarkNote says so and declines, and it recognises the same file opened from a different source)
+- Fixed: after opening a file from a file manager, the recent list on a wide screen did not refresh and kept showing the state from before
+- Fixed: rotating the screen or entering/leaving split screen used to pop up the “no long-term access” notice all over again
 
 ### v1.0.0
 

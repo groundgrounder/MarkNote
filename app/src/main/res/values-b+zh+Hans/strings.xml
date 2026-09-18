@@ -13,6 +13,8 @@
     <string name="expand_sidebar">展开侧栏</string>
     <string name="new_file">新建文件</string>
     <string name="open_file">打开文件</string>
+    <string name="open_in_new_window">在新窗口打开</string>
+    <string name="already_open_in_a_window">这份文档已经在一个窗口里打开着</string>
     <string name="untitled_md">未命名.md</string>
     <string name="remove_from_list">从列表移除</string>
     <string name="remove_dialog_message">将「%1$s」从最近打开列表中移除，不会删除设备上的文件。</string>

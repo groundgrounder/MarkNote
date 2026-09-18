@@ -38,6 +38,7 @@ import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -117,12 +118,20 @@ fun EditorScreen(
         viewModel.save()
     }
 
+    // 离开组合（切标签、回列表、进设置）时兜一次保存：自动保存要等上面那 800ms，而组合先
+    // 没了 —— 防抖协程随组合一起被取消，最后一段输入就永远不会落盘。
+    // 这一次保存走的是 ViewModel 自己的 scope：它挂在 Activity 的 ViewModelStore 上，
+    // 此刻仍然活着，所以写盘能跑完（切标签不会把没落盘的改动带走）。
+    DisposableEffect(viewModel) {
+        onDispose { viewModel.save() }
+    }
+
     BackHandler {
         viewModel.save()
         onBack()
     }
 
-    val title = displayName.removeSuffix(".md").removeSuffix(".markdown")
+    val title = fileTitle(displayName)
     // 读取失败时只提供错误提示，不进入编辑/预览（避免空内容被误写回原文件）
     val usable = viewModel.isLoaded
 

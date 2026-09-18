@@ -53,10 +53,26 @@ public class CheckEncodingOutline {
         outlineTildeFence();
         outlineFenceLengthAndInfoString();
         outlineRealHeadingAfterFence();
+        fileTitleSuffixes();
 
         System.out.println();
         System.out.println("通过 " + pass + " / 失败 " + fail);
         if (fail > 0) System.exit(1);
+    }
+
+    /**
+     * 界面标题去后缀的口径。顶栏标题与标签条标签共用它 ——
+     * 第一版标签条漏了去后缀，同一份文档顶栏写 tabA、标签条写 tabA.md。
+     */
+    static void fileTitleSuffixes() {
+        check("去 .md", MarkdownSyntaxKt.fileTitle("tabA.md").equals("tabA"));
+        check("去 .markdown", MarkdownSyntaxKt.fileTitle("note.markdown").equals("note"));
+        check("没有后缀就原样", MarkdownSyntaxKt.fileTitle("README").equals("README"));
+        check("只去一层后缀", MarkdownSyntaxKt.fileTitle("a.md.md").equals("a.md"));
+        check("后缀只认小写（与顶栏既有行为一致）", MarkdownSyntaxKt.fileTitle("README.MD").equals("README.MD"));
+        check("点号在中间不动", MarkdownSyntaxKt.fileTitle("v1.2.md").equals("v1.2"));
+        check("空串不炸", MarkdownSyntaxKt.fileTitle("").isEmpty());
+        check("中文名可去后缀", MarkdownSyntaxKt.fileTitle("未命名.md").equals("未命名"));
     }
 
     /** 列表摘要也要剥 BOM：不剥的话首字符是零宽 U+FEFF，和编辑器里的正文对不上 */

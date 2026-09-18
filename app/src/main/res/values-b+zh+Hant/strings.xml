@@ -9,6 +9,8 @@
     <string name="expand_sidebar">展開側邊欄</string>
     <string name="new_file">新增檔案</string>
     <string name="open_file">開啟檔案</string>
+    <string name="open_in_new_window">在新視窗開啟</string>
+    <string name="already_open_in_a_window">這份文件已經在一個視窗裡開啟著</string>
     <string name="untitled_md">未命名.md</string>
     <string name="remove_from_list">從清單移除</string>
     <string name="remove_dialog_message">將「%1$s」從最近開啟清單中移除，不會刪除裝置上的檔案。</string>
