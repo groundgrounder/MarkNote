@@ -28,11 +28,13 @@ class EditorViewModel(
     var isPreview by mutableStateOf(false)
         private set
 
+    /**
+     * 读盘成功、正文可信。
+     *
+     * false 有两种情形：还在读，或读取失败（无权限 / 文件已被移动删除）。两者都不该进入编辑/预览
+     * —— 否则空正文会被写回原文件；[save] 与自动保存也据此直接返回。
+     */
     var isLoaded by mutableStateOf(false)
-        private set
-
-    /** 读取失败（无权限 / 文件已被移动删除）：编辑器显示错误态，而不是伪装成空文档 */
-    var loadFailed by mutableStateOf(false)
         private set
 
     /** 只能读不能写（例如从文件管理器「打开方式」进来的只读授权），保存不会生效 */
@@ -118,7 +120,6 @@ class EditorViewModel(
             val document = repository.readDocument(uri)
             if (document == null) {
                 isLoaded = false
-                loadFailed = true
                 return@launch
             }
             encoding = document.encoding
@@ -126,7 +127,6 @@ class EditorViewModel(
             content = TextFieldValue(document.text, TextRange(document.text.length))
             clearUndoHistory() // 刚打开（或重新载入）的文档没有编辑历史可撤
             isLoaded = true
-            loadFailed = false
             saveFailed = false
             readOnly = !repository.canWrite(uri)
             lastSyncAtMs = SystemClock.elapsedRealtime()

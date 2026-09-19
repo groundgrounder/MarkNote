@@ -157,7 +157,7 @@ class MainActivity : ComponentActivity() {
  * 文件描述符），所以它单独存、后补；还没算出来时退回按 Uri 判断 —— 那两个 Uri 至少是「自己等于
  * 自己」，不会误放。
  */
-internal object OpenDocumentRegistry {
+private object OpenDocumentRegistry {
     /** uri → 显示它的窗口数（计数而非布尔：本来就可能已经开着两份） */
     private val windowCounts = mutableMapOf<String, Int>()
 
@@ -194,7 +194,7 @@ internal object OpenDocumentRegistry {
  * 待处理的一次打开请求。
  * [inNewWindow] 为 true 表示来自应用内列表的「在新窗口打开」。
  */
-internal data class OpenRequest(val uri: Uri, val inNewWindow: Boolean)
+private data class OpenRequest(val uri: Uri, val inNewWindow: Boolean)
 
 /**
  * 导航与布局：
@@ -207,7 +207,7 @@ internal data class OpenRequest(val uri: Uri, val inNewWindow: Boolean)
  * 因此窗口之间的编辑状态天然隔离 —— 这里不需要任何额外机制。
  */
 @Composable
-internal fun MarkNoteApp(
+private fun MarkNoteApp(
     repository: DocumentRepository,
     settings: SettingsRepository,
     isExpanded: Boolean,
