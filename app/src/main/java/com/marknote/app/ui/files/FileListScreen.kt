@@ -49,6 +49,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.draw.clip
@@ -61,6 +62,9 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.marknote.app.R
 import com.marknote.app.data.DocumentMeta
 import com.marknote.app.data.DocumentRepository
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -71,6 +75,7 @@ fun FileListScreen(
     onOpenSettings: () -> Unit,
     onCollapse: (() -> Unit)? = null,
     refreshTick: Int = 0,
+    showHiddenFiles: Boolean = false,
 ) {
     val viewModel: FileListViewModel = viewModel(key = "file-list") {
         FileListViewModel(repository)
@@ -88,11 +93,21 @@ fun FileListScreen(
     // 存本地 saveable 状态时用户选的那一档会被静默重置
     val mode = viewModel.listMode
 
-    // 系统文档选择器：打开已有文件
-    val openLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.OpenDocument(),
-    ) { uri ->
-        if (uri != null) viewModel.onDocumentPicked(uri, onOpenDocument)
+    // 系统目录选择器：给「打开文件」与文件夹浏览的「换文件夹」共用。
+    // 放在这一层而不是 FolderBrowser 里 —— 两处入口都要用它，各自的 remember 会拿到两个
+    // 互不相干的 launcher 实例，回调也就各写一份。
+    val scope = rememberCoroutineScope()
+    val folderPicker = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocumentTree(),
+    ) { picked ->
+        if (picked != null) {
+            scope.launch {
+                // takePersistableUriPermission 要走系统 IPC，别放主线程
+                withContext(Dispatchers.IO) { repository.persistFolderPermission(picked) }
+                repository.setFolderTree(picked.toString())
+                viewModel.onFolderChosen(picked.toString(), repository.folderRootName(picked).orEmpty())
+            }
+        }
     }
 
     // 系统文档选择器：在任意目录新建 .md 文件
@@ -143,7 +158,16 @@ fun FileListScreen(
                 }
                 SmallFloatingActionButton(
                     onClick = {
-                        openLauncher.launch(arrayOf("text/markdown", "text/plain", "*/*"))
+                        // 「打开文件」= 应用内选择器：切到「文件夹」档，没有授权就先让用户选一个文件夹。
+                        // 为什么不用系统选择器：见 TextFileTypes.kt 顶部那段（DocumentsUI 的类型过滤
+                        // 只对「最近」视图生效，翻进目录就没了）。
+                        viewModel.selectListMode(LIST_MODE_FOLDER)
+                        // ⚠️ 先看 folderResolved：init 里那次授权查询还没回来时 folderTree 必然是 null，
+                        // 凭它直接弹选择器，会让「明明授权过」的用户在冷启动后头一瞬被多问一次。
+                        // 没问完就先什么都不做 —— 这时界面显示的正是「选择文件夹」引导，按钮就在上面。
+                        if (viewModel.folderResolved && viewModel.folderTree == null) {
+                            folderPicker.launch(null)
+                        }
                     },
                     containerColor = MaterialTheme.colorScheme.secondaryContainer,
                     contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
@@ -197,6 +221,8 @@ fun FileListScreen(
                         )
                     },
                     refreshTick = refreshTick,
+                    showHiddenFiles = showHiddenFiles,
+                    onPickFolder = { folderPicker.launch(null) },
                 )
 
                 viewModel.documents.isEmpty() && !viewModel.isLoading -> EmptyState()

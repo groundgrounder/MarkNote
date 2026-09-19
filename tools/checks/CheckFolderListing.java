@@ -5,10 +5,13 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * 文件夹浏览的纯逻辑断言：哪些条目进列表、怎么排序、面包屑怎么拼。
+ * 文件夹浏览的纯逻辑断言：怎么排序、面包屑怎么拼。
  *
- * 这条线最容易出的错是「看起来能用、实际顺序每次刷新都在变」和「.txt 漏进不来」，
- * 两者都不报错、只在用的时候别扭，所以在这里钉住。
+ * 「哪些条目进列表」那部分挪到了 CheckTextFileTypes —— 那份口径同时被系统文件选择器用着
+ * （见 PICKER_MIME_TYPES），跟选择器放一起测才对得上。
+ *
+ * 这条线最容易出的错是「看起来能用、实际顺序每次刷新都在变」，不报错、只在用的时候别扭，
+ * 所以在这里钉住。
  *
  * 用法：tools/run_checks.sh
  */
@@ -45,17 +48,6 @@ public class CheckFolderListing {
     }
 
     public static void main(String[] args) {
-        // ---------------- 哪些条目进列表 ----------------
-        check("md 收", FolderListingKt.isBrowsableEntry("a.md", "text/markdown"));
-        check("markdown 收", FolderListingKt.isBrowsableEntry("a.markdown", "text/plain"));
-        check("txt 收", FolderListingKt.isBrowsableEntry("a.txt", "text/plain"));
-        check("大写后缀也收", FolderListingKt.isBrowsableEntry("README.MD", "application/octet-stream"));
-        check("text/* 收", FolderListingKt.isBrowsableEntry("无后缀", "text/x-markdown"));
-        check("目录一律收", FolderListingKt.isBrowsableEntry("notes", "vnd.android.document/directory"));
-        check("png 不收", !FolderListingKt.isBrowsableEntry("a.png", "image/png"));
-        check("apk 不收", !FolderListingKt.isBrowsableEntry("a.apk", "application/vnd.android.package-archive"));
-        check("没有扩展名的二进制不收", !FolderListingKt.isBrowsableEntry("data", "application/octet-stream"));
-
         // ---------------- 排序：目录在前，名字大小写不敏感 ----------------
         List<FolderEntry> raw = new ArrayList<>();
         raw.add(file("zebra.md"));

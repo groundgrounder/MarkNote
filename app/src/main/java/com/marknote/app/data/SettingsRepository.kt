@@ -79,6 +79,15 @@ class SettingsRepository(context: Context) {
     var autoSave by mutableStateOf(prefs.getBoolean(KEY_AUTO_SAVE, true))
         private set
 
+    /**
+     * 文件夹浏览是否显示隐藏文件（名字以 `.` 开头）。
+     *
+     * 默认 **false = 不显示**：笔记目录里 `.git`、`.obsidian`、`.DS_Store` 这类条目几乎全是噪声，
+     * 而它们是「看得见就一定会看到」的东西。需要翻 `.gitignore` 这类文件的人再打开这个开关。
+     */
+    var folderShowHiddenFiles by mutableStateOf(prefs.getBoolean(KEY_FOLDER_SHOW_HIDDEN, false))
+        private set
+
     fun updateThemeMode(mode: ThemeMode) {
         themeMode = mode
         prefs.edit().putString(AppThemeStore.KEY, mode.name).apply()
@@ -109,10 +118,16 @@ class SettingsRepository(context: Context) {
         prefs.edit().putBoolean(KEY_AUTO_SAVE, enabled).apply()
     }
 
+    fun updateFolderShowHiddenFiles(show: Boolean) {
+        folderShowHiddenFiles = show
+        prefs.edit().putBoolean(KEY_FOLDER_SHOW_HIDDEN, show).apply()
+    }
+
     private companion object {
         const val KEY_EDITOR_FONT = "editor_font_sp"
         const val KEY_PREVIEW_FONT = "preview_font_sp"
         const val KEY_AUTO_SAVE = "auto_save"
+        const val KEY_FOLDER_SHOW_HIDDEN = "folder_show_hidden"
     }
 }
 

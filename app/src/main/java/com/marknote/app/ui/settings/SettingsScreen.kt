@@ -187,6 +187,34 @@ fun SettingsScreen(
                 )
             }
 
+            SectionLabel(stringResource(R.string.browsing_section))
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        stringResource(R.string.show_hidden_files),
+                        style = MaterialTheme.typography.bodyLarge,
+                    )
+                    Text(
+                        text = stringResource(
+                            if (settings.folderShowHiddenFiles) {
+                                R.string.show_hidden_files_on
+                            } else {
+                                R.string.show_hidden_files_off
+                            },
+                        ),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Switch(
+                    checked = settings.folderShowHiddenFiles,
+                    onCheckedChange = settings::updateFolderShowHiddenFiles,
+                )
+            }
+
             SectionLabel(stringResource(R.string.about))
             Text(
                 stringResource(R.string.about_version, BuildConfig.VERSION_NAME),

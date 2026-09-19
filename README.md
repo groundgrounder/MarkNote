@@ -34,11 +34,11 @@ Grab the latest APK (`MarkNote-vX.Y.Z.apk`) from [Releases](https://github.com/g
 
 - Create: tap "+" at the bottom-right of the home screen, pick a location and a name, and start writing
 - Open: tap a `.md`, `.markdown` or plain-text file in any file manager and pick "Open with MarkNote"
-- Or tap "Open file" in the app and pick one from anywhere (external storage, cloud-sync folders)
+- Or tap "Open file" in the app: grant a folder once and pick a document right inside it. The list holds only files MarkNote can edit, so images, archives and other binaries never show up in it
 - Encoding untouched: UTF-8, UTF-16 and GBK all read correctly, and a file is saved back in the encoding it came in — a GBK note stays GBK
 - Recent files: everything you open stays on the home screen and survives a reboot; remove an entry you no longer need without touching the file
 - A file that was moved or can no longer be read is flagged in red — open it and follow the prompt to grant access again
-- **Folder browsing**: switch the sidebar to "Folder", grant one folder, and browse its Markdown and plain-text files right in the app, subfolders included; a document opened this way treats that folder as the place its images live
+- **Folder browsing**: switch the sidebar to "Folder" and browse the folder you granted, subfolders included — this is the same list "Open file" takes you to; a document opened this way treats that folder as the place its images live
 - Auto-save: saves 800 ms after you stop typing, and before you leave the editor or switch to preview
 - Switch to manual in Settings if you prefer; a save button then appears in the top bar and highlights while changes are unsaved
 - Read-only files are called out: the editor says "changes will not be saved" instead of quietly dropping your work
@@ -79,7 +79,7 @@ Grab the latest APK (`MarkNote-vX.Y.Z.apk`) from [Releases](https://github.com/g
 - Tablets and landscape switch to two panes: file list on the left, editor on the right; the sidebar collapses to a narrow strip
 - Four UI languages — 简体中文, 繁體中文, English and Latina. It follows the system by default and can be picked in Settings without losing the document you are editing
 - Languages that are not built in show English; on Android 13+ you can also change it under system Settings → Apps → MarkNote → Language
-- Settings: theme, language, separate font sizes for editor and preview, the auto-save switch, and version info
+- Settings: theme, language, separate font sizes for editor and preview, the auto-save switch, whether folder browsing shows hidden files, and version info
 - The icon follows your system's themed-icon setting (Android 13+)
 
 ## A few notes
@@ -88,7 +88,8 @@ Grab the latest APK (`MarkNote-vX.Y.Z.apk`) from [Releases](https://github.com/g
 - Images need a granted folder: pick the one holding **both** the document and its images; granting just the document's folder fails whenever the images sit outside it
 - Search in the preview runs over the displayed text, so formula markers such as `$` and `$$` are not found there (they are in the editor); text inside a formula is searched as usual
 - One unrecognised command in a formula (say `\zzzz`) turns the whole formula into a boxed notice — fix it and it shows. The formula fonts have no Chinese characters, so keep Chinese outside the formula
-- The folder list shows Markdown and plain-text files only; images and other files stay hidden. Reinstalling the app drops the folder permission, so pick the folder again when prompted
+- The folder list holds editable text files only — Markdown, plain text, and other text types such as `.py` or `.html`. Images, archives, PDFs and other binaries never appear in it
+- Files and folders whose name starts with a dot (`.git`, `.obsidian`) stay hidden as well; turn on "Show hidden files" in Settings to see them. Reinstalling the app drops the folder permission, so pick the folder again when prompted
 - Keyboards carry their own undo: if Ctrl+Z takes back a single character, that was the keyboard, not MarkNote — the top-bar buttons use the app's own history
 
 <details>
@@ -173,6 +174,13 @@ Grab the latest APK (`MarkNote-vX.Y.Z.apk`) from [Releases](https://github.com/g
 - Hardware keyboard shortcuts: Ctrl+S saves, Ctrl+F finds, Ctrl+B / Ctrl+I bold and italic, Ctrl+Z undoes, Ctrl+Shift+Z (or Ctrl+Y) redoes
 - The preview is closer to GFM: to-do items show as checkboxes, a bare link becomes tappable, `[text](#heading)` jumps inside the document, and footnote markers are no longer swallowed
 - The sidebar title now sits on one line with the buttons, giving the list a row back
+
+### v1.5.1
+
+- "Open file" now opens the in-app list instead of the system picker: grant a folder once, then pick a document right inside it, subfolders included. The picker could not do this — it filters by type in the "Recent" view only, and goes back to showing everything the moment you step into a folder
+- That list holds editable text files only: images, archives, PDFs and other binaries no longer appear in it
+- New "Show hidden files" switch in Settings, for when you do want to see `.git` or `.obsidian`. Off by default
+- Granting access to a file again (after opening it from another app) no longer filters by type, so files the system reports as `application/octet-stream` can be found again
 
 ### v1.0.0
 

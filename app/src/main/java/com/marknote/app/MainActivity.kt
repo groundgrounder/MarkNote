@@ -350,6 +350,7 @@ private fun MarkNoteApp(
                         onOpenSettings = { showSettings = true },
                         onCollapse = { sidebarVisible = false },
                         refreshTick = listRefreshTick,
+                        showHiddenFiles = settings.folderShowHiddenFiles,
                     )
                 }
                 VerticalDivider()
@@ -415,6 +416,7 @@ private fun MarkNoteApp(
                 onOpenInNewWindow = openInNewWindow,
                 onOpenSettings = { showSettings = true },
                 refreshTick = listRefreshTick,
+                showHiddenFiles = settings.folderShowHiddenFiles,
             )
         }
     }
@@ -432,7 +434,11 @@ private fun MarkNoteApp(
             confirmButton = {
                 TextButton(
                     onClick = {
-                        regrantLauncher.launch(arrayOf("text/markdown", "text/plain", "*/*"))
+                        // ⚠️ 这里**不能**按类型过滤，和「打开文件」是两回事：这一步是
+                        // 「把刚才那个文件找回来」，不是浏览挑选。会走到这里的正是外部来源、
+                        // 拿不到长期授权的文件，其中 octet-stream 一类（无扩展名、扩展名认不出来）
+                        // 在「最近」视图里会被文本过滤挡掉 —— 用户就再也找不回自己的文件了。
+                        regrantLauncher.launch(arrayOf("*/*"))
                     },
                 ) { Text(stringResource(R.string.regrant)) }
             },

@@ -318,7 +318,7 @@ class DocumentRepository(private val context: Context) {
         runCatching { folderDisplayName(DocumentsContract.getTreeDocumentId(treeUri)) }.getOrNull()
 
     /**
-     * 列出一个文件夹的直接子项（目录在前，只保留可浏览的文件）。
+     * 列出一个文件夹的直接子项（目录在前，只保留可浏览的文本文件）。
      *
      * [folderUri] 是树授权下的文档 Uri：**根文件夹直接传树 Uri**，子目录传列表里给出的那个 Uri。
      * 两者的文档 id 取法不同（树 Uri 要用 `getTreeDocumentId`），所以这里两种都兜住。
@@ -326,10 +326,18 @@ class DocumentRepository(private val context: Context) {
      * 子项 Uri 一律用 [DocumentsContract.buildDocumentUriUsingTree] 重建 —— 只有带 tree 段的
      * Uri 才能被编辑器继续读写（去掉 tree 段就是一个没有授权的裸文档 Uri）。
      *
+     * [showHiddenFiles] 为 false 时滤掉名字以 `.` 开头的条目。**在这里滤而不是在界面里滤**：
+     * 界面拿到的就是最终列表，「空文件夹」那一句提示才对得上（否则会出现「列表是空的，
+     * 却说这个文件夹里有东西」）。
+     *
      * 失败（授权没了、provider 抽风）返回空列表：界面会显示「这个文件夹是空的」，
      * 比抛出去崩掉更接近用户能理解的状态；真要排查有 logcat。
      */
-    suspend fun listFolder(treeUri: Uri, folderUri: Uri): List<FolderEntry> = withContext(Dispatchers.IO) {
+    suspend fun listFolder(
+        treeUri: Uri,
+        folderUri: Uri,
+        showHiddenFiles: Boolean,
+    ): List<FolderEntry> = withContext(Dispatchers.IO) {
         val documentId = runCatching { DocumentsContract.getDocumentId(folderUri) }
             .getOrElse { DocumentsContract.getTreeDocumentId(folderUri) }
         val childrenUri = DocumentsContract.buildChildDocumentsUriUsingTree(treeUri, documentId)
@@ -345,7 +353,7 @@ class DocumentRepository(private val context: Context) {
                     val id = cursor.getString(0) ?: continue
                     val name = cursor.getString(1) ?: continue
                     val mime = cursor.getString(2).orEmpty()
-                    if (!isBrowsableEntry(name, mime)) continue
+                    if (!isBrowsableEntry(name, mime, showHiddenFiles)) continue
                     entries += FolderEntry(
                         name = name,
                         uri = DocumentsContract.buildDocumentUriUsingTree(treeUri, id).toString(),

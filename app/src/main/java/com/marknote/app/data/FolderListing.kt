@@ -1,7 +1,10 @@
 package com.marknote.app.data
 
 /**
- * 文件夹浏览的**纯逻辑**：哪些条目该出现在列表里、怎么排序、面包屑怎么拼。
+ * 文件夹浏览的**纯逻辑**：怎么排序、面包屑怎么拼。
+ *
+ * 「哪些条目该出现在列表里」在 [isBrowsableEntry]（`TextFileTypes.kt`）—— 那份口径同时被
+ * 系统文件选择器用着，放在那边才对得上。
  *
  * 与 [TextEncoding] 同一条约定：这个文件**不 import 任何 Android 类型** ——
  * SAF 那边（DocumentsContract / ContentResolver）在 DocumentRepository 里，
@@ -14,29 +17,6 @@ data class FolderEntry(
     val uri: String,
     val isDirectory: Boolean,
 )
-
-/** 目录的 MIME 类型（DocumentsContract.Document.MIME_TYPE_DIR 的值，写死在这里以免引入 Android 依赖） */
-private const val MIME_DIR = "vnd.android.document/directory"
-
-/**
- * 这个文件值不值得出现在文件夹列表里。
- *
- * 口径与「打开方式」一致：`.md` / `.markdown` / `.txt` 与 `text/` 开头的 MIME 都收 ——
- * 本应用本来就能编辑纯文本（README 里也这么写），而文件夹里往往混着 README、笔记草稿这类 .txt。
- * 目录一律收（那是导航用的）。
- *
- * ⚠️ 注释里别出现「斜杠紧跟星号」的字面量（比如 MIME 的通配写法）：Kotlin 的块注释
- * **可以嵌套**，那两个字符合起来会再开一层注释，整个文件报「Unclosed comment」——
- * 本文件第一版就是这么挂的，连「提醒别这么写」的那句话本身也算一次。
- *
- * 不看大小写：`README.MD` 在手机上下载下来很常见。
- */
-fun isBrowsableEntry(name: String, mimeType: String): Boolean {
-    if (mimeType == MIME_DIR) return true
-    val lower = name.lowercase()
-    if (lower.endsWith(".md") || lower.endsWith(".markdown") || lower.endsWith(".txt")) return true
-    return mimeType.startsWith("text/")
-}
 
 /**
  * 列表排序：**目录在前**，同类按名字（大小写不敏感）。

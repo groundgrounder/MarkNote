@@ -8,7 +8,7 @@
     <string name="browse_recent">Fasciculi recentes</string>
     <string name="browse_folder">Fasciculus</string>
     <string name="choose_folder">Elige fasciculum</string>
-    <string name="folder_empty">In hoc fasciculo nulli fasciculi Markdown sunt</string>
+    <string name="folder_empty">In hac plica nulli fasciculi editabiles sunt</string>
     <string name="folder_empty_hint">Fasciculum semel elige; deinde documenta eius aperire potes, nec quoties per electorem systematis ire debes</string>
     <string name="folder_access_lost">Permissio fasciculi electi periit (exempli gratia post reinstallationem). Iterum elige</string>
     <string name="up_one_level">Ad gradum superiorem</string>
@@ -28,7 +28,7 @@
     <string name="list_item_unavailable">Fasciculus nunc non patet: fortasse motus vel deletus est, vel permissio periit. Tange ut iterum permittas.</string>
     <string name="empty_document">(Fasciculus vacuus)</string>
     <string name="empty_list_title">Nondum ullus fasciculus apertus est</string>
-    <string name="empty_list_hint">Tange «Fasciculum aperire» ut documentum Markdown in instrumento eligas\nPotes etiam fasciculos .md e ministro fasciculorum cum MarkNote aperire</string>
+    <string name="empty_list_hint">Tange «Fasciculum aperire» ut plicam eligas, deinde documenta in ea eligere potes\nPotes etiam fasciculos .md e ministro fasciculorum cum MarkNote aperire</string>
 
     <!-- Status vacuus et aperitio externa -->
     <string name="empty_editor_hint">Aperi recentem fasciculum a sinistra, vel tange «Fasciculum aperire»</string>
@@ -94,6 +94,10 @@
     <string name="auto_save">Servatio automatica</string>
     <string name="auto_save_on">Post 800 ms scribendi in fasciculum scribit</string>
     <string name="auto_save_off">Cum clausa est, in summa tabula bulla servandi apparet</string>
+    <string name="browsing_section">Navigatio</string>
+    <string name="show_hidden_files">Ostendere fasciculos occultos</string>
+    <string name="show_hidden_files_on">Fasciculi et plicae quorum nomen puncto incipit, ut .git vel .obsidian</string>
+    <string name="show_hidden_files_off">Fasciculi et plicae quorum nomen puncto incipit in indice non apparent</string>
     <string name="language_section">Lingua</string>
     <string name="language">Lingua</string>
     <string name="language_system">Lingua systematis</string>

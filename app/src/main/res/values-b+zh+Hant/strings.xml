@@ -8,7 +8,7 @@
     <string name="browse_recent">最近檔案</string>
     <string name="browse_folder">資料夾</string>
     <string name="choose_folder">選擇資料夾</string>
-    <string name="folder_empty">這個資料夾裡沒有 Markdown 檔案</string>
+    <string name="folder_empty">這個資料夾裡沒有可編輯的檔案</string>
     <string name="folder_empty_hint">選一個資料夾，之後就能直接在裡面開啟文件，不必每次都走系統選擇器</string>
     <string name="folder_access_lost">這個資料夾的授權已失效（例如解除安裝重裝後），請重新選擇一次</string>
     <string name="up_one_level">上一層</string>
@@ -28,7 +28,7 @@
     <string name="list_item_unavailable">檔案暫時無法存取：可能已被移動或刪除，或存取權限已失效。點按可重新授權。</string>
     <string name="empty_document">（空白文件）</string>
     <string name="empty_list_title">還沒有開啟過檔案</string>
-    <string name="empty_list_hint">點擊「開啟檔案」選擇裝置上的 Markdown 文件\n也可以在檔案管理器裡用 MarkNote 直接開啟 .md 檔案</string>
+    <string name="empty_list_hint">點擊「開啟檔案」選一個資料夾，之後就能直接在裡面挑文件\n也可以在檔案管理器裡用 MarkNote 直接開啟 .md 檔案</string>
 
     <!-- 空狀態與外部開啟 -->
     <string name="empty_editor_hint">從左側開啟最近檔案，或「開啟檔案」選擇文件</string>
@@ -94,6 +94,10 @@
     <string name="auto_save">自動儲存</string>
     <string name="auto_save_on">停止輸入 800ms 後自動寫回檔案</string>
     <string name="auto_save_off">關閉後頂端列會出現儲存按鈕，需手動儲存</string>
+    <string name="browsing_section">檔案瀏覽</string>
+    <string name="show_hidden_files">顯示隱藏檔案</string>
+    <string name="show_hidden_files_on">名稱以 . 開頭的檔案與資料夾，例如 .git、.obsidian</string>
+    <string name="show_hidden_files_off">名稱以 . 開頭的檔案與資料夾不會出現在清單裡</string>
     <string name="language_section">語言</string>
     <string name="language">語言</string>
     <string name="language_system">跟隨系統</string>
