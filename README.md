@@ -12,7 +12,13 @@ A lightweight Android Markdown editor · edits the `.md` files already on your d
   <img src="docs/screenshots/landscape.png" width="19%" alt="Landscape two-pane">
 </p>
 
-MarkNote is a **file-first** Markdown editor: it keeps no private note database — it reads and writes `.md` files anywhere on your device. Tap a `.md` file in a file manager to edit it with MarkNote, or create a new one in place; your edits are saved back to the original file. No account, no network, no storage permission — your notes stay simply your own files.
+## What it is
+
+A Markdown editor for your phone — for notes, a diary, or editing a document.
+
+- Write on your phone, carry on at your computer: it edits the `.md` files already on your phone and saves them back in place, so back up and sync exactly as you do now
+- Comfortable to write in: syntax highlighting, one-tap preview, and tables, formulas and images all show properly
+- Free and open source, no account, no network, no storage permission
 
 ## Download
 
@@ -26,64 +32,57 @@ Grab the latest APK (`MarkNote-vX.Y.Z.apk`) from [Releases](https://github.com/g
 
 **Files**
 
-- Create: tap the "+" button at the bottom-right of the home screen, pick a folder and a name in the system picker, and start writing
-- Open: tap a `.md` / `.markdown` or plain-text file in any file manager and choose MarkNote in the system "Open with" sheet; or use "Open file" inside the app to read and write **any folder** through the system document picker (external storage and cloud-sync folders included) with no storage permission, edits written back to the original file
-- Encoding preserved: UTF-8 (with or without BOM), UTF-16 and GB18030/GBK are read correctly, and edits are written back in the encoding the file came in with — a GBK note stays GBK instead of being silently converted to UTF-8
-- Recent files: everything you have opened stays on the home screen and is still editable after a reboot; entries can be removed (from the list only — the file is untouched); a file that was moved or whose access expired is flagged in red, and opening it offers to grant access again
-- Auto-save: writes to disk 800 ms after you stop typing, and saves before you leave the editor or switch to preview; can be switched to manual in Settings (a save button then appears in the top bar and highlights while there are unsaved changes)
-- Read-only files are called out: without write access the editor shows "changes will not be saved" instead of silently dropping your edits
+- Create: tap "+" at the bottom-right of the home screen, pick a location and a name, and start writing
+- Open: tap a `.md`, `.markdown` or plain-text file in any file manager and pick "Open with MarkNote"
+- Or tap "Open file" in the app and pick one from anywhere (external storage, cloud-sync folders)
+- Encoding untouched: UTF-8, UTF-16 and GBK all read correctly, and a file is saved back in the encoding it came in — a GBK note stays GBK
+- Recent files: everything you open stays on the home screen and survives a reboot; remove an entry you no longer need without touching the file
+- A file that was moved or can no longer be read is flagged in red — open it and follow the prompt to grant access again
+- Auto-save: saves 800 ms after you stop typing, and before you leave the editor or switch to preview
+- Switch to manual in Settings if you prefer; a save button then appears in the top bar and highlights while changes are unsaved
+- Read-only files are called out: the editor says "changes will not be saved" instead of quietly dropping your work
 
 **Editing**
 
-- Syntax highlighting in the editor: headings, bold, italic, strikethrough, quotes, code, links and list markers are coloured live
-- Symbol toolbar: H1 / H2 / bold / italic / strikethrough plus quote / list / link / code / horizontal rule, docked above the keyboard, wrapping the current selection
-- Undo / redo: two buttons in the top bar. A burst of typing collapses into a single step (a pause splits it), while toolbar inserts and replace-all each stay a step of their own; the caret returns to the change and the buttons dim when there is nothing left to undo
-- Search & replace: match counter (n/m), wrapping navigation with highlighted matches, replace one or replace all
-- Outline navigation: slides in from the right on landscape/tablet, bottom sheet on narrow screens; tapping jumps straight to that heading (available in preview too)
-- Word count: live "N chars · M lines" in the top bar
+- Syntax highlighting: headings, bold, italic, strikethrough, quotes, code and links are coloured
+- Toolbar: headings, bold, italic, quote, list, link, code and horizontal rule in one tap, sitting above the keyboard and wrapping your selection
+- Undo / redo: two buttons in the top bar. A run of typing counts as one step, toolbar inserts and replace-all as their own; the buttons grey out when there is nothing left to undo
+- There is no Ctrl+Z shortcut: letter keys reach the keyboard first, so use the top-bar buttons
+- Search & replace: shows which match you are on out of how many, cycles through them, and can replace one or all
+- Outline: slides in from the right on landscape and tablets, up from the bottom on narrow screens; tap a heading to jump to it
+- Word count: "N chars · M lines", always in the top bar
 
 **Preview**
 
-- One-tap toggle between editing and preview: supports GFM tables (header, zebra striping, column alignment), strikethrough and tappable links
-- LaTeX formulas: `$$…$$` and a single `$…$` both render inline, while `$$` on a line of its own renders a centred display formula — matrices (`\begin{pmatrix} a & b \\ c & d \end{pmatrix}`), fractions, integrals, sums, Greek letters and the rest of the common vocabulary. They are drawn in the theme's text colour (no black-on-black in dark mode) and scale with the preview font size; delimiters follow Pandoc's rules, so `from $5 to $10`, `$ x$`, `$x $` and `$x$1` all stay literal. A formula that cannot be typeset shows its source in the error colour inside a thin outline instead of quietly staying as plain text
-- Images: relative-path images resolve **relative to the document's own folder** (`..` walks up, as Markdown expects) inside a folder you grant once — tap "Grant access" in the banner and pick a folder containing **both** the document and its images (the grant is persistent); an image that resolves outside the grant shows an inline "not in the granted folder" placeholder instead of silently vanishing; `content://`, `file://` and base64 data URIs are supported; oversized images are downsampled to avoid running out of memory
-- Search and outline work in the preview as well: search runs over the **rendered output** (what you see is what you search), every match is highlighted, the current one is solid and scrolled into view, with an n/m counter and up/down navigation; tapping an outline entry scrolls the body to that heading. Preview is read-only, so there is no replace
+- One tap to switch between editing and preview; tables, strikethrough and tappable links all display properly
+- Formulas: `$…$` (or an inline `$$…$$`) shows in the line; `$$` on a line of its own is centred. Matrices, fractions, integrals and sums all work, drawn in the theme's colour at the preview font size
+- A single or unpaired `$` is left alone, so "from $5 to $10" is not mistaken for a formula
+- Images: relative paths are looked up **next to the document** (`..` steps up a level); grant that folder once when the prompt appears and they keep working
+- An image outside the granted folder or missing shows a line of explanation where it would be; images embedded in the document show too, and very large ones are scaled down
+- Search and outline work in the preview as well: search runs over **what you actually see**, matches highlight one by one and scroll into view, with a "match N of M" counter and up/down navigation; tap an outline entry to jump to that heading. The preview is read-only, so there is no replace
 
 **Multiple windows**
 
-- One document per window: MarkNote can hold several windows at once (system split screen, desktop windows on tablets), each editing its own file with no interference; the top bar shows which file that window is editing
-- Open another one: long-press a file in the recent list and pick “Open in new window”
-- The same file never gets two editors: picking “Open in new window” for a document that is already open is declined with a short note — and MarkNote recognises the very same file opened from a different source
-- The back button inside each window still returns to the file list; close a window from the system recents
+- One document per window: keep several windows open (system split screen, desktop windows on tablets), each with its own file
+- Want another one: long-press a file in the recent list and pick “Open in new window”
+- The same file never gets two editors, so two copies cannot overwrite each other
+- Back still returns to the file list; close a window from the system recents
 
 **UI & language**
 
-- Material You: dynamic colour on Android 12+, light/dark can follow the system or be locked manually, edge-to-edge layout
-- Tablet / landscape two-pane: wide screens switch automatically to a file list on the left and the editor on the right, live on rotation; the sidebar collapses to a narrow strip
-- UI language: **4 built-in languages — 简体中文, 繁體中文, English and Latina**. It follows the system by default and can be pinned in Settings, applying immediately while keeping the document you are editing; unmatched languages (Japanese, French, Korean, …) fall back to English, and timestamps in the recent-files list follow the language too. On Android 13 and newer there is a second entry point: system Settings → Apps → MarkNote → Language, kept in sync with the in-app picker
-- Settings: theme mode, app language, independent font sizes for editor and preview, auto-save switch, version info
-- The launcher icon supports Android 13+ themed icons, following the system's monochrome setting
+- Colours taken from your wallpaper (Material You, Android 12+); light or dark can follow the system or be locked
+- Tablets and landscape switch to two panes: file list on the left, editor on the right; the sidebar collapses to a narrow strip
+- Four UI languages — 简体中文, 繁體中文, English and Latina. It follows the system by default and can be picked in Settings without losing the document you are editing
+- Languages that are not built in show English; on Android 13+ you can also change it under system Settings → Apps → MarkNote → Language
+- Settings: theme, language, separate font sizes for editor and preview, the auto-save switch, and version info
+- The icon follows your system's themed-icon setting (Android 13+)
 
-## Tips & troubleshooting
+## A few notes
 
-**Opening and access**
-
-- **A file opened from a chat app, a share sheet or "Open with" stops working after a while**: files handed over by other apps usually cannot be granted lasting access. MarkNote tells you straight away when it detects this — follow the prompt and re-pick the same file in the system picker to obtain a durable grant, after which the recent list works too
-- **An image does not show up**: relative-path images resolve against the document's own folder. If you see "not in the granted folder", grant the folder that contains **both** the document and its images — granting only the document's folder fails whenever the images live outside it
-
-**Editing**
-
-- **Why there is no Ctrl+Z shortcut**: while a text field has focus the letter key is handed to the IME first, and keyboards such as Gboard consume the combination for their own per-character undo, so the app never sees it. Use the undo button in the top bar instead
-
-**Preview**
-
-- **Searching for `$` or `$$` finds nothing in the preview**: the formula delimiters are removed when rendering, so they match in the editor but not in the preview. Text inside a formula is searched normally
-- **A formula appears in the error colour inside a box**: one unrecognised command in it (say `\zzzz`) fails the whole formula; fix that command and it renders. Note that the formula fonts contain no CJK glyphs, so `\text{中文}` cannot be typeset — keep Chinese outside the formula
-
-## Roadmap
-
-- v1.5: "Save as", image insertion
-- v2.0: WebDAV sync, custom themes
+- Files opened from another app (a file manager, a chat, an email) get no lasting access, so MarkNote cannot reopen them once it is closed. Pick the same file again in the system picker when prompted and it stays editable — in the recent list too
+- Images need a granted folder: pick the one holding **both** the document and its images; granting just the document's folder fails whenever the images sit outside it
+- Search in the preview runs over the displayed text, so formula markers such as `$` and `$$` are not found there (they are in the editor); text inside a formula is searched as usual
+- One unrecognised command in a formula (say `\zzzz`) turns the whole formula into a boxed notice — fix it and it shows. The formula fonts have no Chinese characters, so keep Chinese outside the formula
 
 <details>
 <summary>Version history</summary>
@@ -94,7 +93,7 @@ Grab the latest APK (`MarkNote-vX.Y.Z.apk`) from [Releases](https://github.com/g
 - A burst of typing collapses into a single step: a pause of 600 ms splits it, so one undo never rolls back a whole paragraph; toolbar inserts and replace-all each stay a step of their own. The caret returns to the change, and the buttons dim when there is nothing left to undo
 - The history is bounded (both in entries and in total diff size), so one large paste cannot grow it without limit; every entry is checked against the live text before it is applied, and a stale one is dropped rather than corrupting the document
 - Opening or reloading a document invalidates the history, so a re-read can never be undone through a stale entry
-- Note: there is no Ctrl+Z shortcut yet — see "Tips & troubleshooting" for why
+- Note: there is no Ctrl+Z shortcut yet — use the undo button in the top bar
 
 ### v1.1.1
 
