@@ -1,5 +1,6 @@
 package com.marknote.app.ui.files
 
+import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -34,13 +35,15 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LargeTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.SmallFloatingActionButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -50,7 +53,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -81,6 +83,11 @@ fun FileListScreen(
 
     var pendingRemove by remember { mutableStateOf<DocumentMeta?>(null) }
 
+    // 侧栏显示「最近文件」还是「文件夹」。状态在 ViewModel 里（不在 rememberSaveable）：
+    // 窄屏与宽屏是两个不同的组合位置，平板旋转会让宽度类在 840dp 上来回翻，
+    // 存本地 saveable 状态时用户选的那一档会被静默重置
+    val mode = viewModel.listMode
+
     // 系统文档选择器：打开已有文件
     val openLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocument(),
@@ -95,17 +102,15 @@ fun FileListScreen(
         if (uri != null) viewModel.onDocumentPicked(uri, onOpenDocument)
     }
 
-    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
-
     // 新建文件的默认名要在 composable 作用域内取好，onClick 里不能调 stringResource
     val untitledName = stringResource(R.string.untitled_md)
 
     Scaffold(
-        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = {
-            LargeTopAppBar(
-                title = { Text("MarkNote") },
-                scrollBehavior = scrollBehavior,
+            // 普通顶栏（不是 LargeTopAppBar）：标题与图标同一行，省下一整行给列表；
+            // 侧栏本来就不高，大标题那点「高级感」不值一行位置
+            TopAppBar(
+                title = { Text(stringResource(R.string.app_name)) },
                 actions = {
                     IconButton(onClick = onOpenSettings) {
                         Icon(
@@ -151,45 +156,83 @@ fun FileListScreen(
             }
         },
     ) { padding ->
-        if (viewModel.documents.isEmpty() && !viewModel.isLoading) {
-            EmptyState(Modifier.padding(padding))
-        } else {
-            // 宽屏（≥600dp）用自适应网格，窄屏单列列表
-            BoxWithConstraints(
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding),
+        ) {
+            // 「最近文件 / 文件夹」切换。窄屏时这里是整页入口，宽屏时它就是侧栏顶部的那一档 ——
+            // 两种布局共用同一份代码，不给宽屏单独做一套
+            SingleChoiceSegmentedButtonRow(
                 modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding),
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 4.dp),
             ) {
-                val wide = maxWidth >= 600.dp
-                // 底部留出 FAB 区域，避免卡片被遮挡
-                val listPadding = PaddingValues(
-                    start = 16.dp, end = 16.dp, top = 8.dp, bottom = 176.dp,
-                )
-                // 卡片内容只写一份：宽屏网格与窄屏列表的 items 是同一套渲染
-                val card: @Composable (DocumentMeta) -> Unit = { doc ->
-                    DocumentCard(
-                        doc = doc,
-                        timeText = viewModel.formatTime(doc.openedAt),
-                        onClick = { onOpenDocument(doc.uri) },
-                        onOpenInNewWindow = { onOpenInNewWindow(doc.uri) },
-                        onRemove = { pendingRemove = doc },
-                    )
+                SegmentedButton(
+                    selected = mode == LIST_MODE_RECENT,
+                    onClick = { viewModel.selectListMode(LIST_MODE_RECENT) },
+                    shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
+                ) {
+                    Text(stringResource(R.string.browse_recent))
                 }
-                if (wide) {
-                    LazyVerticalGrid(
-                        columns = GridCells.Adaptive(minSize = 340.dp),
-                        contentPadding = listPadding,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp),
-                    ) {
-                        items(viewModel.documents, key = { it.uri }) { card(it) }
+                SegmentedButton(
+                    selected = mode == LIST_MODE_FOLDER,
+                    onClick = { viewModel.selectListMode(LIST_MODE_FOLDER) },
+                    shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
+                ) {
+                    Text(stringResource(R.string.browse_folder))
+                }
+            }
+
+            when {
+                // 文件夹模式：授权一个文件夹，之后就在应用内浏览（不再每次走系统选择器）
+                mode == LIST_MODE_FOLDER -> FolderBrowser(
+                    viewModel = viewModel,
+                    repository = repository,
+                    onOpenDocument = { uri, treeUriString ->
+                        viewModel.onFolderDocumentPicked(
+                            uri = Uri.parse(uri),
+                            treeUriString = treeUriString,
+                            onOpen = onOpenDocument,
+                        )
+                    },
+                    refreshTick = refreshTick,
+                )
+
+                viewModel.documents.isEmpty() && !viewModel.isLoading -> EmptyState()
+
+                else -> BoxWithConstraints(Modifier.fillMaxSize()) {
+                    val wide = maxWidth >= 600.dp
+                    // 底部留出 FAB 区域，避免卡片被遮挡
+                    val listPadding = PaddingValues(
+                        start = 16.dp, end = 16.dp, top = 8.dp, bottom = 176.dp,
+                    )
+                    // 卡片内容只写一份：宽屏网格与窄屏列表的 items 是同一套渲染
+                    val card: @Composable (DocumentMeta) -> Unit = { doc ->
+                        DocumentCard(
+                            doc = doc,
+                            timeText = viewModel.formatTime(doc.openedAt),
+                            onClick = { onOpenDocument(doc.uri) },
+                            onOpenInNewWindow = { onOpenInNewWindow(doc.uri) },
+                            onRemove = { pendingRemove = doc },
+                        )
                     }
-                } else {
-                    LazyColumn(
-                        contentPadding = listPadding,
-                        verticalArrangement = Arrangement.spacedBy(12.dp),
-                    ) {
-                        items(viewModel.documents, key = { it.uri }) { card(it) }
+                    if (wide) {
+                        LazyVerticalGrid(
+                            columns = GridCells.Adaptive(minSize = 340.dp),
+                            contentPadding = listPadding,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp),
+                        ) {
+                            items(viewModel.documents, key = { it.uri }) { card(it) }
+                        }
+                    } else {
+                        LazyColumn(
+                            contentPadding = listPadding,
+                            verticalArrangement = Arrangement.spacedBy(12.dp),
+                        ) {
+                            items(viewModel.documents, key = { it.uri }) { card(it) }
+                        }
                     }
                 }
             }
@@ -312,3 +355,4 @@ private fun EmptyState(modifier: Modifier = Modifier) {
         }
     }
 }
+

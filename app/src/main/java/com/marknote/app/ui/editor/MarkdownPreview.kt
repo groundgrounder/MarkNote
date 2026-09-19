@@ -6,6 +6,7 @@ import android.text.Spanned
 import android.text.method.LinkMovementMethod
 import android.text.style.BackgroundColorSpan
 import android.text.style.ForegroundColorSpan
+import android.text.style.URLSpan
 import android.util.TypedValue
 import android.widget.TextView
 import androidx.compose.foundation.rememberScrollState
@@ -20,6 +21,8 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
 import io.noties.markwon.Markwon
+import io.noties.markwon.core.spans.BulletListItemSpan
+import io.noties.markwon.core.spans.OrderedListItemSpan
 import io.noties.markwon.ext.latex.JLatexMathNode
 import io.noties.markwon.ext.latex.JLatexMathPlugin
 import io.noties.markwon.ext.strikethrough.StrikethroughPlugin
@@ -53,6 +56,7 @@ fun MarkdownPreview(
     currentHighlight: IntRange? = null,
     scrollTo: PreviewScroll? = null,
     onRenderedText: (String) -> Unit = {},
+    onAnchorClick: (String) -> Unit = {},
 ) {
     val context = LocalContext.current
     val textColor = MaterialTheme.colorScheme.onSurface.toArgb()
@@ -66,9 +70,20 @@ fun MarkdownPreview(
     val matchColor = MaterialTheme.colorScheme.primaryContainer.toArgb()
     val currentMatchColor = MaterialTheme.colorScheme.primary.toArgb()
     val currentMatchTextColor = MaterialTheme.colorScheme.onPrimary.toArgb()
+    val boxOutlineColor = MaterialTheme.colorScheme.onSurfaceVariant.toArgb()
+    val boxFillColor = MaterialTheme.colorScheme.primary.toArgb()
+    val boxTickColor = MaterialTheme.colorScheme.onPrimary.toArgb()
 
     val scrollState = rememberScrollState()
     val holder = remember { PreviewHolder() }
+
+    // 渲染前的准备（图片路径改写 + 脚注转义 + 裸链接成链）都是 O(全文) 的，而 update 每次重组都会跑
+    // —— 搜索高亮、滚动、主题变化都会触发一次。按输入 remember 住，别在重组里反复扫全文。
+    val preparedMarkdown = remember(markdown, imageTree, docUri) {
+        preparePreviewMarkdown(
+            rewriteRelativeImages(markdown, imageTree, docDirInTree(docUri, imageTree)),
+        )
+    }
 
     AndroidView(
         modifier = modifier.verticalScroll(scrollState),
@@ -91,12 +106,25 @@ fun MarkdownPreview(
             // 既会丢掉搜索高亮，也会把滚动位置弹回顶部。
             // 但 Markwon 实例换了（预览字号或主题色变了）必须重渲 —— 公式的尺寸与颜色、
             // 占位图的颜色都是建实例时定死的，只改 TextView 的 textSize 它们不会跟着变
-            val rendered = rewriteRelativeImages(markdown, imageTree, docDirInTree(docUri, imageTree))
+            val rendered = preparedMarkdown
             if (rendered != holder.markdown || holder.markwon !== markwon) {
                 holder.markwon = markwon
                 holder.markdown = rendered
                 holder.spans.clear()
-                markwon.setMarkdown(textView, rendered)
+                // 走 toMarkdown → 改写 span → setParsedMarkdown（而不是 setMarkdown）：
+                // 中间那一步要拿到 Spanned 才能加复选框与锚点链接。setParsedMarkdown 仍然会跑
+                // 插件的 beforeSetText / afterSetText，图片插件那套照常工作
+                val spanned = markwon.toMarkdown(rendered)
+                decoratePreviewSpanned(
+                    spanned = spanned,
+                    boxSizePx = textSizeSp * textView.resources.displayMetrics.density * 0.9f,
+                    linkColor = linkColor,
+                    boxOutlineColor = boxOutlineColor,
+                    boxFillColor = boxFillColor,
+                    boxTickColor = boxTickColor,
+                    onAnchorClick = onAnchorClick,
+                )
+                markwon.setParsedMarkdown(textView, spanned)
                 val plain = textView.text.toString()
                 textView.post { onRenderedText(plain) }
             }
@@ -177,6 +205,53 @@ private fun applyHighlights(
         }
     }
     textView.invalidate()
+}
+
+/**
+ * 渲染结果的改写：任务列表复选框 + 文档内锚点链接。
+ *
+ * 与 [applyHighlights] 同一条纪律：**只增删 span、不动文本**。替换文本会改变长度，
+ * 把公式/图片/搜索高亮那些 span 的偏移一起搞错，而且只在特定文档里现形。
+ */
+private fun decoratePreviewSpanned(
+    spanned: Spanned,
+    boxSizePx: Float,
+    linkColor: Int,
+    boxOutlineColor: Int,
+    boxFillColor: Int,
+    boxTickColor: Int,
+    onAnchorClick: (String) -> Unit,
+) {
+    val spannable = spanned as? Spannable ?: return
+    // ⚠️ 只认**列表项**里的标记。段落行首写 `[x]`（比如正文里举例说明这个语法）不该被画成复选框 ——
+    // GFM 也只把列表项当任务项。判据用 Markwon 给列表项加的 span，比在渲染文本上猜可靠。
+    val listSpans = spannable.getSpans(0, spannable.length, Any::class.java)
+        .filter { it is BulletListItemSpan || it is OrderedListItemSpan }
+    taskBoxRanges(spanned.toString())
+        .filter { box ->
+            listSpans.any { span ->
+                spannable.getSpanStart(span) <= box.start && box.end <= spannable.getSpanEnd(span)
+            }
+        }
+        .forEach { box ->
+            spannable.setSpan(
+                TaskBoxSpan(boxSizePx, box.checked, boxOutlineColor, boxFillColor, boxTickColor),
+                box.start,
+                box.end,
+                Spanned.SPAN_EXCLUSIVE_EXCLUSIVE,
+            )
+        }
+    // 文档内锚点：Markwon 的链接是 LinkSpan（URLSpan 的子类），把 `#…` 那几个换成自己的 ——
+    // 外链保持原样，交给 LinkMovementMethod 打开浏览器
+    spannable.getSpans(0, spannable.length, URLSpan::class.java).forEach { span ->
+        val url = span.url ?: return@forEach
+        if (!url.startsWith("#")) return@forEach
+        val start = spannable.getSpanStart(span)
+        val end = spannable.getSpanEnd(span)
+        val flags = spannable.getSpanFlags(span)
+        spannable.removeSpan(span)
+        spannable.setSpan(AnchorLinkSpan(url, linkColor, onAnchorClick), start, end, flags)
+    }
 }
 
 private fun buildMarkwon(context: Context, textSizeSp: Int, textColor: Int, errorColor: Int): Markwon {

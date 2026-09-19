@@ -38,6 +38,7 @@ Grab the latest APK (`MarkNote-vX.Y.Z.apk`) from [Releases](https://github.com/g
 - Encoding untouched: UTF-8, UTF-16 and GBK all read correctly, and a file is saved back in the encoding it came in — a GBK note stays GBK
 - Recent files: everything you open stays on the home screen and survives a reboot; remove an entry you no longer need without touching the file
 - A file that was moved or can no longer be read is flagged in red — open it and follow the prompt to grant access again
+- **Folder browsing**: switch the sidebar to "Folder", grant one folder, and browse its Markdown and plain-text files right in the app, subfolders included; a document opened this way treats that folder as the place its images live
 - Auto-save: saves 800 ms after you stop typing, and before you leave the editor or switch to preview
 - Switch to manual in Settings if you prefer; a save button then appears in the top bar and highlights while changes are unsaved
 - Read-only files are called out: the editor says "changes will not be saved" instead of quietly dropping your work
@@ -47,7 +48,9 @@ Grab the latest APK (`MarkNote-vX.Y.Z.apk`) from [Releases](https://github.com/g
 - Syntax highlighting: headings, bold, italic, strikethrough, quotes, code and links are coloured
 - Toolbar: headings, bold, italic, quote, list, link, code and horizontal rule in one tap, sitting above the keyboard and wrapping your selection
 - Undo / redo: two buttons in the top bar. A run of typing counts as one step, toolbar inserts and replace-all as their own; the buttons grey out when there is nothing left to undo
-- There is no Ctrl+Z shortcut: letter keys reach the keyboard first, so use the top-bar buttons
+- Enter continues the list: `-`, `1.`, `>`, `- [ ]` carry over with numbering advanced and new to-do items unchecked; press Enter again on an empty item to end the list
+- Indent: Tab / Shift+Tab indent or outdent the current line, or the whole selection
+- Hardware keyboard shortcuts: Ctrl+S saves, Ctrl+F finds, Ctrl+B / Ctrl+I bold and italic, Ctrl+Z undoes, Ctrl+Shift+Z (or Ctrl+Y) redoes. An on-screen keyboard cannot send these, so use the top-bar buttons there
 - Search & replace: shows which match you are on out of how many, cycles through them, and can replace one or all
 - Outline: slides in from the right on landscape and tablets, up from the bottom on narrow screens; tap a heading to jump to it
 - Word count: "N chars · M lines", always in the top bar
@@ -55,6 +58,8 @@ Grab the latest APK (`MarkNote-vX.Y.Z.apk`) from [Releases](https://github.com/g
 **Preview**
 
 - One tap to switch between editing and preview; tables, strikethrough and tappable links all display properly
+- To-do items show as checkboxes, and a bare `https://…` in the text becomes a link you can open
+- Jump links: tapping `[text](#heading)` scrolls straight to that section, and says so when there is no such heading. Footnote markers (`[^1]` and their definition lines) show as written
 - Formulas: `$…$` (or an inline `$$…$$`) shows in the line; `$$` on a line of its own is centred. Matrices, fractions, integrals and sums all work, drawn in the theme's colour at the preview font size
 - A single or unpaired `$` is left alone, so "from $5 to $10" is not mistaken for a formula
 - Images: relative paths are looked up **next to the document** (`..` steps up a level); grant that folder once when the prompt appears and they keep working
@@ -83,6 +88,8 @@ Grab the latest APK (`MarkNote-vX.Y.Z.apk`) from [Releases](https://github.com/g
 - Images need a granted folder: pick the one holding **both** the document and its images; granting just the document's folder fails whenever the images sit outside it
 - Search in the preview runs over the displayed text, so formula markers such as `$` and `$$` are not found there (they are in the editor); text inside a formula is searched as usual
 - One unrecognised command in a formula (say `\zzzz`) turns the whole formula into a boxed notice — fix it and it shows. The formula fonts have no Chinese characters, so keep Chinese outside the formula
+- The folder list shows Markdown and plain-text files only; images and other files stay hidden. Reinstalling the app drops the folder permission, so pick the folder again when prompted
+- Keyboards carry their own undo: if Ctrl+Z takes back a single character, that was the keyboard, not MarkNote — the top-bar buttons use the app's own history
 
 <details>
 <summary>Version history</summary>
@@ -158,6 +165,14 @@ Grab the latest APK (`MarkNote-vX.Y.Z.apk`) from [Releases](https://github.com/g
 - Long-press a file in the recent list and pick “Open in new window” for another one; a document that is already open is not opened a second time (MarkNote says so and declines, and it recognises the same file opened from a different source)
 - Fixed: after opening a file from a file manager, the recent list on a wide screen did not refresh and kept showing the state from before
 - Fixed: rotating the screen or entering/leaving split screen used to pop up the “no long-term access” notice all over again
+
+### v1.5.0
+
+- Folder browsing: switch the sidebar to "Folder", grant one folder once, and browse or open its Markdown and plain-text files right in the app, subfolders included
+- Enter continues lists: `-`, `1.`, `>`, `- [ ]` carry over with numbering advanced and new to-do items unchecked; press Enter again on an empty item to end the list. Tab / Shift+Tab indents or outdents
+- Hardware keyboard shortcuts: Ctrl+S saves, Ctrl+F finds, Ctrl+B / Ctrl+I bold and italic, Ctrl+Z undoes, Ctrl+Shift+Z (or Ctrl+Y) redoes
+- The preview is closer to GFM: to-do items show as checkboxes, a bare link becomes tappable, `[text](#heading)` jumps inside the document, and footnote markers are no longer swallowed
+- The sidebar title now sits on one line with the buttons, giving the list a row back
 
 ### v1.0.0
 

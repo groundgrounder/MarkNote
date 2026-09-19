@@ -1,6 +1,7 @@
 package com.marknote.app.ui.editor
 
 import android.net.Uri
+import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -48,7 +49,17 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEvent
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.isCtrlPressed
+import androidx.compose.ui.input.key.isShiftPressed
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.input.OffsetMapping
@@ -92,6 +103,7 @@ fun EditorScreen(
     // 选择器返回的 Uri 一定能持久化，因此重选一次后可长期编辑；授权后替换最近列表里的旧条目。
     val regrantUri = remember(uriString) { Uri.parse(uriString) }
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
     val regrantLauncher = rememberLauncherForActivityResult(
         remember(regrantUri) { OpenDocumentWithInitialUri(regrantUri) },
     ) { picked ->
@@ -241,6 +253,88 @@ fun EditorScreen(
         }
     }
 
+    // 预览里点文档内锚点（`[文字](#标题)`）：找到对应标题就走大纲跳转那条路
+    // （同一条滚动通道，所以落点行为与从大纲点进来完全一致）。
+    // 找不到就提示一句：静默无反应会被当成「链接坏了」。
+    val onAnchorClick: (String) -> Unit = { anchor ->
+        val heading = findHeadingByAnchor(parseOutline(viewModel.content.text), anchor)
+        if (heading != null) {
+            jumpToHeading(heading.offset)
+        } else {
+            Toast.makeText(context, R.string.anchor_not_found, Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    // 编辑区是否持有焦点：Tab 只在编辑区里有意义。不判这一下的话，在搜索框里按 Tab
+    // 会去缩进正文、焦点也跳不出去（外接键盘上很别扭）
+    var editorFocused by remember { mutableStateOf(false) }
+
+    // 快捷键复用的工具栏动作：与点按钮走同一条路，插入结果逐字一致
+    val boldAction = markdownActionByLabel("B")
+    val italicAction = markdownActionByLabel("I")
+
+    // 硬件键盘（平板外接键盘、桌面模式）：Tab / Shift+Tab 缩进，Ctrl+S/F/B/I 常用命令。
+    //
+    // 挂在编辑器根节点上、用 onPreviewKeyEvent：键事件在预览阶段从根往叶子走，
+    // 所以这里比文本框先拿到。⚠️ 软键盘**不发这些键**（它只发 IME 事件），
+    // 所以手机上的输入行为完全不受影响；这也正是 README 里说 Ctrl+Z 收不到的原因
+    // （字母键在文本框有焦点时被输入法截走，实测过三个层级都拿不到）。
+    val onEditorKey: (KeyEvent) -> Boolean = keyHandler@{ event ->
+        if (event.type != KeyEventType.KeyDown) return@keyHandler false
+        // 编辑类命令（缩进/加粗/保存）在预览态没有意义；查找在两种状态下都有用（v0.9.0 起
+        // 预览也能搜，跑在渲染结果上）
+        val editing = !viewModel.isPreview
+        if (event.key == Key.Tab) {
+            if (!editing || !editorFocused) return@keyHandler false
+            val selection = viewModel.content.selection
+            val edit = indentLines(
+                text = viewModel.content.text,
+                selectionStart = selection.min,
+                selectionEnd = selection.max,
+                outdent = event.isShiftPressed,
+            )
+            if (edit != null) viewModel.applyEdit(edit)
+            // 有没有变化都吃掉：否则 Tab 会把焦点移走，比「没缩进」更让人意外
+            true
+        } else if (event.isCtrlPressed) {
+            when (event.key) {
+                Key.S -> {
+                    if (!editing) return@keyHandler false
+                    viewModel.save()
+                    true
+                }
+                Key.F -> {
+                    searchOpen = !searchOpen
+                    true
+                }
+                Key.B -> {
+                    if (!editing) return@keyHandler false
+                    boldAction?.let { viewModel.applyAction(it) }
+                    true
+                }
+                Key.I -> {
+                    if (!editing) return@keyHandler false
+                    italicAction?.let { viewModel.applyAction(it) }
+                    true
+                }
+                // Ctrl+Z / Ctrl+Shift+Z（以及 Windows 习惯的 Ctrl+Y）
+                Key.Z -> {
+                    if (!editing) return@keyHandler false
+                    if (event.isShiftPressed) viewModel.redo() else viewModel.undo()
+                    true
+                }
+                Key.Y -> {
+                    if (!editing) return@keyHandler false
+                    viewModel.redo()
+                    true
+                }
+                else -> false
+            }
+        } else {
+            false
+        }
+    }
+
     // 显示用的命中序号：内容变化后命中数可能变少，避免 n/m 里的 n 越界
     val clampedMatchIndex = matchIndex.coerceIn(0, (matches.size - 1).coerceAtLeast(0))
 
@@ -248,6 +342,8 @@ fun EditorScreen(
     val (charCount, lineCount) = remember(viewModel.content.text) { viewModel.stats() }
 
     Scaffold(
+        // 键盘事件要在最外层拦（预览阶段从根往下走），见 onEditorKey
+        modifier = Modifier.onPreviewKeyEvent(onEditorKey),
         topBar = {
             TopAppBar(
                 title = {
@@ -438,6 +534,7 @@ fun EditorScreen(
                     currentHighlight = matches.getOrNull(clampedMatchIndex),
                     scrollTo = scrollTo,
                     onRenderedText = { renderedText = it },
+                    onAnchorClick = onAnchorClick,
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 20.dp),
@@ -497,17 +594,20 @@ fun EditorScreen(
                 }
                 // 纯源码编辑：等宽字体、无边框、全屏
                 //
-                // 这里不挂硬件键盘的 Ctrl+Z/Ctrl+Y：实测过，文本框有焦点时字母按键会先交给
-                // 输入法，应用窗口（Activity.dispatchKeyEvent、View.onKeyPreIme、Compose 的
-                // onPreviewKeyEvent）全都收不到 Z 的 KeyDown。Gboard 自带逐字符撤销，会把
-                // Ctrl+Z 吃掉——用户看到的「撤销」是它的，不是我们栈的。顶栏那两个按钮才是
-                // 真正可用的入口，详见 README 的说明。
+                // ⚠️ 键盘快捷键挂在**最外层**（Scaffold 的 onPreviewKeyEvent，见上面的
+                // onEditorKey），不挂在这个 TextField 上。区别是实测出来的：挂根节点时
+                // Ctrl+Z / Shift+Z / B / I / S / F 全都能收到（2026-09-19 用
+                // `input keycombination` 逐个验过，撤销/重做/加粗/保存/搜索都生效），
+                // 而挂文本框上时字母键会先交给输入法、应用拿不到 —— 老注释里那句
+                // 「Ctrl+Z 收不到」说的是后一种写法。软键盘不发这些组合键，
+                // 所以手机上仍然只有顶栏那两个按钮可点。
                 TextField(
                     value = viewModel.content,
                     onValueChange = viewModel::onContentChange,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .weight(1f),
+                        .weight(1f)
+                        .onFocusChanged { editorFocused = it.isFocused },
                     textStyle = MaterialTheme.typography.bodyLarge.copy(
                         fontFamily = FontFamily.Monospace,
                         fontSize = settings.editorFontSp.sp,

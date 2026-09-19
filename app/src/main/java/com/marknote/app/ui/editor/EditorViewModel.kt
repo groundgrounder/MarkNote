@@ -172,9 +172,40 @@ class EditorViewModel(
     }
 
     fun onContentChange(newValue: TextFieldValue) {
+        // 「回车续列表」要在**记录撤销之前**做：新行上的标记与这次回车算同一步，
+        // 否则撤销一次只退掉标记、留下一个空行（与工具栏插入「各自单独成步」的取舍不同：
+        // 那一步是用户的独立意图，这里只是同一次回车的一部分）
+        val adjusted = continueListIfJustEntered(newValue) ?: newValue
         // 必须在 content 被覆盖之前记录。只挪光标时两段文本相同，栈会自己忽略。
-        recordEdit(content.text, newValue.text)
-        content = newValue
+        recordEdit(content.text, adjusted.text)
+        content = adjusted
+    }
+
+    /**
+     * 刚按下回车时按上一行的写法续上列表标记；其余情况返回 null（不改动输入）。
+     *
+     * 判据必须**严**：误判会把正常输入改坏，所以要求长度正好 +1、多出来的那一位是 `\n`、
+     * 光标正落在它后面，并且**删掉它以后与原文逐字相同**（最后一条顺带挡掉「粘贴了含换行的
+     * 内容」这类看起来相似、其实完全不同的变更）。
+     */
+    private fun continueListIfJustEntered(newValue: TextFieldValue): TextFieldValue? {
+        val old = content.text
+        val new = newValue.text
+        if (new.length != old.length + 1) return null
+        val selection = newValue.selection
+        if (!selection.collapsed) return null
+        val at = selection.start - 1
+        if (at < 0 || at >= new.length || new[at] != '\n') return null
+        if (!old.regionMatches(0, new, 0, at)) return null
+        if (!old.regionMatches(at, new, at + 1, old.length - at)) return null
+        val edit = continueListOnNewline(new, at + 1) ?: return null
+        return TextFieldValue(edit.text, TextRange(edit.selectionStart, edit.selectionEnd))
+    }
+
+    /** 应用一次编辑行为（Tab 缩进/反缩进）：算一步撤销，与普通输入同级 */
+    internal fun applyEdit(edit: EditResult) {
+        recordEdit(content.text, edit.text, coalesce = false)
+        content = TextFieldValue(edit.text, TextRange(edit.selectionStart, edit.selectionEnd))
     }
 
     /**

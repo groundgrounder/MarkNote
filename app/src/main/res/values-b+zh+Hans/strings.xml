@@ -8,6 +8,15 @@
     <string name="app_name">MarkNote</string>
 
     <!-- 最近文件列表 -->
+    <!-- 侧栏：最近文件 / 文件夹 -->
+    <string name="browse_recent">最近文件</string>
+    <string name="browse_folder">文件夹</string>
+    <string name="choose_folder">选择文件夹</string>
+    <string name="folder_empty">这个文件夹里没有 Markdown 文件</string>
+    <string name="folder_empty_hint">选一个文件夹，之后就能直接在里面打开文档，不必每次都走系统选择器</string>
+    <string name="folder_access_lost">这个文件夹的授权已失效（例如卸载重装后），请重新选择一次</string>
+    <string name="up_one_level">上一级</string>
+
     <string name="settings">设置</string>
     <string name="collapse_sidebar">收起侧栏</string>
     <string name="expand_sidebar">展开侧栏</string>
@@ -38,6 +47,7 @@
     <string name="redo">重做</string>
     <string name="search">搜索</string>
     <string name="outline">大纲</string>
+    <string name="anchor_not_found">文档里没有这个名字的小节</string>
     <string name="edit">编辑</string>
     <string name="preview">预览</string>
     <string name="close_outline">关闭大纲</string>

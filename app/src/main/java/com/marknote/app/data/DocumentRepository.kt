@@ -5,6 +5,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Process
+import android.provider.DocumentsContract
 import android.provider.OpenableColumns
 import android.system.Os
 import android.text.format.DateFormat
@@ -158,10 +159,20 @@ class DocumentRepository(private val context: Context) {
 
     // ---------- 权限持久化 ----------
 
-    /** 是否已持有该 Uri 的持久化读权限（重启后依然有效） */
+    /**
+     * 是否已持有该 Uri 的持久化读权限（重启后依然有效）。
+     *
+     * 除了「正好就是这个 Uri」，还认**落在某个已持久化的树授权里**的子文档 ——
+     * 文件夹浏览打开的就是这种 Uri。SAF **不允许**给子文档单独持久化（只有树 Uri 能），
+     * 所以只比 `it.uri == uri` 会把它们判成「没有长期授权」：每次从最近列表打开都会弹
+     * 「这个文件无法长期访问」并让用户重选一次，而文件其实一直打得开（2026-09-19 实测到）。
+     */
     fun hasPersistedPermission(uri: Uri): Boolean = context.contentResolver
         .persistedUriPermissions
-        .any { it.uri == uri && it.isReadPermission }
+        .any { permission ->
+            permission.isReadPermission &&
+                (permission.uri == uri || uri.toString().startsWith(permission.uri.toString() + "/"))
+        }
 
     /**
      * 申请持久化权限，返回是否拿到（能跨应用重启保留）。
@@ -202,7 +213,7 @@ class DocumentRepository(private val context: Context) {
 
     /** 把 Uri 记入最近列表（置顶），保留既有显示名与图片文件夹授权 */
     @Synchronized
-    fun addToRecents(uri: Uri) {
+    fun addToRecents(uri: Uri, treeUriString: String? = null) {
         val key = uri.toString()
         val list = load()
         val old = list.firstOrNull { it.uri == key }
@@ -210,7 +221,9 @@ class DocumentRepository(private val context: Context) {
             uri = key,
             name = old?.name?.ifBlank { null } ?: displayName(uri),
             time = System.currentTimeMillis(),
-            tree = old?.tree,
+            // 从文件夹浏览里打开的文档直接沿用该文件夹当图片根：相对路径图片最常见的形态
+            // 就是「图和文档在同一个文件夹」，这样用户不必再单独授权一次
+            tree = treeUriString ?: old?.tree,
         )
         save(list.filterNot { it.uri == key } + entry)
     }
@@ -267,6 +280,83 @@ class DocumentRepository(private val context: Context) {
                 openedAt = entry.time,
             )
         }
+    }
+
+    // ---------- 文件夹浏览（SAF 树授权） ----------
+
+    /**
+     * 当前选中的文件夹（树 Uri 字符串）；没选过、或授权已经失效时返回 null。
+     *
+     * 记在 prefs 里**不代表授权还在**（重装、用户撤销、系统回收都会让它失效）—— 与图片文件夹
+     * 那条同一个道理：失效时按「没选过」处理，界面会重新显示「选择文件夹」，
+     * 而不是列出一片打不开的条目让人以为文件坏了。
+     */
+    fun folderTree(): String? {
+        val stored = prefs.getString(KEY_FOLDER_TREE, null)?.ifBlank { null } ?: return null
+        return if (hasPersistedPermission(Uri.parse(stored))) stored else null
+    }
+
+    /** 记下选中的文件夹（传 null 表示取消选择） */
+    fun setFolderTree(treeUriString: String?) {
+        prefs.edit().putString(KEY_FOLDER_TREE, treeUriString).apply()
+    }
+
+    /**
+     * 记在 prefs 里的那个文件夹（**不检查授权**）。
+     * 界面用它区分「从没选过」与「选过但授权失效了」—— 两种情况该说的话不一样。
+     */
+    fun folderTreeStored(): String? = prefs.getString(KEY_FOLDER_TREE, null)?.ifBlank { null }
+
+    /**
+     * 申请文件夹（树）的持久化权限 —— 在 `ACTION_OPEN_DOCUMENT_TREE` 的回调里调。
+     * 走 [persistPermission] 同一条路（带写标志失败时退化为只读重试）。
+     */
+    fun persistFolderPermission(treeUri: Uri): Boolean = persistPermission(treeUri)
+
+    /** 面包屑里根文件夹的显示名（拿不到返回 null，调用方只显示子目录） */
+    fun folderRootName(treeUri: Uri): String? =
+        runCatching { folderDisplayName(DocumentsContract.getTreeDocumentId(treeUri)) }.getOrNull()
+
+    /**
+     * 列出一个文件夹的直接子项（目录在前，只保留可浏览的文件）。
+     *
+     * [folderUri] 是树授权下的文档 Uri：**根文件夹直接传树 Uri**，子目录传列表里给出的那个 Uri。
+     * 两者的文档 id 取法不同（树 Uri 要用 `getTreeDocumentId`），所以这里两种都兜住。
+     *
+     * 子项 Uri 一律用 [DocumentsContract.buildDocumentUriUsingTree] 重建 —— 只有带 tree 段的
+     * Uri 才能被编辑器继续读写（去掉 tree 段就是一个没有授权的裸文档 Uri）。
+     *
+     * 失败（授权没了、provider 抽风）返回空列表：界面会显示「这个文件夹是空的」，
+     * 比抛出去崩掉更接近用户能理解的状态；真要排查有 logcat。
+     */
+    suspend fun listFolder(treeUri: Uri, folderUri: Uri): List<FolderEntry> = withContext(Dispatchers.IO) {
+        val documentId = runCatching { DocumentsContract.getDocumentId(folderUri) }
+            .getOrElse { DocumentsContract.getTreeDocumentId(folderUri) }
+        val childrenUri = DocumentsContract.buildChildDocumentsUriUsingTree(treeUri, documentId)
+        val projection = arrayOf(
+            DocumentsContract.Document.COLUMN_DOCUMENT_ID,
+            DocumentsContract.Document.COLUMN_DISPLAY_NAME,
+            DocumentsContract.Document.COLUMN_MIME_TYPE,
+        )
+        val entries = mutableListOf<FolderEntry>()
+        runCatching {
+            context.contentResolver.query(childrenUri, projection, null, null, null)?.use { cursor ->
+                while (cursor.moveToNext()) {
+                    val id = cursor.getString(0) ?: continue
+                    val name = cursor.getString(1) ?: continue
+                    val mime = cursor.getString(2).orEmpty()
+                    if (!isBrowsableEntry(name, mime)) continue
+                    entries += FolderEntry(
+                        name = name,
+                        uri = DocumentsContract.buildDocumentUriUsingTree(treeUri, id).toString(),
+                        isDirectory = mime == DocumentsContract.Document.MIME_TYPE_DIR,
+                    )
+                }
+            }
+        }.onFailure {
+            android.util.Log.w(TAG_RECENTS, "列文件夹失败：$folderUri", it)
+        }
+        sortFolderEntries(entries)
     }
 
     // ---------- 图片文件夹授权（显示文档相对路径图片用） ----------
@@ -415,6 +505,9 @@ class DocumentRepository(private val context: Context) {
 
         /** 最近列表最多保留多少条（超出按打开时间淘汰最旧的） */
         const val MAX_ENTRIES = 100
+
+        /** 文件夹浏览里选中的那个文件夹（SAF 树 Uri） */
+        const val KEY_FOLDER_TREE = "folder_tree"
 
         const val FIELD_URI = "uri"
         const val FIELD_NAME = "name"

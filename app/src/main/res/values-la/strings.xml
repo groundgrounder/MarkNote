@@ -4,6 +4,15 @@
     <string name="app_name">MarkNote</string>
 
     <!-- Fasciculi recentes -->
+    <!-- 侧栏：最近文件 / 文件夹 -->
+    <string name="browse_recent">Fasciculi recentes</string>
+    <string name="browse_folder">Fasciculus</string>
+    <string name="choose_folder">Elige fasciculum</string>
+    <string name="folder_empty">In hoc fasciculo nulli fasciculi Markdown sunt</string>
+    <string name="folder_empty_hint">Fasciculum semel elige; deinde documenta eius aperire potes, nec quoties per electorem systematis ire debes</string>
+    <string name="folder_access_lost">Permissio fasciculi electi periit (exempli gratia post reinstallationem). Iterum elige</string>
+    <string name="up_one_level">Ad gradum superiorem</string>
+
     <string name="settings">Optiones</string>
     <string name="collapse_sidebar">Latus claude</string>
     <string name="expand_sidebar">Latus pande</string>
@@ -34,6 +43,7 @@
     <string name="redo">Refice</string>
     <string name="search">Quaere</string>
     <string name="outline">Index</string>
+    <string name="anchor_not_found">Hoc nomen sectionis in documento non invenitur</string>
     <string name="edit">Recensere</string>
     <string name="preview">Praevidere</string>
     <string name="close_outline">Indicem claude</string>

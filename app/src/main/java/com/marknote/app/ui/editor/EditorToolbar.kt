@@ -79,6 +79,16 @@ private fun markdownActions(): List<MarkdownAction> = listOf(
     ),
 )
 
+/**
+ * 按 label 取同一个工具栏动作（键盘快捷键用）。
+ *
+ * 走**同一个列表**，这样「Ctrl+B」与点工具栏上的 B 得到的插入结果逐字一致；
+ * 两处各写一份前缀，迟早会分叉（工具栏那句占位文案还跟着界面语言变）。
+ */
+@Composable
+internal fun markdownActionByLabel(label: String): MarkdownAction? =
+    markdownActions().firstOrNull { it.label == label }
+
 @Composable
 internal fun MarkdownToolbar(
     onAction: (MarkdownAction) -> Unit,
