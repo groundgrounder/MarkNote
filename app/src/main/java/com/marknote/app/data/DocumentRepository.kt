@@ -89,33 +89,38 @@ class DocumentRepository(private val context: Context) {
         withContext(Dispatchers.IO) {
             runCatching {
                 val bytes = TextEncoding.encode(content, encoding)
-                writeTruncating(uri, bytes) || writeAndVerify(uri, bytes)
+                if (!writeOnce(uri, "wt", bytes) && !writeOnce(uri, "w", bytes)) {
+                    return@runCatching false
+                }
+                // 两条路都要核长度 —— 理由见 [lengthMatches]，别只核退路那条
+                lengthMatches(uri, bytes)
             }.getOrDefault(false)
         }
 
-    /** 截断写（"wt"）。provider 不支持这个模式时返回 false，交给调用方走退路 */
-    private fun writeTruncating(uri: Uri, bytes: ByteArray): Boolean = runCatching {
-        context.contentResolver.openOutputStream(uri, "wt")?.use { it.write(bytes) } != null
+    /** 按指定模式写一整份字节。打不开（provider 不支持这个模式）或写失败都返回 false */
+    private fun writeOnce(uri: Uri, mode: String, bytes: ByteArray): Boolean = runCatching {
+        context.contentResolver.openOutputStream(uri, mode)?.use { it.write(bytes) } != null
     }.getOrDefault(false)
 
     /**
-     * 退路：用 "w" 写，然后核对文件实际长度。
+     * 核对文件实际长度是不是刚写进去的那份。
      *
-     * "w" 在部分 provider 上**并不截断**，内容变短时旧尾巴会留在文件末尾——文件看着正常，
-     * 末尾却多出一段旧文字。核对长度能把这种情况变成一次**可见的失败**（由上层提示用户），
-     * 而不是静默留下脏数据。量不到长度时按成功算，保持原有行为，只对「确实短了」下结论。
+     * **不只是退路要核**：`"wt"` 这名字里虽然有 truncate，但截断是 provider 自己该做的事，
+     * SAF 层面并不强制——provider 完全可以收下这个模式、却按普通 "w" 处理。这样一来
+     * 内容变短时旧尾巴会留在文件末尾：文件看着正常，末尾却多出一段旧文字。
+     * 核长度能把这种情况变成一次**可见的失败**（由上层提示用户，见 EditorViewModel.saveFailed），
+     * 而不是静默留下脏数据。早先只有退路的 "w" 那条路核，"wt" 返回 true 就直接算成功了，
+     * 盲区正好落在最常用的那条路径上（2026-09-20）。
+     *
+     * 量不到长度时按成功算：那种情况下没有任何证据说它写坏了，报失败只会制造假的「保存失败」。
      */
-    private fun writeAndVerify(uri: Uri, bytes: ByteArray): Boolean {
-        val written = runCatching {
-            context.contentResolver.openOutputStream(uri, "w")?.use { it.write(bytes) } != null
-        }.getOrDefault(false)
-        if (!written) return false
+    private fun lengthMatches(uri: Uri, bytes: ByteArray): Boolean {
         val size = runCatching {
             context.contentResolver.openFileDescriptor(uri, "r")?.use { it.statSize }
         }.getOrNull()
         // ⚠️ getStatSize() 在长度未知时返回 **-1**（不是 null）。早先只判了 null，
         // provider 报 -1 时就被当成「长度不符」→ 明明写成功却给出假的「保存失败」，
-        // 用户会以为内容没保住而反复重试。这里把负数一并算作「量不到」，与上面那段注释的口径一致。
+        // 用户会以为内容没保住而反复重试。这里把负数一并算作「量不到」，与上面那段口径一致。
         return size == null || size < 0 || size == bytes.size.toLong()
     }
 
@@ -367,6 +372,69 @@ class DocumentRepository(private val context: Context) {
         sortFolderEntries(entries)
     }
 
+    // ---------- 文件夹里的写操作（新建 / 重命名 / 删除） ----------
+
+    /**
+     * 在 [parentUri] 里新建一个文档，返回它的 Uri。
+     *
+     * [mimeType] 传目录的 MIME 就是**新建文件夹** —— SAF 里两者是同一个调用，只有类型不同。
+     *
+     * ⚠️ 两个必须兜住的地方（都是实测踩到的）：
+     * 1. [parentUri] 可能是**树 Uri 本身** —— 在授权文件夹的根目录下新建时就是它。而
+     *    `createDocument` 要的是**文档** Uri，直接传树 Uri 会失败（返回 null，界面上只是
+     *    「新建失败」，看不出原因）。按 [listFolder] 那套同样取一次 documentId 再重建；
+     * 2. `createDocument` 返回的 Uri **不带 tree 段**，编辑器拿它读写打不开，得用 tree +
+     *    新的 document id 重建一遍。
+     *
+     * 失败返回 null：只读授权、名字里有 `/` 之类非法字符、provider 不支持写，都会走到这里。
+     * 交给界面提示，不往外抛。
+     */
+    suspend fun createDocument(
+        treeUri: Uri,
+        parentUri: Uri,
+        displayName: String,
+        mimeType: String,
+    ): Uri? = withContext(Dispatchers.IO) {
+        runCatching {
+            val parentId = runCatching { DocumentsContract.getDocumentId(parentUri) }
+                .getOrElse { DocumentsContract.getTreeDocumentId(parentUri) }
+            val parentDocUri = DocumentsContract.buildDocumentUriUsingTree(treeUri, parentId)
+
+            val created = DocumentsContract.createDocument(
+                context.contentResolver,
+                parentDocUri,
+                mimeType,
+                displayName,
+            ) ?: return@runCatching null
+            DocumentsContract.buildDocumentUriUsingTree(
+                treeUri,
+                DocumentsContract.getDocumentId(created),
+            )
+        }.getOrNull()
+    }
+
+    /**
+     * 重命名。返回是否成功。
+     *
+     * 成功后 document id 可能变（改名等于换文档），所以调用方重列一次列表就行，
+     * 不要试图继续用旧 Uri。
+     */
+    suspend fun renameDocument(uri: Uri, newName: String): Boolean = withContext(Dispatchers.IO) {
+        runCatching {
+            DocumentsContract.renameDocument(context.contentResolver, uri, newName) != null
+        }.getOrDefault(false)
+    }
+
+    /**
+     * 删除。**不可撤销** —— 本机的 ExternalStorageProvider 是直接删掉，不进回收站
+     * （云盘 provider 可能进它自己的回收站，但不能依赖）。调用方**必须先向用户确认**。
+     */
+    suspend fun deleteDocument(uri: Uri): Boolean = withContext(Dispatchers.IO) {
+        runCatching {
+            DocumentsContract.deleteDocument(context.contentResolver, uri)
+        }.getOrDefault(false)
+    }
+
     // ---------- 图片文件夹授权（显示文档相对路径图片用） ----------
 
     /** 记录「文档 → 图片文件夹（tree Uri）」映射 */
@@ -409,45 +477,65 @@ class DocumentRepository(private val context: Context) {
     )
 
     /**
-     * 读取最近列表。返回可变副本，调用方可安全增删。
+     * 读取最近列表。返回可安全增删的副本。
      * 首次运行新版本时把旧版的三个 StringSet 迁移过来。
      */
     @Synchronized
     private fun load(): List<Entry> {
         val raw = prefs.getString(KEY_DOCS, null) ?: return migrateLegacy()
         parseEntries(raw)?.let { return it }
-        // 解析失败不能就这么返回空列表：紧接着的任何一次 save() 都会把空列表写回去，
-        // 用户的最近列表就永久没了，而且全程没有任何提示。先把原始串挪到备份键，
-        // 留一条能捞回来的路（至少能在 logcat 与 prefs 里找到它）。
-        android.util.Log.w(TAG_RECENTS, "最近列表 JSON 解析失败，原文已备份到 $KEY_DOCS_BACKUP")
-        runCatching { prefs.edit().putString(KEY_DOCS_BACKUP, raw).apply() }
-        return emptyList()
+        // 走到这里说明整份 JSON 都解析不了。先尽力抢救一遍：实际会遇到的坏法几乎都是
+        // 尾部截断（写入被中断），前面那些条目其实是好的，按「全坏」处理会把整份列表
+        // 清空，而它们本该能救回来。
+        val salvaged = salvageEntries(raw)
+        // 原文一律留一份备份：抢救结果可能不完整（文件名带花括号的那几条会漏掉），
+        // 也可能一条都没救回来 —— 备份是事后唯一能捞的东西。
+        android.util.Log.w(
+            TAG_RECENTS,
+            "最近列表 JSON 解析失败：从 $KEY_DOCS 抢救出 ${salvaged.size} 条，原文备份到 $KEY_DOCS_BACKUP",
+        )
+        // 主键改写成抢救结果（哪怕是空）：坏数据留在主键里，只会让之后每次读取都重新
+        // 告警一遍，而它已经没用了。处理完两个键各自自洽 —— 一个能读，一个留着原文。
+        runCatching {
+            prefs.edit()
+                .putString(KEY_DOCS_BACKUP, raw)
+                .putString(KEY_DOCS, encode(salvaged))
+                .apply()
+        }
+        return salvaged
     }
 
     /** 解析列表 JSON；格式不合法返回 null，由 [load] 决定怎么兜底 */
     private fun parseEntries(raw: String): List<Entry>? = runCatching {
         val arr = JSONArray(raw)
-        (0 until arr.length()).mapNotNull { i ->
-            val obj = arr.optJSONObject(i) ?: return@mapNotNull null
-            val uri = obj.optString(FIELD_URI)
-            if (uri.isBlank()) {
-                null
-            } else {
-                Entry(
-                    uri = uri,
-                    name = obj.optString(FIELD_NAME),
-                    time = obj.optLong(FIELD_TIME, 0L),
-                    tree = obj.optString(FIELD_TREE).ifBlank { null },
-                )
-            }
-        }
+        (0 until arr.length()).mapNotNull { entryOf(arr.optJSONObject(it)) }
     }.getOrNull()
 
     /**
-     * 写回列表。这里统一按「最近打开」保留最多 [MAX_ENTRIES] 条：列表原本只增不减，
-     * 而 [recentDocuments] 对每条都要跨进程 probe 一次正文头，条目越多列表页越慢。
-     * 上限放在唯一的写入口，任何增删路径都自动受约束。
+     * 尽力抢救：整份 JSON 解析不了时，把里面还完整的条目抠出来。
+     *
+     * 实际会遇到的坏法几乎都是写入中断造成的**尾部截断**——前面那些条目其实是好的。
+     * 直接按「全坏」处理会把整份最近列表清空，而它们本该能救回来。
+     * 抠取的口径与边界见 [salvageEntryJson]。
      */
+    private fun salvageEntries(raw: String): List<Entry> =
+        salvageEntryJson(raw).mapNotNull { json ->
+            runCatching { entryOf(JSONObject(json)) }.getOrNull()
+        }
+
+    /** 一个 JSON 对象 → 一条记录；缺 uri 的条目作废（返回 null） */
+    private fun entryOf(obj: JSONObject?): Entry? {
+        val o = obj ?: return null
+        val uri = o.optString(FIELD_URI)
+        if (uri.isBlank()) return null
+        return Entry(
+            uri = uri,
+            name = o.optString(FIELD_NAME),
+            time = o.optLong(FIELD_TIME, 0L),
+            tree = o.optString(FIELD_TREE).ifBlank { null },
+        )
+    }
+
     @Synchronized
     private fun save(entries: List<Entry>) {
         val kept = if (entries.size > MAX_ENTRIES) {
@@ -455,8 +543,16 @@ class DocumentRepository(private val context: Context) {
         } else {
             entries
         }
+        prefs.edit().putString(KEY_DOCS, encode(kept)).apply()
+    }
+
+    /**
+     * 序列化成 JSON 数组串。抢救路径（[load]）与正常写回（[save]）共用同一份写法 ——
+     * 两处各写一遍，迟早会出现「写得进去却读不出来」的错配。
+     */
+    private fun encode(entries: List<Entry>): String {
         val arr = JSONArray()
-        kept.forEach { e ->
+        entries.forEach { e ->
             arr.put(
                 JSONObject()
                     .put(FIELD_URI, e.uri)
@@ -465,7 +561,7 @@ class DocumentRepository(private val context: Context) {
                     .put(FIELD_TREE, e.tree.orEmpty()),
             )
         }
-        prefs.edit().putString(KEY_DOCS, arr.toString()).apply()
+        return arr.toString()
     }
 
     /**
@@ -533,3 +629,19 @@ class DocumentRepository(private val context: Context) {
         const val TIME_SKELETON = "yMdHm"
     }
 }
+
+/**
+ * 从坏掉的最近列表 JSON 里抠出**还完整的条目子串**（不做 JSON 解析，那一步留给调用方）。
+ *
+ * 实际会遇到的坏法几乎都是写入中断造成的**尾部截断**，前面那些条目其实是好的，
+ * 直接按「全坏」处理会把整份列表清空，而它们本该能救回来。
+ *
+ * 之所以能这么扫：条目是**扁平**的（uri / name / time / tree 都是标量，见 Entry），
+ * 一对花括号就是一个条目。文件名里若带花括号会让某一条抠得不完整（子串解析会失败、
+ * 那条被跳过）—— 抢救的底线是「宁可少救一条，也不能救出错的」。
+ *
+ * 单独抽成顶层函数是为了能进断言：org.json 只在 Android 里有，JVM 断言走不到
+ * [DocumentRepository.salvageEntries]，但这一层纯字符串扫描可以（见 CheckRecentsSalvage）。
+ */
+internal fun salvageEntryJson(raw: String): List<String> =
+    Regex("\\{[^{}]*\\}").findAll(raw).map { it.value }.toList()

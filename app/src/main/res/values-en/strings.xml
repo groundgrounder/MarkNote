@@ -21,12 +21,21 @@
     <string name="folder_empty_hint">Choose a folder once, then open its Markdown files without going through the system picker every time</string>
     <string name="folder_access_lost">Access to the chosen folder was lost (for example after reinstalling). Choose it again</string>
     <string name="up_one_level">Up one level</string>
+    <string name="name_field_label">Name</string>
+    <string name="new_folder">New folder</string>
+    <string name="create">Create</string>
+    <string name="create_failed">Could not create it: this folder is not writable</string>
+    <string name="rename">Rename</string>
+    <string name="rename_failed">Could not rename it: this folder is not writable</string>
+    <string name="delete">Delete</string>
+    <string name="delete_failed">Could not delete it: this folder is not writable</string>
+    <string name="delete_file_message">Delete “%1$s”? This cannot be undone.</string>
+    <string name="delete_folder_message">Delete the folder “%1$s” and everything inside it? This cannot be undone.</string>
 
     <string name="settings">Settings</string>
     <string name="collapse_sidebar">Collapse sidebar</string>
     <string name="expand_sidebar">Expand sidebar</string>
     <string name="new_file">New file</string>
-    <string name="open_file">Open file</string>
     <string name="open_in_new_window">Open in new window</string>
     <string name="already_open_in_a_window">This document is already open in a window</string>
     <string name="untitled_md">Untitled.md</string>
@@ -37,13 +46,14 @@
     <string name="list_item_unavailable">File unavailable: it may have been moved or deleted, or its permission was revoked. Tap to grant access again.</string>
     <string name="empty_document">(Empty document)</string>
     <string name="empty_list_title">No files opened yet</string>
-    <string name="empty_list_hint">Tap “Open file” to choose a folder, then pick documents inside it\nYou can also open .md files from a file manager with MarkNote</string>
+    <string name="empty_list_hint">Switch to “Folder” and choose one, then pick documents inside it\nYou can also open .md files from a file manager with MarkNote</string>
 
     <!-- Empty state and external open -->
     <string name="empty_editor_hint">Open a recent file on the left, or tap “Open file”</string>
     <string name="no_persistent_access_title">This file cannot be accessed long-term</string>
-    <string name="no_persistent_access_message">Files shared from other apps have no long-term permission, so they cannot be opened after you quit MarkNote. Grant access again to keep editing them.</string>
-    <string name="edit_temporarily">Edit for now</string>
+    <string name="no_persistent_access_message">Files shared from other apps have no long-term permission, so they cannot be opened after you quit MarkNote. Use “Grant access” in the editor when you need to keep them.</string>
+    <string name="dont_show_again">Don’t show again</string>
+    <string name="got_it">Got it</string>
 
     <!-- Editor -->
     <string name="back">Back</string>
@@ -64,6 +74,7 @@
     <string name="image_folder_hint">Grant the folder that contains both this document and its images</string>
     <string name="notice_save_failed">Save failed: no permission to write this file</string>
     <string name="notice_read_only">Opened read-only: no write permission, so changes will not be saved</string>
+    <string name="notice_no_persistent_access">This file cannot be opened again after you quit MarkNote</string>
     <string name="document_unavailable_title">Cannot open this file</string>
     <string name="document_unavailable_message">MarkNote no longer has access to this file, or it was moved or deleted.\nFiles opened from other apps (a file manager’s “Open with”, a chat app, and so on) usually get no long-term permission, so access is lost after you quit the app.\nUse “Grant access” to pick the same file again in the system file picker, and you can keep editing it.</string>
     <string name="retry">Retry</string>
@@ -103,10 +114,17 @@
     <string name="auto_save">Auto save</string>
     <string name="auto_save_on">Writes back to the file 800ms after you stop typing</string>
     <string name="auto_save_off">When off, a save button appears in the top bar</string>
+    <string name="unsaved_changes_title">Unsaved changes</string>
+    <string name="unsaved_changes_message">Leaving now will discard them.</string>
+    <string name="discard_changes">Discard</string>
+    <string name="stay_in_editor">Stay</string>
     <string name="browsing_section">Browsing</string>
     <string name="show_hidden_files">Show hidden files</string>
     <string name="show_hidden_files_on">Files and folders whose name starts with a dot, such as .git or .obsidian</string>
     <string name="show_hidden_files_off">Files and folders whose name starts with a dot are omitted from the list</string>
+    <string name="show_no_access_notice">Notices for files from other apps</string>
+    <string name="show_no_access_notice_on">A dialog explains it when such a file has no lasting permission</string>
+    <string name="show_no_access_notice_off">No dialog; use “Grant access” in the editor when you need it</string>
     <string name="language_section">Language</string>
     <string name="language">Language</string>
     <string name="language_system">System default</string>

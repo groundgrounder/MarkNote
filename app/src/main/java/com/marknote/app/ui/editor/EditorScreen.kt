@@ -26,6 +26,7 @@ import androidx.compose.material.icons.outlined.Image
 import androidx.compose.material.icons.outlined.Save
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Visibility
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -119,8 +120,18 @@ fun EditorScreen(
             }
         }
     }
+    /**
+     * 重新授权 = 用系统选择器重选同一个文件，换来可持久化的授权。
+     *
+     * 传全通配、**不做类型过滤**：这一步是「把当前这个文件找回来」，不是浏览挑选。会走到这里的
+     * 可能是任何文件（包括被 provider 报成 `application/octet-stream` 的无扩展名文件），
+     * 加类型限制只会在选择器的「最近」视图里把它们挡掉，让用户没法把文件找回来。
+     *
+     * ⚠️ 这是目前**唯一**的长期授权入口（外部打开时那个说明弹窗已经不提供按钮了）。
+     * 动它要连带看 MainActivity 的弹窗与下面那条提示的显示条件（含 hasPersistedAccess）。
+     */
     val regrant: () -> Unit = {
-        regrantLauncher.launch(arrayOf("text/markdown", "text/plain", "*/*"))
+        regrantLauncher.launch(arrayOf("*/*"))
     }
 
     // 自动保存：内容变化后停顿 800ms 落盘（可在设置中关闭，改为手动保存）
@@ -130,18 +141,46 @@ fun EditorScreen(
         viewModel.save()
     }
 
-    // 离开组合（切标签、回列表、进设置）时兜一次保存：自动保存要等上面那 800ms，而组合先
-    // 没了 —— 防抖协程随组合一起被取消，最后一段输入就永远不会落盘。
-    // 这一次保存走的是 ViewModel 自己的 scope：它挂在 Activity 的 ViewModelStore 上，
-    // 此刻仍然活着，所以写盘能跑完（切标签不会把没落盘的改动带走）。
-    DisposableEffect(viewModel) {
-        onDispose { viewModel.save() }
+    /**
+     * 关闭自动保存时，离开编辑器前要不要问一句。
+     *
+     * 开着自动保存时「离开」不是唯一的写盘机会（停顿 800ms 那次已经写了），直接走即可；
+     * 关掉之后它就是**最后一次机会** —— 不问就写，用户没打算保存的改动会被静默写进文件；
+     * 不问又不写，他以为存下的东西会没。两个方向都错，只能让他自己说。
+     */
+    var pendingExit by remember { mutableStateOf(false) }
+
+    /**
+     * 用户在弹窗里选了「不保存」。它挡住下面那次兜保存，否则刚说完不要还是写进去了。
+     *
+     * ⚠️「不保存」不等于「改动没了」：ViewModel 挂在 Activity 的 ViewModelStore 上、此刻
+     * 还活着，正文留在它里面 —— 回到编辑器（甚至切走再切回来）内容都还在。真正会丢改动的是
+     * Activity 被销毁，那与这里的选择无关。
+     */
+    var discardOnExit by remember { mutableStateOf(false) }
+
+    /** 离开编辑器：有未保存改动且关了自动保存时先确认，其余情况直接走 */
+    val requestExit: () -> Unit = {
+        if (settings.autoSave || !viewModel.isLoaded || !viewModel.hasUnsavedChanges) {
+            viewModel.save()
+            onBack()
+        } else {
+            pendingExit = true
+        }
     }
 
-    BackHandler {
-        viewModel.save()
-        onBack()
+    // 离开组合（回列表、进设置、切文档）时兜一次保存：自动保存要等上面那 800ms，而组合先
+    // 没了 —— 防抖协程随组合一起被取消，最后一段输入就永远不会落盘。
+    // 这一次保存走的是 ViewModel 自己的 scope：它挂在 Activity 的 ViewModelStore 上，
+    // 此刻仍然活着，所以写盘能跑完（切文档不会把没落盘的改动带走）。
+    //
+    // ⚠️ 这条兜保存也要认「关闭自动保存」这个设置：那时候用户要的是手动模式，
+    // 无条件兜一次等于绕过他刚做的选择。
+    DisposableEffect(viewModel) {
+        onDispose { if (settings.autoSave && !discardOnExit) viewModel.save() }
     }
+
+    BackHandler { requestExit() }
 
     val title = fileTitle(displayName)
     // 读取失败时只提供错误提示，不进入编辑/预览（避免空内容被误写回原文件）
@@ -363,10 +402,7 @@ fun EditorScreen(
                     }
                 },
                 navigationIcon = {
-                    IconButton(onClick = {
-                        viewModel.save()
-                        onBack()
-                    }) {
+                    IconButton(onClick = requestExit) {
                         Icon(
                             Icons.AutoMirrored.Outlined.ArrowBack,
                             contentDescription = stringResource(R.string.back),
@@ -546,12 +582,26 @@ fun EditorScreen(
                     .widthIn(max = 840.dp)
                     .fillMaxWidth(),
             ) {
-                // 只能读 / 写盘失败：明确提示，避免用户以为改动已保存
-                if (viewModel.readOnly || viewModel.saveFailed) {
+                // 三种该提醒的情况，一次只出一条 —— 优先级与理由见 editorNoticeOf
+                // （纯逻辑、可断言，别把 when 抄回这里）。
+                //
+                // ⚠️ NO_PERSISTED_ACCESS 那条不能省：外部打开时那个说明弹窗已经不提供
+                // 「重新授权」按钮，这里是唯一的长期授权入口。少了它，「可写但不可持久化」的
+                // 文件（FileProvider 带了写权限的那种）就既没有按钮也没有提示，只能干等它失效。
+                val notice = editorNoticeOf(
+                    saveFailed = viewModel.saveFailed,
+                    readOnly = viewModel.readOnly,
+                    hasPersistedAccess = viewModel.hasPersistedAccess,
+                )
+                if (notice != null) {
                     DocumentNotice(
                         message = stringResource(
-                            if (viewModel.saveFailed) R.string.notice_save_failed
-                            else R.string.notice_read_only,
+                            when (notice) {
+                                EditorNotice.SAVE_FAILED -> R.string.notice_save_failed
+                                EditorNotice.READ_ONLY -> R.string.notice_read_only
+                                EditorNotice.NO_PERSISTED_ACCESS ->
+                                    R.string.notice_no_persistent_access
+                            },
                         ),
                         actionLabel = stringResource(R.string.regrant),
                         onAction = regrant,
@@ -652,6 +702,38 @@ fun EditorScreen(
                 jumpToHeading(offset)
             },
             onDismiss = { showOutline = false },
+        )
+    }
+    // 关闭自动保存时的离开确认。三个选项都是「让用户自己说」：
+    // 保存 / 不保存（改动只留在 ViewModel 里、不进文件）/ 留在编辑器。
+    if (pendingExit) {
+        AlertDialog(
+            onDismissRequest = { pendingExit = false },
+            title = { Text(stringResource(R.string.unsaved_changes_title)) },
+            text = { Text(stringResource(R.string.unsaved_changes_message)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        pendingExit = false
+                        viewModel.save()
+                        onBack()
+                    },
+                ) { Text(stringResource(R.string.save)) }
+            },
+            dismissButton = {
+                Row {
+                    TextButton(
+                        onClick = {
+                            discardOnExit = true
+                            pendingExit = false
+                            onBack()
+                        },
+                    ) { Text(stringResource(R.string.discard_changes)) }
+                    TextButton(onClick = { pendingExit = false }) {
+                        Text(stringResource(R.string.stay_in_editor))
+                    }
+                }
+            },
         )
     }
 }

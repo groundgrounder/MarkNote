@@ -167,53 +167,42 @@ fun SettingsScreen(
             }
 
             SectionLabel(stringResource(R.string.save_section))
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Column(Modifier.weight(1f)) {
-                    Text(stringResource(R.string.auto_save), style = MaterialTheme.typography.bodyLarge)
-                    Text(
-                        text = stringResource(
-                            if (settings.autoSave) R.string.auto_save_on else R.string.auto_save_off,
-                        ),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-                Switch(
-                    checked = settings.autoSave,
-                    onCheckedChange = settings::updateAutoSave,
-                )
-            }
+            SettingSwitchRow(
+                title = stringResource(R.string.auto_save),
+                detail = stringResource(
+                    if (settings.autoSave) R.string.auto_save_on else R.string.auto_save_off,
+                ),
+                checked = settings.autoSave,
+                onCheckedChange = settings::updateAutoSave,
+            )
 
             SectionLabel(stringResource(R.string.browsing_section))
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Column(Modifier.weight(1f)) {
-                    Text(
-                        stringResource(R.string.show_hidden_files),
-                        style = MaterialTheme.typography.bodyLarge,
-                    )
-                    Text(
-                        text = stringResource(
-                            if (settings.folderShowHiddenFiles) {
-                                R.string.show_hidden_files_on
-                            } else {
-                                R.string.show_hidden_files_off
-                            },
-                        ),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-                Switch(
-                    checked = settings.folderShowHiddenFiles,
-                    onCheckedChange = settings::updateFolderShowHiddenFiles,
-                )
-            }
+            SettingSwitchRow(
+                title = stringResource(R.string.show_hidden_files),
+                detail = stringResource(
+                    if (settings.folderShowHiddenFiles) {
+                        R.string.show_hidden_files_on
+                    } else {
+                        R.string.show_hidden_files_off
+                    },
+                ),
+                checked = settings.folderShowHiddenFiles,
+                onCheckedChange = settings::updateFolderShowHiddenFiles,
+            )
+            // 外部打开的文件拿不到长期权限时的说明弹窗。弹窗上的「不再提示」会关掉它 ——
+            // 这里是唯一的撤销处（关掉之后那个弹窗就不会再出现了）
+            SettingSwitchRow(
+                title = stringResource(R.string.show_no_access_notice),
+                detail = stringResource(
+                    if (settings.showNoAccessNotice) {
+                        R.string.show_no_access_notice_on
+                    } else {
+                        R.string.show_no_access_notice_off
+                    },
+                ),
+                checked = settings.showNoAccessNotice,
+                onCheckedChange = settings::updateShowNoAccessNotice,
+            )
 
             SectionLabel(stringResource(R.string.about))
             Text(
@@ -308,6 +297,33 @@ private fun SettingGroup(
         Text(label, style = MaterialTheme.typography.bodyLarge)
         Spacer(Modifier.height(8.dp))
         content()
+    }
+}
+
+/**
+ * 一行「标题 + 说明 + 开关」。设置页里已经有几处一模一样的排版，抽出来免得再加一处时
+ * 漏掉某处（比如忘了给说明文字上 onSurfaceVariant，几个开关的观感就不一致了）。
+ */
+@Composable
+private fun SettingSwitchRow(
+    title: String,
+    detail: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Column(Modifier.weight(1f)) {
+            Text(title, style = MaterialTheme.typography.bodyLarge)
+            Text(
+                text = detail,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        Switch(checked = checked, onCheckedChange = onCheckedChange)
     }
 }
 

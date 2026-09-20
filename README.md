@@ -32,13 +32,13 @@ Grab the latest APK (`MarkNote-vX.Y.Z.apk`) from [Releases](https://github.com/g
 
 **Files**
 
-- Create: tap "+" at the bottom-right of the home screen, pick a location and a name, and start writing
+- Create: tap "+" at the bottom-right. In the folder list it makes the file right there (long-press the button for a new folder); on the recent list it asks where to put it
 - Open: tap a `.md`, `.markdown` or plain-text file in any file manager and pick "Open with MarkNote"
-- Or tap "Open file" in the app: grant a folder once and pick a document right inside it. The list holds only files MarkNote can edit, so images, archives and other binaries never show up in it
+- Or switch the sidebar to "Folder", grant one folder, and pick a document right inside it. The list holds only files MarkNote can edit, so images, archives and other binaries never show up in it
 - Encoding untouched: UTF-8, UTF-16 and GBK all read correctly, and a file is saved back in the encoding it came in — a GBK note stays GBK
 - Recent files: everything you open stays on the home screen and survives a reboot; remove an entry you no longer need without touching the file
 - A file that was moved or can no longer be read is flagged in red — open it and follow the prompt to grant access again
-- **Folder browsing**: switch the sidebar to "Folder" and browse the folder you granted, subfolders included — this is the same list "Open file" takes you to; a document opened this way treats that folder as the place its images live
+- **Folder browsing**: switch the sidebar to "Folder" to work in the folder you granted — browse it, make files and folders in it, rename and delete things, subfolders included; long-press an entry for its menu. A document opened this way treats that folder as the place its images live
 - Auto-save: saves 800 ms after you stop typing, and before you leave the editor or switch to preview
 - Switch to manual in Settings if you prefer; a save button then appears in the top bar and highlights while changes are unsaved
 - Read-only files are called out: the editor says "changes will not be saved" instead of quietly dropping your work
@@ -79,12 +79,12 @@ Grab the latest APK (`MarkNote-vX.Y.Z.apk`) from [Releases](https://github.com/g
 - Tablets and landscape switch to two panes: file list on the left, editor on the right; the sidebar collapses to a narrow strip
 - Four UI languages — 简体中文, 繁體中文, English and Latina. It follows the system by default and can be picked in Settings without losing the document you are editing
 - Languages that are not built in show English; on Android 13+ you can also change it under system Settings → Apps → MarkNote → Language
-- Settings: theme, language, separate font sizes for editor and preview, the auto-save switch, whether folder browsing shows hidden files, and version info
+- Settings: theme, language, separate font sizes for editor and preview, the auto-save switch, hidden files in folder browsing, the permission notice for files from other apps, and version info
 - The icon follows your system's themed-icon setting (Android 13+)
 
 ## A few notes
 
-- Files opened from another app (a file manager, a chat, an email) get no lasting access, so MarkNote cannot reopen them once it is closed. Pick the same file again in the system picker when prompted and it stays editable — in the recent list too
+- Files opened from another app (a file manager, a chat, an email) get no lasting access, so MarkNote cannot reopen them once it is closed. The editor then shows a notice with “Grant access” — pick the same file again and it stays editable, in the recent list too. The dialog that explains this can be silenced with “Don’t show again”, and switched back on in Settings
 - Images need a granted folder: pick the one holding **both** the document and its images; granting just the document's folder fails whenever the images sit outside it
 - Search in the preview runs over the displayed text, so formula markers such as `$` and `$$` are not found there (they are in the editor); text inside a formula is searched as usual
 - One unrecognised command in a formula (say `\zzzz`) turns the whole formula into a boxed notice — fix it and it shows. The formula fonts have no Chinese characters, so keep Chinese outside the formula
@@ -181,6 +181,15 @@ Grab the latest APK (`MarkNote-vX.Y.Z.apk`) from [Releases](https://github.com/g
 - That list holds editable text files only: images, archives, PDFs and other binaries no longer appear in it
 - New "Show hidden files" switch in Settings, for when you do want to see `.git` or `.obsidian`. Off by default
 - Granting access to a file again (after opening it from another app) no longer filters by type, so files the system reports as `application/octet-stream` can be found again
+
+### v1.5.2
+
+- You can now do work inside a folder, not just browse it: create files and folders, rename, delete — long-press an entry for the menu, or long-press "＋" to create a folder right in the current directory
+- "New" adapts to the tab you are in: in the folder tab it creates right there, in the recent tab it asks where to put the file
+- Clearer notice for files opened from other apps: the banner at the top of the editor carries the "grant access again" action, and the explanatory dialog can be dismissed for good (turn it back on in Settings)
+- With auto save off, leaving the editor now asks first (Save / Discard / Stay). It used to write back regardless of that setting, contradicting the "save manually" description
+- Fixed: syntax highlighting ignored backslash escapes, so `\[text\](link)` — meant to show literally — was highlighted as a link (the preview had it right, the two disagreed)
+- Fixed: both write paths now verify the file's actual length, so a provider that ignores the truncate flag no longer leaves the tail of the old content behind; a corrupt recent-files list is salvaged instead of wiped
 
 ### v1.0.0
 

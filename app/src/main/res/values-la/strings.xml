@@ -12,12 +12,21 @@
     <string name="folder_empty_hint">Fasciculum semel elige; deinde documenta eius aperire potes, nec quoties per electorem systematis ire debes</string>
     <string name="folder_access_lost">Permissio fasciculi electi periit (exempli gratia post reinstallationem). Iterum elige</string>
     <string name="up_one_level">Ad gradum superiorem</string>
+    <string name="name_field_label">Nomen</string>
+    <string name="new_folder">Nova plica</string>
+    <string name="create">Creare</string>
+    <string name="create_failed">Creari non potuit: haec plica scribi non potest</string>
+    <string name="rename">Renominare</string>
+    <string name="rename_failed">Renominari non potuit: haec plica scribi non potest</string>
+    <string name="delete">Delere</string>
+    <string name="delete_failed">Deleri non potuit: haec plica scribi non potest</string>
+    <string name="delete_file_message">«%1$s» delere? Hoc revocari non potest.</string>
+    <string name="delete_folder_message">Plicam «%1$s» et omnia in ea delere? Hoc revocari non potest.</string>
 
     <string name="settings">Optiones</string>
     <string name="collapse_sidebar">Latus claude</string>
     <string name="expand_sidebar">Latus pande</string>
     <string name="new_file">Novus fasciculus</string>
-    <string name="open_file">Fasciculum aperire</string>
     <string name="open_in_new_window">In nova fenestra aperire</string>
     <string name="already_open_in_a_window">Hoc documentum iam in fenestra quadam apertum est</string>
     <string name="untitled_md">Sine titulo.md</string>
@@ -28,13 +37,14 @@
     <string name="list_item_unavailable">Fasciculus nunc non patet: fortasse motus vel deletus est, vel permissio periit. Tange ut iterum permittas.</string>
     <string name="empty_document">(Fasciculus vacuus)</string>
     <string name="empty_list_title">Nondum ullus fasciculus apertus est</string>
-    <string name="empty_list_hint">Tange «Fasciculum aperire» ut plicam eligas, deinde documenta in ea eligere potes\nPotes etiam fasciculos .md e ministro fasciculorum cum MarkNote aperire</string>
+    <string name="empty_list_hint">Sectionem «Plicae» aperi et plicam elige, deinde documenta in ea eligere potes\nPotes etiam fasciculos .md e ministro fasciculorum cum MarkNote aperire</string>
 
     <!-- Status vacuus et aperitio externa -->
     <string name="empty_editor_hint">Aperi recentem fasciculum a sinistra, vel tange «Fasciculum aperire»</string>
     <string name="no_persistent_access_title">Hic fasciculus diu patere non potest</string>
-    <string name="no_persistent_access_message">Fasciculi ab aliis programmatibus communicati permissionem diuturnam non habent; postquam MarkNote relinquis, aperiri non poterunt. Permitte iterum ut eos porro recenseas.</string>
-    <string name="edit_temporarily">Ad tempus recensere</string>
+    <string name="no_persistent_access_message">Fasciculi ab aliis programmatibus communicati permissionem diuturnam non habent; postquam MarkNote relinquis, aperiri non poterunt. Ad eos servandos, «Permitte iterum» in editore utere.</string>
+    <string name="dont_show_again">Noli iterum ostendere</string>
+    <string name="got_it">Intellexi</string>
 
     <!-- Editor -->
     <string name="back">Redi</string>
@@ -55,6 +65,7 @@
     <string name="image_folder_hint">Imagines huius documenti permissione eius plicae opus habent ut ostendantur</string>
     <string name="notice_save_failed">Servatio defecit: nulla potestas in hunc fasciculum scribendi</string>
     <string name="notice_read_only">Modo legendi apertus: nulla potestas scribendi, mutationes non servabuntur</string>
+    <string name="notice_no_persistent_access">Postquam MarkNote relinquis, hic fasciculus aperiri non poterit</string>
     <string name="document_unavailable_title">Hic fasciculus aperiri non potest</string>
     <string name="document_unavailable_message">MarkNote iam ad hunc fasciculum non accedit, aut fasciculus motus vel deletus est.\nFasciculi ex aliis programmatibus aperti (per «Aperire cum» ministri fasciculorum, per colloquia, et cetera) plerumque permissionem diuturnam non accipiunt; ea, programmate relicto, perit.\nUtere «Permitte iterum» ut eundem fasciculum in selectore systematis iterum eligas: deinde semper recensere poteris.</string>
     <string name="retry">Iterum conare</string>
@@ -94,10 +105,17 @@
     <string name="auto_save">Servatio automatica</string>
     <string name="auto_save_on">Post 800 ms scribendi in fasciculum scribit</string>
     <string name="auto_save_off">Cum clausa est, in summa tabula bulla servandi apparet</string>
+    <string name="unsaved_changes_title">Mutationes non servatae</string>
+    <string name="unsaved_changes_message">Hae mutationes, si exieris, peribunt.</string>
+    <string name="discard_changes">Non servare</string>
+    <string name="stay_in_editor">Manere</string>
     <string name="browsing_section">Navigatio</string>
     <string name="show_hidden_files">Ostendere fasciculos occultos</string>
     <string name="show_hidden_files_on">Fasciculi et plicae quorum nomen puncto incipit, ut .git vel .obsidian</string>
     <string name="show_hidden_files_off">Fasciculi et plicae quorum nomen puncto incipit in indice non apparent</string>
+    <string name="show_no_access_notice">Admonitiones de fasciculis externis</string>
+    <string name="show_no_access_notice_on">Cum fasciculus ab alio programmate apertus permissionem diuturnam non habet, nuntius semel apparet</string>
+    <string name="show_no_access_notice_off">Nuntius non apparet; ad permissionem diuturnam, «Permitte iterum» in editore utere</string>
     <string name="language_section">Lingua</string>
     <string name="language">Lingua</string>
     <string name="language_system">Lingua systematis</string>

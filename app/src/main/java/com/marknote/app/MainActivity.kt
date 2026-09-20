@@ -6,20 +6,24 @@ import android.widget.Toast
 import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
-import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Menu
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -42,6 +46,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -53,7 +58,6 @@ import com.marknote.app.data.SettingsRepository
 import com.marknote.app.data.ThemeMode
 import com.marknote.app.data.localizedContext
 import com.marknote.app.data.themedContext
-import com.marknote.app.ui.common.OpenDocumentWithInitialUri
 import com.marknote.app.ui.editor.EditorScreen
 import com.marknote.app.ui.files.FileListScreen
 import com.marknote.app.ui.settings.SettingsScreen
@@ -291,9 +295,11 @@ private fun MarkNoteApp(
                 repository.addToRecents(request.uri)
                 granted
             }
-            // 拿不到长期权限（文件管理器「打开方式」、聊天记录分享等来源常见）：
-            // 授权只在本进程内有效，退出应用后就打不开了，立刻提示用户重新授权
-            if (!persisted) pendingRegrant = request.uri.toString()
+            // 拿不到长期权限（文件管理器「打开方式」、聊天记录分享等来源常见）：授权只在本进程内
+            // 有效，退出应用后就打不开了。弹窗只说明这件事 —— 真正的长期授权入口在编辑器顶部，
+            // 这里不再重复放一个按钮（用户嫌两步操作重，2026-09-19 定的）；
+            // 勾过「不再提示」的人也不弹（见 SettingsRepository.showNoAccessNotice）。
+            if (!persisted && settings.showNoAccessNotice) pendingRegrant = request.uri.toString()
             // 刚往最近列表里加了一条，得让列表重读一次 —— 宽屏的侧栏一直在组合里，
             // 没有这个信号它会一直挂着打开之前那份列表（2026-09-18 在平板上实测到：
             // 编辑器里已经打开 tA，侧栏还写着「还没有打开过文件」）。
@@ -304,26 +310,12 @@ private fun MarkNoteApp(
         onOpenRequestConsumed()
     }
 
-    // 重新授权：用系统文档选择器重选同一个文件，换来可持久化的授权
+    // 拿不到长期授权的那个 Uri —— 只用来决定要不要弹说明（见文件末尾）。
+    //
+    // 这里**没有**重新授权的 launcher 了：弹窗上的按钮已砍掉，长期授权统一走编辑器顶部那条提示
+    // （EditorScreen 的 regrant）。原先这里有一份，与编辑器里那份各持一个 launcher 实例、
+    // 各写一遍回调，现在收敛成一处。
     val regrantTarget = pendingRegrant
-    val regrantLauncher = rememberLauncherForActivityResult(
-        remember(regrantTarget) { OpenDocumentWithInitialUri(regrantTarget?.let(Uri::parse)) },
-    ) { picked ->
-        val old = regrantTarget
-        if (picked != null && old != null) {
-            // 与上面外部打开那条路同一个理由：persistPermission 要跨进程问 provider，
-            // replaceRecent 内部还要查一次显示名（ContentProvider 查询）。都放 IO 做，
-            // 别让回调所在的主线程被 provider 的响应时间拖住。
-            scope.launch {
-                withContext(Dispatchers.IO) {
-                    repository.persistPermission(picked)
-                    repository.replaceRecent(old, picked)
-                }
-                openDocument(picked.toString())
-            }
-        }
-        pendingRegrant = null
-    }
 
     // 文件名要问 ContentProvider（跨进程 IPC）。放在组合里同步查会拖住主线程（切文档时
     // 尤其明显），所以改为挂到 currentDoc 上异步取；取到之前沿用上一个名字，避免标题闪空。
@@ -421,31 +413,51 @@ private fun MarkNoteApp(
         }
     }
 
-    // 外部来源的 Uri 拿不到长期权限时，第一时间说明后果并引导重新授权，
-    // 否则用户会在「退出应用后重新进入」时才发现文件打不开。
+    // 外部来源的 Uri 拿不到长期权限时说明后果，否则用户会在「退出应用后重新进入」才发现文件打不开。
+    //
+    // 这里**不放「重新授权」按钮**：真正的长期授权入口在编辑器顶部（见 EditorNotices 的只读横幅），
+    // 弹窗再放一个只会让「打开文件」变成两步操作。所以这个弹窗只做说明 + 一个「知道了」，
+    // 并带一个「不再提示」——勾上写进设置，之后不再打扰。
     if (regrantTarget != null) {
+        // key 用 regrantTarget 而不是空 remember：弹窗还开着的时候又打开另一个外部文件的话
+        // （多实例里很自然：分屏两边各开一份），不换 key 就会把上一个文件勾的「不再提示」
+        // 算到下一个文件头上 —— 用户只是切了个文件，设置却被他没看见的那次点击关掉了。
+        // key 变了就重建，默认回到未勾选。
+        var dontAskAgain by remember(regrantTarget) { mutableStateOf(false) }
         AlertDialog(
             onDismissRequest = { pendingRegrant = null },
             title = { Text(stringResource(R.string.no_persistent_access_title)) },
             text = {
-                // 字号沿用 AlertDialog 默认（bodyMedium）：不覆盖全局排版风格
-                Text(text = stringResource(R.string.no_persistent_access_message))
+                Column {
+                    // 字号沿用 AlertDialog 默认（bodyMedium）：不覆盖全局排版风格
+                    Text(text = stringResource(R.string.no_persistent_access_message))
+                    Spacer(Modifier.height(12.dp))
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(MaterialTheme.shapes.small)
+                            .clickable { dontAskAgain = !dontAskAgain },
+                    ) {
+                        Checkbox(
+                            checked = dontAskAgain,
+                            onCheckedChange = { dontAskAgain = it },
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            text = stringResource(R.string.dont_show_again),
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
+                    }
+                }
             },
             confirmButton = {
                 TextButton(
                     onClick = {
-                        // ⚠️ 这里**不能**按类型过滤，和「打开文件」是两回事：这一步是
-                        // 「把刚才那个文件找回来」，不是浏览挑选。会走到这里的正是外部来源、
-                        // 拿不到长期授权的文件，其中 octet-stream 一类（无扩展名、扩展名认不出来）
-                        // 在「最近」视图里会被文本过滤挡掉 —— 用户就再也找不回自己的文件了。
-                        regrantLauncher.launch(arrayOf("*/*"))
+                        if (dontAskAgain) settings.updateShowNoAccessNotice(false)
+                        pendingRegrant = null
                     },
-                ) { Text(stringResource(R.string.regrant)) }
-            },
-            dismissButton = {
-                TextButton(onClick = { pendingRegrant = null }) {
-                    Text(stringResource(R.string.edit_temporarily))
-                }
+                ) { Text(stringResource(R.string.got_it)) }
             },
         )
     }

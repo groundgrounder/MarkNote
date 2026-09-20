@@ -1,9 +1,12 @@
 package com.marknote.app.ui.files
 
 import android.net.Uri
+import android.provider.DocumentsContract
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -16,6 +19,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -25,7 +29,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.MenuOpen
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.outlined.Close
-import androidx.compose.material.icons.outlined.FolderOpen
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
@@ -40,7 +43,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
-import androidx.compose.material3.SmallFloatingActionButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -53,7 +55,9 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -62,11 +66,13 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.marknote.app.R
 import com.marknote.app.data.DocumentMeta
 import com.marknote.app.data.DocumentRepository
+import com.marknote.app.ui.common.NameInputDialog
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withContext
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun FileListScreen(
     repository: DocumentRepository,
@@ -120,6 +126,46 @@ fun FileListScreen(
     // 新建文件的默认名要在 composable 作用域内取好，onClick 里不能调 stringResource
     val untitledName = stringResource(R.string.untitled_md)
 
+    // 给「新建失败」这类一次性提示用（各屏自带 Scaffold、没有 Snackbar 宿主）
+    val context = LocalContext.current
+
+    // 文件夹档里「长按新建」弹出的输入框
+    var showNewFolderDialog by remember { mutableStateOf(false) }
+
+    /**
+     * 在**当前文件夹**里新建一个条目（[isFolder] 决定是文件夹还是 .md 文档）。
+     *
+     * 不弹系统选择器：用户点「新建」时想的是「就在这儿建」，再走一遍选择器等于把已经选过的
+     * 位置又问一遍（用户 2026-09-20 提的）。名字不满意可以长按条目重命名；重名时 provider
+     * 自己加后缀（本机是 `未命名 (1).md`），不会覆盖已有文件。
+     *
+     * 失败（只读授权、名字非法、provider 不支持）给一句提示，不静默。
+     */
+    fun createInCurrentFolder(displayName: String, isFolder: Boolean, openAfterwards: Boolean) {
+        val tree = viewModel.folderTree ?: return
+        val folder = viewModel.currentFolderUri ?: return
+        scope.launch {
+            val created = withContext(Dispatchers.IO) {
+                repository.createDocument(
+                    treeUri = Uri.parse(tree),
+                    parentUri = Uri.parse(folder),
+                    displayName = displayName,
+                    mimeType = if (isFolder) {
+                        DocumentsContract.Document.MIME_TYPE_DIR
+                    } else {
+                        "text/markdown"
+                    },
+                )
+            }
+            if (created == null) {
+                Toast.makeText(context, R.string.create_failed, Toast.LENGTH_SHORT).show()
+            } else {
+                viewModel.bumpFolderRevision()
+                if (openAfterwards) onOpenDocument(created.toString())
+            }
+        }
+    }
+
     Scaffold(
         topBar = {
             // 普通顶栏（不是 LargeTopAppBar）：标题与图标同一行，省下一整行给列表；
@@ -145,38 +191,43 @@ fun FileListScreen(
             )
         },
         floatingActionButton = {
-            Column(
-                horizontalAlignment = Alignment.End,
-                verticalArrangement = Arrangement.spacedBy(16.dp),
+            // 只有一个按钮。原先还有一颗「打开文件」的文件夹图标，它的全部作用就是切到「文件夹」档 ——
+            // 而那一档就在上面的分段按钮里，属于重复入口（用户 2026-09-20 提的），去掉后「新建」落回原位。
+            //
+            // 自己拼一个而不是用 SmallFloatingActionButton：Material3 的 FAB 不支持长按，
+            // 而文件夹档要用长按唤出「新建文件夹」。外观照 FAB 的默认值来（40dp、medium 圆角、
+            // secondaryContainer 底色），免得两种按钮长得不一样。
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .shadow(elevation = 6.dp, shape = MaterialTheme.shapes.medium)
+                    .clip(MaterialTheme.shapes.medium)
+                    .background(MaterialTheme.colorScheme.secondaryContainer)
+                    .combinedClickable(
+                        onClick = {
+                            if (viewModel.listMode == LIST_MODE_FOLDER && viewModel.folderTree != null) {
+                                // 文件夹档：直接在**当前目录**建，不再走系统选择器 ——
+                                // 用户要的就是「在这儿新建一个」。
+                                createInCurrentFolder(untitledName, isFolder = false, openAfterwards = true)
+                            } else {
+                                // 最近文件档没有「当前目录」可言，只能让系统选择器问位置
+                                createLauncher.launch(untitledName)
+                            }
+                        },
+                        onLongClick = {
+                            // 长按只在文件夹档有意义（最近档没有当前目录）
+                            if (viewModel.listMode == LIST_MODE_FOLDER && viewModel.folderTree != null) {
+                                showNewFolderDialog = true
+                            }
+                        },
+                    ),
+                contentAlignment = Alignment.Center,
             ) {
-                SmallFloatingActionButton(
-                    onClick = { createLauncher.launch(untitledName) },
-                    containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-                ) {
-                    Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.new_file))
-                }
-                SmallFloatingActionButton(
-                    onClick = {
-                        // 「打开文件」= 应用内选择器：切到「文件夹」档，没有授权就先让用户选一个文件夹。
-                        // 为什么不用系统选择器：见 TextFileTypes.kt 顶部那段（DocumentsUI 的类型过滤
-                        // 只对「最近」视图生效，翻进目录就没了）。
-                        viewModel.selectListMode(LIST_MODE_FOLDER)
-                        // ⚠️ 先看 folderResolved：init 里那次授权查询还没回来时 folderTree 必然是 null，
-                        // 凭它直接弹选择器，会让「明明授权过」的用户在冷启动后头一瞬被多问一次。
-                        // 没问完就先什么都不做 —— 这时界面显示的正是「选择文件夹」引导，按钮就在上面。
-                        if (viewModel.folderResolved && viewModel.folderTree == null) {
-                            folderPicker.launch(null)
-                        }
-                    },
-                    containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-                ) {
-                    Icon(
-                        Icons.Outlined.FolderOpen,
-                        contentDescription = stringResource(R.string.open_file),
-                    )
-                }
+                Icon(
+                    Icons.Filled.Add,
+                    contentDescription = stringResource(R.string.new_file),
+                    tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                )
             }
         },
     ) { padding ->
@@ -222,6 +273,7 @@ fun FileListScreen(
                     },
                     refreshTick = refreshTick,
                     showHiddenFiles = showHiddenFiles,
+                    onOpenInNewWindow = onOpenInNewWindow,
                     onPickFolder = { folderPicker.launch(null) },
                 )
 
@@ -282,6 +334,21 @@ fun FileListScreen(
                 TextButton(onClick = { pendingRemove = null }) {
                     Text(stringResource(R.string.cancel))
                 }
+            },
+        )
+    }
+
+    // 长按「新建」→ 新建文件夹：要名字，所以弹输入框。
+    // 新建**文件**不弹（用默认名建完直接打开，要改名长按条目即可），少一步。
+    if (showNewFolderDialog) {
+        NameInputDialog(
+            title = stringResource(R.string.new_folder),
+            initial = "",
+            confirmLabel = stringResource(R.string.create),
+            onDismiss = { showNewFolderDialog = false },
+            onConfirm = { name ->
+                showNewFolderDialog = false
+                createInCurrentFolder(name, isFolder = true, openAfterwards = false)
             },
         )
     }

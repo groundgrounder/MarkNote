@@ -10,86 +10,56 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 
 /**
- * 轻量 Markdown 语法高亮：纯正则扫描，只做样式叠加、不改变文本长度，
+ * 轻量 Markdown 语法高亮：纯样式叠加，**不改变文本长度**，
  * 配合 VisualTransformation + OffsetMapping.Identity 使用。
- * 后添加的样式在重叠处优先，因此先处理大范围（代码块），再处理行内元素。
  *
- * ⚠️ 调用方必须**只按 [colors] remember 一个实例**（见 EditorScreen）：`rules` 是 lazy 的，
- * 但它一旦重建就是 10 条正则全部重新编译 + 全量重扫。早先按正文做 remember key，
- * 等于每敲一个键都重编一遍。
+ * 「哪段文本算什么语法元素」在 HighlightRules.kt（纯逻辑、可 JVM 断言，见 CheckHighlightRules）；
+ * 这里只把 [HighlightKind] 映射成当前主题下的 [SpanStyle]。这样拆开是因为正则是看代码
+ * 最容易看走眼的地方 —— 转义盲区就是这么漏过去的（2026-09-20）。
+ *
+ * ⚠️ 调用方必须**只按 [colors] remember 一个实例**（见 EditorScreen）：
+ * 样式表是 lazy 的，而规则表是全项目共用的一份顶层值，不会因为重组而重编正则。
  */
 class MarkdownHighlighter(private val colors: ColorScheme) {
 
-    private data class Rule(
-        val regex: Regex,
-        val style: SpanStyle,
-        val group: Int = 0,
-    )
-
-    private val rules by lazy {
-        listOf(
-            // 围栏代码块：整段底色 + 等宽
-            Rule(
-                Regex("^```[\\s\\S]*?^```\\s*$", RegexOption.MULTILINE),
-                SpanStyle(background = colors.surfaceVariant, fontFamily = FontFamily.Monospace),
+    /** 种类 → 样式。每个 [HighlightKind] 都必须在这里有对应项：漏了会立刻抛，不会静默不上色 */
+    private val styleOf: Map<HighlightKind, SpanStyle> by lazy {
+        mapOf(
+            HighlightKind.CODE_BLOCK to SpanStyle(
+                background = colors.surfaceVariant,
+                fontFamily = FontFamily.Monospace,
             ),
-            // 标题行
-            Rule(
-                Regex("^#{1,6}\\s[^\\n]*$", RegexOption.MULTILINE),
-                SpanStyle(color = colors.primary, fontWeight = FontWeight.Bold),
+            HighlightKind.HEADING to SpanStyle(
+                color = colors.primary,
+                fontWeight = FontWeight.Bold,
             ),
-            // 引用行
-            Rule(
-                Regex("^>\\s?[^\\n]*$", RegexOption.MULTILINE),
-                SpanStyle(color = colors.secondary, fontStyle = FontStyle.Italic),
+            HighlightKind.QUOTE to SpanStyle(
+                color = colors.secondary,
+                fontStyle = FontStyle.Italic,
             ),
-            // 分割线
-            Rule(
-                Regex("^(?:-{3,}|\\*{3,}|_{3,})$", RegexOption.MULTILINE),
-                SpanStyle(color = colors.outline),
+            HighlightKind.HORIZONTAL_RULE to SpanStyle(color = colors.outline),
+            HighlightKind.INLINE_CODE to SpanStyle(
+                background = colors.surfaceVariant,
+                fontFamily = FontFamily.Monospace,
             ),
-            // 行内代码
-            Rule(
-                Regex("`[^`\\n]+`"),
-                SpanStyle(background = colors.surfaceVariant, fontFamily = FontFamily.Monospace),
+            HighlightKind.BOLD to SpanStyle(fontWeight = FontWeight.Bold),
+            HighlightKind.ITALIC to SpanStyle(fontStyle = FontStyle.Italic),
+            HighlightKind.STRIKETHROUGH to SpanStyle(textDecoration = TextDecoration.LineThrough),
+            HighlightKind.LINK to SpanStyle(
+                color = colors.primary,
+                textDecoration = TextDecoration.Underline,
             ),
-            // 加粗
-            Rule(
-                Regex("\\*\\*[^*\\n]+\\*\\*"),
-                SpanStyle(fontWeight = FontWeight.Bold),
-            ),
-            // 斜体
-            Rule(
-                Regex("(?<!\\*)\\*[^*\\n]+\\*(?!\\*)"),
-                SpanStyle(fontStyle = FontStyle.Italic),
-            ),
-            // 删除线
-            Rule(
-                Regex("~~[^~\\n]+~~"),
-                SpanStyle(textDecoration = TextDecoration.LineThrough),
-            ),
-            // 链接
-            Rule(
-                Regex("\\[[^]\\n]+]\\([^)\\n]+\\)"),
-                SpanStyle(color = colors.primary, textDecoration = TextDecoration.Underline),
-            ),
-            // 列表标记（- * + 或 1.）
-            Rule(
-                Regex("^(\\s*(?:[-*+]|\\d+\\.))(?=\\s)", RegexOption.MULTILINE),
-                SpanStyle(color = colors.primary, fontWeight = FontWeight.Bold),
-                group = 1,
+            HighlightKind.LIST_MARKER to SpanStyle(
+                color = colors.primary,
+                fontWeight = FontWeight.Bold,
             ),
         )
     }
 
     fun highlight(text: String): AnnotatedString = buildAnnotatedString {
         append(text)
-        for (rule in rules) {
-            for (match in rule.regex.findAll(text)) {
-                val range = match.groups[rule.group]?.range ?: continue
-                if (range.isEmpty()) continue
-                addStyle(rule.style, range.first, range.last + 1)
-            }
+        for (span in highlightRanges(text)) {
+            addStyle(styleOf.getValue(span.kind), span.start, span.endExclusive)
         }
     }
 }

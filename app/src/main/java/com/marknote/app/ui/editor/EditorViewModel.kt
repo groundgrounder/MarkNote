@@ -11,9 +11,11 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.marknote.app.data.DocumentEncoding
 import com.marknote.app.data.DocumentRepository
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 
 class EditorViewModel(
     private val repository: DocumentRepository,
@@ -43,6 +45,22 @@ class EditorViewModel(
 
     /** 最近一次保存是否失败（无写权限或文件已不在） */
     var saveFailed by mutableStateOf(false)
+        private set
+
+    /**
+     * 这份文档是否持有**可跨重启**的授权。
+     *
+     * false 意味着「退出 MarkNote 后就打不开了」：外部来源（文件管理器分享、聊天附件这类
+     * FileProvider / MediaStore 的 Uri）拿不到持久化授权，只有进程内有效。
+     *
+     * 为什么编辑器要知道这件事：外部打开时那个说明弹窗**不再带「重新授权」按钮**
+     * （真正的入口在这里的只读/失败提示条上），于是**这个提示条必须覆盖「没有持久授权」这种情况** ——
+     * 否则「可写但不可持久化」的文件（FileProvider 带了写权限的那种）就成了没入口的孤岛：
+     * 弹窗只说明、编辑器里又没有按钮。
+     *
+     * 初值给 true：读盘还没回来时不要先闪一条警告。
+     */
+    var hasPersistedAccess by mutableStateOf(true)
         private set
 
     /** 上次已落盘的内容，用于判断是否有未保存修改 */
@@ -129,6 +147,9 @@ class EditorViewModel(
             isLoaded = true
             saveFailed = false
             readOnly = !repository.canWrite(uri)
+            // persistedUriPermissions 是跨进程查询，别放主线程（canWrite 内部自己切了 IO，
+            // 这个不是 suspend，得自己包）
+            hasPersistedAccess = withContext(Dispatchers.IO) { repository.hasPersistedPermission(uri) }
             lastSyncAtMs = SystemClock.elapsedRealtime()
         }
     }

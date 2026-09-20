@@ -12,12 +12,21 @@
     <string name="folder_empty_hint">選一個資料夾，之後就能直接在裡面開啟文件，不必每次都走系統選擇器</string>
     <string name="folder_access_lost">這個資料夾的授權已失效（例如解除安裝重裝後），請重新選擇一次</string>
     <string name="up_one_level">上一層</string>
+    <string name="name_field_label">名稱</string>
+    <string name="new_folder">新增資料夾</string>
+    <string name="create">建立</string>
+    <string name="create_failed">建立失敗：這個資料夾沒有寫入權限</string>
+    <string name="rename">重新命名</string>
+    <string name="rename_failed">重新命名失敗：這個資料夾沒有寫入權限</string>
+    <string name="delete">刪除</string>
+    <string name="delete_failed">刪除失敗：這個資料夾沒有寫入權限</string>
+    <string name="delete_file_message">刪除「%1$s」？這個操作無法復原。</string>
+    <string name="delete_folder_message">刪除資料夾「%1$s」和裡面的所有內容？這個操作無法復原。</string>
 
     <string name="settings">設定</string>
     <string name="collapse_sidebar">收合側邊欄</string>
     <string name="expand_sidebar">展開側邊欄</string>
     <string name="new_file">新增檔案</string>
-    <string name="open_file">開啟檔案</string>
     <string name="open_in_new_window">在新視窗開啟</string>
     <string name="already_open_in_a_window">這份文件已經在一個視窗裡開啟著</string>
     <string name="untitled_md">未命名.md</string>
@@ -28,13 +37,14 @@
     <string name="list_item_unavailable">檔案暫時無法存取：可能已被移動或刪除，或存取權限已失效。點按可重新授權。</string>
     <string name="empty_document">（空白文件）</string>
     <string name="empty_list_title">還沒有開啟過檔案</string>
-    <string name="empty_list_hint">點擊「開啟檔案」選一個資料夾，之後就能直接在裡面挑文件\n也可以在檔案管理器裡用 MarkNote 直接開啟 .md 檔案</string>
+    <string name="empty_list_hint">切到「資料夾」檔選一個，之後就能直接在裡面挑文件\n也可以在檔案管理器裡用 MarkNote 直接開啟 .md 檔案</string>
 
     <!-- 空狀態與外部開啟 -->
     <string name="empty_editor_hint">從左側開啟最近檔案，或「開啟檔案」選擇文件</string>
     <string name="no_persistent_access_title">這個檔案無法長期存取</string>
-    <string name="no_persistent_access_message">其他應用程式分享的檔案沒有長期權限，離開 MarkNote 後就無法開啟。重新授權即可長期編輯。</string>
-    <string name="edit_temporarily">暫時編輯</string>
+    <string name="no_persistent_access_message">其他應用程式分享的檔案沒有長期權限，離開 MarkNote 後就無法開啟。需要長期編輯時，用編輯器裡的「重新授權」。</string>
+    <string name="dont_show_again">不再提示</string>
+    <string name="got_it">知道了</string>
 
     <!-- 編輯器 -->
     <string name="back">返回</string>
@@ -55,6 +65,7 @@
     <string name="image_folder_hint">請授權同時包含文件與圖片的資料夾</string>
     <string name="notice_save_failed">儲存失敗：沒有寫入這個檔案的權限</string>
     <string name="notice_read_only">以唯讀開啟：沒有寫入權限，修改不會被儲存</string>
+    <string name="notice_no_persistent_access">關閉 MarkNote 後將無法再開啟這個檔案</string>
     <string name="document_unavailable_title">無法開啟該檔案</string>
     <string name="document_unavailable_message">MarkNote 已經沒有這個檔案的存取權限，或者檔案已被移動、刪除。\n從其他應用程式（檔案管理員「開啟方式」、聊天記錄等）開啟的檔案，系統通常不會給予長期權限，離開應用程式後就會失效。\n用「重新授權」在系統檔案選擇器裡重新選一次同一個檔案，之後就能一直編輯。</string>
     <string name="retry">重試</string>
@@ -94,10 +105,17 @@
     <string name="auto_save">自動儲存</string>
     <string name="auto_save_on">停止輸入 800ms 後自動寫回檔案</string>
     <string name="auto_save_off">關閉後頂端列會出現儲存按鈕，需手動儲存</string>
+    <string name="unsaved_changes_title">有未儲存的修改</string>
+    <string name="unsaved_changes_message">離開後這些修改會遺失。</string>
+    <string name="discard_changes">不儲存</string>
+    <string name="stay_in_editor">留在編輯器</string>
     <string name="browsing_section">檔案瀏覽</string>
     <string name="show_hidden_files">顯示隱藏檔案</string>
     <string name="show_hidden_files_on">名稱以 . 開頭的檔案與資料夾，例如 .git、.obsidian</string>
     <string name="show_hidden_files_off">名稱以 . 開頭的檔案與資料夾不會出現在清單裡</string>
+    <string name="show_no_access_notice">外部檔案的提示</string>
+    <string name="show_no_access_notice_on">從其他應用程式開啟的檔案拿不到長期權限時，以對話方塊說明一次</string>
+    <string name="show_no_access_notice_off">不再顯示對話方塊；需要長期編輯時用編輯器裡的「重新授權」</string>
     <string name="language_section">語言</string>
     <string name="language">語言</string>
     <string name="language_system">跟隨系統</string>

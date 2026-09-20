@@ -40,6 +40,20 @@ class FileListViewModel(private val repository: DocumentRepository) : ViewModel(
     var folderResolved by mutableStateOf(false)
         private set
 
+    /**
+     * 文件夹里做过增删改（新建、重命名、删除）之后自增，让 [FolderBrowser] 重列一次。
+     *
+     * 为什么放 ViewModel：动手的是 [FileListScreen] 上的「新建」按钮，而列表在
+     * [FolderBrowser] 里 —— 两边得看到同一个计数。宽屏下侧栏是一直挂着组合的，
+     * 没有这个信号它会继续显示改动前的内容。
+     */
+    var folderRevision by mutableStateOf(0)
+        private set
+
+    fun bumpFolderRevision() {
+        folderRevision++
+    }
+
     /** 根文件夹的显示名（面包屑用；取不出为空串） */
     var folderRootName by mutableStateOf("")
         private set

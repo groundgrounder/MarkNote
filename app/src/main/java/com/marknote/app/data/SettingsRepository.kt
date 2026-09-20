@@ -88,6 +88,15 @@ class SettingsRepository(context: Context) {
     var folderShowHiddenFiles by mutableStateOf(prefs.getBoolean(KEY_FOLDER_SHOW_HIDDEN, false))
         private set
 
+    /**
+     * 外部来源的文件拿不到长期授权时，是否弹窗说明这件事。
+     *
+     * 弹窗上的「不再提示」会把它关掉。**设置页里必须也能改回来** —— 那个弹窗关掉之后就不会
+     * 再出现，没有第二个地方可以撤销。
+     */
+    var showNoAccessNotice by mutableStateOf(prefs.getBoolean(KEY_SHOW_NO_ACCESS_NOTICE, true))
+        private set
+
     fun updateThemeMode(mode: ThemeMode) {
         themeMode = mode
         prefs.edit().putString(AppThemeStore.KEY, mode.name).apply()
@@ -123,11 +132,17 @@ class SettingsRepository(context: Context) {
         prefs.edit().putBoolean(KEY_FOLDER_SHOW_HIDDEN, show).apply()
     }
 
+    fun updateShowNoAccessNotice(show: Boolean) {
+        showNoAccessNotice = show
+        prefs.edit().putBoolean(KEY_SHOW_NO_ACCESS_NOTICE, show).apply()
+    }
+
     private companion object {
         const val KEY_EDITOR_FONT = "editor_font_sp"
         const val KEY_PREVIEW_FONT = "preview_font_sp"
         const val KEY_AUTO_SAVE = "auto_save"
         const val KEY_FOLDER_SHOW_HIDDEN = "folder_show_hidden"
+        const val KEY_SHOW_NO_ACCESS_NOTICE = "show_no_access_notice"
     }
 }
 
