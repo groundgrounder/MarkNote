@@ -30,47 +30,64 @@ Grab the latest APK (`MarkNote-vX.Y.Z.apk`) from [Releases](https://github.com/g
 
 ## Features
 
-**Files**
+**Opening & creating**
 
-- Create: tap "+" at the bottom-right. In the folder list it makes the file right there (long-press the button for a new folder); on the recent list it asks where to put it
 - Open: tap a `.md`, `.markdown` or plain-text file in any file manager and pick "Open with MarkNote"
-- Or switch the sidebar to "Folder", grant one folder, and pick a document right inside it. The list holds only files MarkNote can edit, so images, archives and other binaries never show up in it
-- Encoding untouched: UTF-8, UTF-16 and GBK all read correctly, and a file is saved back in the encoding it came in — a GBK note stays GBK
-- Recent files: everything you open stays on the home screen and survives a reboot; remove an entry you no longer need without touching the file
-- A file that was moved or can no longer be read is flagged in red — open it and follow the prompt to grant access again
-- **Folder browsing**: switch the sidebar to "Folder" to work in the folder you granted — browse it, make files and folders in it, rename and delete things, subfolders included; long-press an entry for its menu. A document opened this way treats that folder as the place its images live
-- Auto-save: saves 800 ms after you stop typing, and before you leave the editor or switch to preview
-- Switch to manual in Settings if you prefer; a save button then appears in the top bar and highlights while changes are unsaved
-- Read-only files are called out: the editor says "changes will not be saved" instead of quietly dropping your work
+- Create: tap "＋" at the bottom-right. In the folder list it makes the file right there, or long-press the button for a new folder; on the recent list it asks where to put it
+- Markdown and plain text are what it opens; images, archives, PDFs and other binaries never show up in the list
+
+**Folders**
+
+- Switch the sidebar to "Folder" and grant one; from then on you pick documents right inside it, subfolders included
+- Long-press an entry for its menu: rename, delete, and for files "Open in new window"
+- Long-press "＋" to make a folder in the current directory
+- Deleting is for real: it does not go to a recycle bin, and the confirmation says so
+- Files and folders whose name starts with a dot (`.git`, `.obsidian`) stay hidden; turn on "Show hidden files" in Settings to see them
+- A document opened this way treats that folder as the place its images live
+
+**Recent files**
+
+- Everything you open stays on the home screen and survives a reboot
+- Each entry ends with an "×" — tap it to take the entry off the list without touching the file
+- A file that was moved or can no longer be read is flagged in red; open it and follow the prompt to grant access again
 
 **Editing**
 
-- Syntax highlighting: headings, bold, italic, strikethrough, quotes, code and links are coloured
-- Toolbar: headings, bold, italic, quote, list, link, code and horizontal rule in one tap, sitting above the keyboard and wrapping your selection
-- Undo / redo: two buttons in the top bar. A run of typing counts as one step, toolbar inserts and replace-all as their own; the buttons grey out when there is nothing left to undo
+- Syntax highlighting: headings, bold, italic, strikethrough, quotes, code and links each get their own colour
+- Toolbar: headings, bold, italic, quote, list, link, code and horizontal rule in one tap, sitting right above the keyboard and wrapping your selection
+- Undo / redo: two buttons in the top bar. A run of typing counts as one step, toolbar inserts and replace-all as their own; the buttons grey out when there is nothing left
 - Enter continues the list: `-`, `1.`, `>`, `- [ ]` carry over with numbering advanced and new to-do items unchecked; press Enter again on an empty item to end the list
 - Indent: Tab / Shift+Tab indent or outdent the current line, or the whole selection
-- Hardware keyboard shortcuts: Ctrl+S saves, Ctrl+F finds, Ctrl+B / Ctrl+I bold and italic, Ctrl+Z undoes, Ctrl+Shift+Z (or Ctrl+Y) redoes. An on-screen keyboard cannot send these, so use the top-bar buttons there
+- Hardware keyboard: Ctrl+S saves, Ctrl+F finds, Ctrl+B / Ctrl+I bold and italic, Ctrl+Z undoes, Ctrl+Shift+Z (or Ctrl+Y) redoes. An on-screen keyboard cannot send these, so use the top-bar buttons there
+- The top bar always shows "N chars · M lines"
+
+**Search & outline**
+
 - Search & replace: shows which match you are on out of how many, cycles through them, and can replace one or all
+- The preview searches too, over **what you actually see**: matches highlight one by one and scroll into view. It is read-only, so there is no replace there
 - Outline: slides in from the right on landscape and tablets, up from the bottom on narrow screens; tap a heading to jump to it
-- Word count: "N chars · M lines", always in the top bar
 
 **Preview**
 
 - One tap to switch between editing and preview; tables, strikethrough and tappable links all display properly
 - To-do items show as checkboxes, and a bare `https://…` in the text becomes a link you can open
 - Jump links: tapping `[text](#heading)` scrolls straight to that section, and says so when there is no such heading. Footnote markers (`[^1]` and their definition lines) show as written
-- Formulas: `$…$` (or an inline `$$…$$`) shows in the line; `$$` on a line of its own is centred. Matrices, fractions, integrals and sums all work, drawn in the theme's colour at the preview font size
-- A single or unpaired `$` is left alone, so "from $5 to $10" is not mistaken for a formula
+- Formulas: `$…$` shows in the line, and `$$` on a line of its own is centred. Matrices, fractions, integrals and sums all work. A single or unpaired `$` is left alone, so "from $5 to $10" is not mistaken for a formula
 - Images: relative paths are looked up **next to the document** (`..` steps up a level); grant that folder once when the prompt appears and they keep working
 - An image outside the granted folder or missing shows a line of explanation where it would be; images embedded in the document show too, and very large ones are scaled down
-- Search and outline work in the preview as well: search runs over **what you actually see**, matches highlight one by one and scroll into view, with a "match N of M" counter and up/down navigation; tap an outline entry to jump to that heading. The preview is read-only, so there is no replace
+
+**Saving**
+
+- Auto-save writes back 800 ms after you stop typing, and again before you leave the editor or switch to preview
+- Or make it manual: turn auto-save off in Settings and a save button appears in the top bar, highlighting while changes are unsaved. Leaving the editor then asks first — save, discard, or stay
+- Encoding untouched: UTF-8, UTF-16 and GBK all read correctly, and a file is saved back in the encoding it came in — a GBK note stays GBK
+- The top of the editor calls out three things: a save that could not go through (no write access, or the file is gone), a read-only file, and a file without lasting access. Each carries "Grant access"
 
 **Multiple windows**
 
-- One document per window: keep several windows open (system split screen, desktop windows on tablets), each with its own file
-- Want another one: long-press a file in the recent list and pick “Open in new window”
-- The same file never gets two editors, so two copies cannot overwrite each other
+- One document per window: keep several open (system split screen, desktop windows on tablets), each with its own file
+- Want another one: long-press a file in the recent list and pick "Open in new window"
+- Through "Open in new window", the same file never gets a second editor, so two copies cannot overwrite each other
 - Back still returns to the file list; close a window from the system recents
 
 **UI & language**
@@ -79,18 +96,17 @@ Grab the latest APK (`MarkNote-vX.Y.Z.apk`) from [Releases](https://github.com/g
 - Tablets and landscape switch to two panes: file list on the left, editor on the right; the sidebar collapses to a narrow strip
 - Four UI languages — 简体中文, 繁體中文, English and Latina. It follows the system by default and can be picked in Settings without losing the document you are editing
 - Languages that are not built in show English; on Android 13+ you can also change it under system Settings → Apps → MarkNote → Language
-- Settings: theme, language, separate font sizes for editor and preview, the auto-save switch, hidden files in folder browsing, the permission notice for files from other apps, and version info
+- Settings: theme, language, separate font sizes for editor and preview, auto-save, hidden files in folder browsing, the permission notice for files from other apps, and version info
 - The icon follows your system's themed-icon setting (Android 13+)
 
 ## A few notes
 
-- Files opened from another app (a file manager, a chat, an email) get no lasting access, so MarkNote cannot reopen them once it is closed. The editor then shows a notice with “Grant access” — pick the same file again and it stays editable, in the recent list too. The dialog that explains this can be silenced with “Don’t show again”, and switched back on in Settings
+- Files opened from another app (a file manager, a chat, an email) get no lasting access, so MarkNote cannot reopen them once it is closed. Follow the notice at the top of the editor to pick the file again and it stays usable; the dialog that explains this can be silenced with "Don't show again", and switched back on in Settings
 - Images need a granted folder: pick the one holding **both** the document and its images; granting just the document's folder fails whenever the images sit outside it
 - Search in the preview runs over the displayed text, so formula markers such as `$` and `$$` are not found there (they are in the editor); text inside a formula is searched as usual
 - One unrecognised command in a formula (say `\zzzz`) turns the whole formula into a boxed notice — fix it and it shows. The formula fonts have no Chinese characters, so keep Chinese outside the formula
-- The folder list holds editable text files only — Markdown, plain text, and other text types such as `.py` or `.html`. Images, archives, PDFs and other binaries never appear in it
-- Files and folders whose name starts with a dot (`.git`, `.obsidian`) stay hidden as well; turn on "Show hidden files" in Settings to see them. Reinstalling the app drops the folder permission, so pick the folder again when prompted
 - Keyboards carry their own undo: if Ctrl+Z takes back a single character, that was the keyboard, not MarkNote — the top-bar buttons use the app's own history
+- Reinstalling the app, or revoking access in system settings, means picking the folder again
 
 <details>
 <summary>Version history</summary>
