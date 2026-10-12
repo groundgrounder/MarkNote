@@ -46,7 +46,6 @@ internal fun OutlineSheet(
     }
 }
 
-/** 宽屏右侧大纲面板：与左侧文件列表栏一致的侧栏风格（标题栏 + 分隔线 + 列表） */
 @Composable
 internal fun OutlinePanel(
     outline: List<Heading>,

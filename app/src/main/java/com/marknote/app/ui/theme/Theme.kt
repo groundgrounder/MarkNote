@@ -11,7 +11,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 
-// 静态回退配色（Android 12 以下没有动态取色时使用），与应用图标同色系（靛蓝 #4A5ACF）
 private val LightColors = lightColorScheme(
     primary = Color(0xFF4A5ACF),
     onPrimary = Color(0xFFFFFFFF),
@@ -39,7 +38,7 @@ fun MarkNoteTheme(
 ) {
     val context = LocalContext.current
     val colorScheme = when {
-        // Material You 动态取色（壁纸取色），Android 12+ 可用
+
         Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
             if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
         }

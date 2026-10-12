@@ -51,23 +51,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-/**
- * 文件夹浏览：授权一个文件夹（SAF 树授权），在应用内列出其中的文本文件，
- * 点条目直接进编辑器，子目录可以点进去（顶部有「上一级」与「换文件夹」）。
- *
- * 它同时是应用的**文件选择器**：「打开文件」不再直接弹系统选择器，而是切到这一档 ——
- * 系统选择器只在「最近」视图按类型过滤，从目录里翻的时候二进制文件照样列出来
- * （平台行为，见 [com.marknote.app.data.PICKER_MIME_TYPES] 的说明），只有应用内这一层
- * 能保证「看不到不能编辑的文件」。
- *
- * [onPickFolder] 由调用方提供（选文件夹的 launcher 与「打开文件」按钮共用一个实例，
- * 放在这里会各自 remember 一份、互相看不见对方的回调）。
- *
- * ⚠️ 状态一律放 [FileListViewModel]，这里**不要**用 rememberSaveable：窄屏与宽屏是两套不同的
- * 组合位置，各自保存各自的 saveable 状态；平板一旋转宽度类就在 840dp 上来回翻，用户选的
- * 「文件夹」这一档、以及「进到了第几层」都会被静默重置（2026-09-19 在 Pixel_Tablet 实测到）。
- * ViewModel 挂在 Activity 上，两种布局共用同一个实例，不受组合位置影响。
- */
 @Composable
 fun FolderBrowser(
     viewModel: FileListViewModel,
@@ -82,22 +65,18 @@ fun FolderBrowser(
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
     val treeUri = viewModel.folderTree
-    // 授权失效（卸载重装、用户在系统里撤销）与「从没选过」要说不同的话
+
     val everChosen = remember(treeUri) { treeUri == null && repository.folderTreeStored() != null }
 
     var entries by remember { mutableStateOf<List<FolderEntry>>(emptyList()) }
     var loading by remember { mutableStateOf(false) }
 
-    // 长按条目选出来的目标：重命名要拿它填初值，删除要先过确认框
     var renameTarget by remember { mutableStateOf<FolderEntry?>(null) }
     var deleteTarget by remember { mutableStateOf<FolderEntry?>(null) }
 
     val currentUri = viewModel.currentFolderUri
     val currentName = viewModel.currentFolderName
 
-    // 换文件夹 / 进出子目录 / 从编辑器返回（refreshTick）/ 设置里改了「显示隐藏文件」/
-    // 在本目录里新建了东西（folderRevision）都要重列一次。
-    // key 用**当前 Uri** 而不是路径深度：同深度换到另一个目录时也必须重列
     LaunchedEffect(currentUri, refreshTick, showHiddenFiles, viewModel.folderRevision) {
         val tree = treeUri ?: return@LaunchedEffect
         val folder = currentUri ?: return@LaunchedEffect
@@ -106,10 +85,6 @@ fun FolderBrowser(
         loading = false
     }
 
-    /**
-     * 改完磁盘统一走这里：成功就重列（宽屏下侧栏一直挂着组合，不重列就显示旧内容），
-     * 失败给一句提示 —— 最常见的原因是这条树授权只有读权限。
-     */
     fun afterEdit(ok: Boolean, failMessage: Int) {
         if (ok) {
             viewModel.bumpFolderRevision()
@@ -170,7 +145,7 @@ fun FolderBrowser(
         }
 
         when {
-            // 授权还没问完：留空，避免先闪一下「选择文件夹」
+
             !viewModel.folderResolved -> Unit
             treeUri == null -> FolderHint(
                 lostAccess = everChosen,
@@ -206,7 +181,7 @@ fun FolderBrowser(
                         },
                         onRename = { renameTarget = entry },
                         onDelete = { deleteTarget = entry },
-                        // 目录没有「在新窗口打开」这一项 —— 编辑器只开文档
+
                         onOpenInNewWindow = if (entry.isDirectory) {
                             null
                         } else {
@@ -218,8 +193,6 @@ fun FolderBrowser(
         }
     }
 
-    // 长按菜单的两项。重命名弹输入框（预填原名）；删除必须先确认 ——
-    // SAF 在本机的 ExternalStorageProvider 上是**真删**，不进回收站，没有撤销的机会。
     renameTarget?.let { entry ->
         NameInputDialog(
             title = stringResource(R.string.rename),
@@ -228,7 +201,7 @@ fun FolderBrowser(
             onDismiss = { renameTarget = null },
             onConfirm = { name ->
                 renameTarget = null
-                // 没改就别白跑一趟 provider
+
                 if (name != entry.name) renameEntry(entry, name)
             },
         )
@@ -241,7 +214,7 @@ fun FolderBrowser(
             text = {
                 Text(
                     stringResource(
-                        // 删目录会连里面的东西一起删，这句必须说清楚
+
                         if (entry.isDirectory) {
                             R.string.delete_folder_message
                         } else {
@@ -268,11 +241,6 @@ fun FolderBrowser(
     }
 }
 
-/**
- * 文件夹里的一行：点进目录 / 点开文件，**长按唤出菜单**（重命名、删除、（文件才有）在新窗口打开）。
- *
- * 删除放在最后一项：它是唯一不可逆的操作，挨着另外两个容易误点。
- */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun FolderRow(
@@ -340,7 +308,6 @@ private fun FolderRow(
     }
 }
 
-/** 还没选文件夹（或授权失效）时的引导 */
 @Composable
 private fun FolderHint(lostAccess: Boolean, onPick: () -> Unit) {
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {

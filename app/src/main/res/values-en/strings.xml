@@ -1,25 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!--
-  英语。内容与默认目录 values/ 相同：默认目录本身兜底英文，这里再显式声明一份 en，
-  一是让 android:localeConfig / 系统「应用语言」里的 English 有明确的资源归属，
-  二是区域变体（en-GB、en-US…）命中 values-en 后不再往默认目录回退。
-
-  ⚠️ **值必须与 values/strings.xml 逐条一致**（不只是键名）。两份都是英文，但命中哪个
-  取决于是不是「应用语言 = English / 系统语言 = en」：是 → 本文件；跟着系统且系统语言没有
-  对应的 values-* 目录（如韩语、葡语用户）→ 默认目录 values/。值一旦分叉，同一句英文会
-  因为用户的系统语言不同而显示两种文案，且不会报任何错。
--->
 <resources>
     <string name="app_name">MarkNote</string>
 
-    <!-- Recent files -->
-    <!-- 侧栏：最近文件 / 文件夹 -->
     <string name="browse_recent">Recent files</string>
     <string name="browse_folder">Folder</string>
     <string name="choose_folder">Choose folder</string>
     <string name="folder_empty">No editable files in this folder</string>
     <string name="folder_empty_hint">Choose a folder once, then open its Markdown files without going through the system picker every time</string>
     <string name="folder_access_lost">Access to the chosen folder was lost (for example after reinstalling). Choose it again</string>
+    <string name="folder_permission_failed">Could not keep access to this folder. Choose it again.</string>
     <string name="up_one_level">Up one level</string>
     <string name="name_field_label">Name</string>
     <string name="new_folder">New folder</string>
@@ -47,15 +36,11 @@
     <string name="empty_document">(Empty document)</string>
     <string name="empty_list_title">No files opened yet</string>
     <string name="empty_list_hint">Switch to “Folder” and choose one, then pick documents inside it\nYou can also open .md files from a file manager with MarkNote</string>
-
-    <!-- Empty state and external open -->
     <string name="empty_editor_hint">Open a recent file on the left, or tap “Open file”</string>
     <string name="no_persistent_access_title">This file cannot be accessed long-term</string>
     <string name="no_persistent_access_message">Files shared from other apps have no long-term permission, so they cannot be opened after you quit MarkNote. Use “Grant access” in the editor when you need to keep them.</string>
     <string name="dont_show_again">Don’t show again</string>
     <string name="got_it">Got it</string>
-
-    <!-- Editor -->
     <string name="back">Back</string>
     <string name="save">Save</string>
     <string name="undo">Undo</string>
@@ -78,16 +63,12 @@
     <string name="document_unavailable_title">Cannot open this file</string>
     <string name="document_unavailable_message">MarkNote no longer has access to this file, or it was moved or deleted.\nFiles opened from other apps (a file manager’s “Open with”, a chat app, and so on) usually get no long-term permission, so access is lost after you quit the app.\nUse “Grant access” to pick the same file again in the system file picker, and you can keep editing it.</string>
     <string name="retry">Retry</string>
-
-    <!-- Search and replace -->
     <string name="previous_match">Previous</string>
     <string name="next_match">Next</string>
     <string name="close_search">Close search</string>
     <string name="replace_placeholder">Replace with</string>
     <string name="replace">Replace</string>
     <string name="replace_all">All</string>
-
-    <!-- Markdown toolbar -->
     <string name="md_heading">Heading</string>
     <string name="md_bold">Bold</string>
     <string name="md_italic">Italic</string>
@@ -99,8 +80,6 @@
     <string name="md_link_text">Link text</string>
     <string name="md_code">Code</string>
     <string name="md_divider">Divider</string>
-
-    <!-- Settings -->
     <string name="appearance">Appearance</string>
     <string name="theme_mode">Theme</string>
     <string name="theme_system">System</string>
@@ -134,8 +113,6 @@
     <string name="font_small">Small</string>
     <string name="font_standard">Default</string>
     <string name="font_large">Large</string>
-
-    <!-- Image loading errors shown in the preview -->
     <string name="image_open_failed">Cannot open image: %1$s</string>
     <string name="image_decode_failed">Cannot decode image: %1$s</string>
     <string name="image_invalid_data">Invalid data image</string>

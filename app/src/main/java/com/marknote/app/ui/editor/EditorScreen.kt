@@ -46,6 +46,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -88,20 +89,17 @@ fun EditorScreen(
     onBack: () -> Unit,
     isExpanded: Boolean = false,
     onRelocated: (String) -> Unit = {},
+    settingsRequestTick: Int = 0,
+    onSettingsOpened: () -> Unit = {},
 ) {
     val viewModel: EditorViewModel = viewModel(key = "editor-$uriString") {
         EditorViewModel(repository, uriString)
     }
 
-    // ViewModel 挂在 Activity 上、关掉编辑器不会销毁它，重开同一份文档会命中同一个实例，
-    // 于是 init 里的读取不会重跑。这里在每次进入编辑器时补一次同步：磁盘内容若已被外部
-    // 改过且本地没有未保存改动，就用磁盘版本刷新，避免旧内容被自动保存写回去。
     LaunchedEffect(uriString) {
         viewModel.syncFromDiskIfClean()
     }
 
-    // 重新授权：内容读不出来（权限失效）或只读打开时，用系统文档选择器重选该文件。
-    // 选择器返回的 Uri 一定能持久化，因此重选一次后可长期编辑；授权后替换最近列表里的旧条目。
     val regrantUri = remember(uriString) { Uri.parse(uriString) }
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
@@ -109,8 +107,7 @@ fun EditorScreen(
         remember(regrantUri) { OpenDocumentWithInitialUri(regrantUri) },
     ) { picked ->
         if (picked != null) {
-            // 这两步都要跨进程问 provider（persistPermission 是 IPC、replaceRecent 内部要查显示名），
-            // 与文件列表那条路同一个理由：放 IO 做，别让回调所在的主线程被 provider 的响应时间拖住
+
             scope.launch {
                 withContext(Dispatchers.IO) {
                     repository.persistPermission(picked)
@@ -120,78 +117,56 @@ fun EditorScreen(
             }
         }
     }
-    /**
-     * 重新授权 = 用系统选择器重选同一个文件，换来可持久化的授权。
-     *
-     * 传全通配、**不做类型过滤**：这一步是「把当前这个文件找回来」，不是浏览挑选。会走到这里的
-     * 可能是任何文件（包括被 provider 报成 `application/octet-stream` 的无扩展名文件），
-     * 加类型限制只会在选择器的「最近」视图里把它们挡掉，让用户没法把文件找回来。
-     *
-     * ⚠️ 这是目前**唯一**的长期授权入口（外部打开时那个说明弹窗已经不提供按钮了）。
-     * 动它要连带看 MainActivity 的弹窗与下面那条提示的显示条件（含 hasPersistedAccess）。
-     */
+
     val regrant: () -> Unit = {
         regrantLauncher.launch(arrayOf("*/*"))
     }
 
-    // 自动保存：内容变化后停顿 800ms 落盘（可在设置中关闭，改为手动保存）
     LaunchedEffect(viewModel.content.text, settings.autoSave) {
         if (!viewModel.isLoaded || !settings.autoSave) return@LaunchedEffect
         delay(800)
         viewModel.save()
     }
 
-    /**
-     * 关闭自动保存时，离开编辑器前要不要问一句。
-     *
-     * 开着自动保存时「离开」不是唯一的写盘机会（停顿 800ms 那次已经写了），直接走即可；
-     * 关掉之后它就是**最后一次机会** —— 不问就写，用户没打算保存的改动会被静默写进文件；
-     * 不问又不写，他以为存下的东西会没。两个方向都错，只能让他自己说。
-     */
     var pendingExit by remember { mutableStateOf(false) }
 
-    /**
-     * 用户在弹窗里选了「不保存」。它挡住下面那次兜保存，否则刚说完不要还是写进去了。
-     *
-     * ⚠️「不保存」不等于「改动没了」：ViewModel 挂在 Activity 的 ViewModelStore 上、此刻
-     * 还活着，正文留在它里面 —— 回到编辑器（甚至切走再切回来）内容都还在。真正会丢改动的是
-     * Activity 被销毁，那与这里的选择无关。
-     */
     var discardOnExit by remember { mutableStateOf(false) }
+    var pendingExitAction by remember { mutableStateOf<(() -> Unit)?>(null) }
 
-    /** 离开编辑器：有未保存改动且关了自动保存时先确认，其余情况直接走 */
-    val requestExit: () -> Unit = {
+    fun requestExit(afterExit: () -> Unit = onBack) {
         if (settings.autoSave || !viewModel.isLoaded || !viewModel.hasUnsavedChanges) {
             viewModel.save()
-            onBack()
+            afterExit()
         } else {
+            pendingExitAction = afterExit
             pendingExit = true
         }
     }
 
-    // 离开组合（回列表、进设置、切文档）时兜一次保存：自动保存要等上面那 800ms，而组合先
-    // 没了 —— 防抖协程随组合一起被取消，最后一段输入就永远不会落盘。
-    // 这一次保存走的是 ViewModel 自己的 scope：它挂在 Activity 的 ViewModelStore 上，
-    // 此刻仍然活着，所以写盘能跑完（切文档不会把没落盘的改动带走）。
-    //
-    // ⚠️ 这条兜保存也要认「关闭自动保存」这个设置：那时候用户要的是手动模式，
-    // 无条件兜一次等于绕过他刚做的选择。
+    LaunchedEffect(settingsRequestTick) {
+        if (settingsRequestTick > 0) requestExit(onSettingsOpened)
+    }
+
+    val latestAutoSave by rememberUpdatedState(settings.autoSave)
+    val latestDiscardOnExit by rememberUpdatedState(discardOnExit)
     DisposableEffect(viewModel) {
-        onDispose { if (settings.autoSave && !discardOnExit) viewModel.save() }
+        onDispose { if (latestAutoSave && !latestDiscardOnExit) viewModel.save() }
     }
 
     BackHandler { requestExit() }
 
     val title = fileTitle(displayName)
-    // 读取失败时只提供错误提示，不进入编辑/预览（避免空内容被误写回原文件）
+
     val usable = viewModel.isLoaded
 
-    // 语法高亮：高亮器只在主题色变化时重建（它内部那 10 条正则是 lazy 编译的，重建 = 全部重编，
-    // 早先按正文做 key 等于每敲一键重编一遍），正文变化只重跑扫描
     val colorScheme = MaterialTheme.colorScheme
     val highlighter = remember(colorScheme) { MarkdownHighlighter(colorScheme) }
-    val highlighted = remember(viewModel.content.text, highlighter) {
-        highlighter.highlight(viewModel.content.text)
+    val sourceText = viewModel.content.text
+    var highlighted by remember(sourceText, highlighter) { mutableStateOf(highlighter.highlight("")) }
+    LaunchedEffect(sourceText, highlighter) {
+        delay(documentWorkDelay(sourceText.length))
+        val result = withContext(Dispatchers.Default) { highlighter.highlight(sourceText) }
+        highlighted = result
     }
     val highlightTransformation = remember(highlighted) {
         VisualTransformation { TransformedText(highlighted, OffsetMapping.Identity) }
@@ -199,19 +174,23 @@ fun EditorScreen(
 
     var showOutline by remember { mutableStateOf(false) }
 
-    // 大纲：只在面板打开时才算。解析是 O(全文) 的，而它唯一的用处就是那个面板
-    // （两处渲染都判了 showOutline），按内容缓存挡不住「每敲一键重算一次」，纯属白烧。
-    val outline = remember(viewModel.content.text, showOutline) {
-        if (showOutline) parseOutline(viewModel.content.text) else emptyList()
+    var outline by remember(sourceText) { mutableStateOf(emptyList<Heading>()) }
+    LaunchedEffect(sourceText, showOutline) {
+        val result = if (showOutline) {
+            withContext(Dispatchers.Default) { parseOutline(sourceText) }
+        } else {
+            emptyList()
+        }
+        outline = result
     }
 
-    // 图片文件夹授权：授权后相对路径图片可在预览中显示。
-    // 记在 prefs 里的 tree 串不代表授权还在（重装、用户撤销、系统回收都会让它失效），
-    // 失效时一律按「没授权」处理，好让引导条重新露出来，否则只会静默显示破图。
-    //
-    // 初值要读 prefs 再跨进程问一次授权，不能放在组合里同步做（会拖住主线程），所以改成异步取。
-    // 取回来之前 imageTree 是 null，用 imageTreeResolved 把已经授权过的文档挡在引导条之外，
-    // 否则每次进已授权的文档都会先闪一下「去授权」。
+    var previewMarkdown by remember(uriString) { mutableStateOf("") }
+    LaunchedEffect(sourceText, viewModel.isPreview) {
+        if (!viewModel.isPreview) return@LaunchedEffect
+        delay(previewWorkDelay(sourceText.length))
+        previewMarkdown = sourceText
+    }
+
     var imageTree by remember(uriString) { mutableStateOf<String?>(null) }
     var imageTreeResolved by remember(uriString) { mutableStateOf(false) }
     LaunchedEffect(uriString) {
@@ -225,8 +204,7 @@ fun EditorScreen(
         ActivityResultContracts.OpenDocumentTree(),
     ) { tree ->
         if (tree != null) {
-            // 选择器刚授过权、本进程内立刻可用，所以先更新界面让预览马上能显示图片；
-            // 落库那两步（IPC + prefs 读改写）挪到 IO
+
             imageTree = tree.toString()
             imageTreeResolved = true
             scope.launch {
@@ -238,13 +216,11 @@ fun EditorScreen(
         }
     }
 
-    // 搜索替换。编辑器在源文本上搜索；预览没有源文本可编辑，改为在**渲染结果**上搜索，
-    // 命中与所见一致（命中数由 MarkdownPreview 回传渲染文本后算出）。
     var searchOpen by remember { mutableStateOf(false) }
     var query by remember { mutableStateOf("") }
     var replacement by remember { mutableStateOf("") }
     var matchIndex by remember { mutableStateOf(0) }
-    // 预览定位：同一个位置可能需要重复滚动（关掉搜索再点同一项），用 nonce 触发
+
     var locateNonce by remember { mutableIntStateOf(0) }
     var scrollTo by remember { mutableStateOf<PreviewScroll?>(null) }
     var renderedText by remember(uriString) { mutableStateOf("") }
@@ -266,17 +242,14 @@ fun EditorScreen(
         }
     }
 
-    // 编辑器：输入变化后在重组完成时跳到第一个命中（此时 matches 已是新 query 的结果）
     LaunchedEffect(query) {
         if (!viewModel.isPreview && query.isNotEmpty() && sourceMatches.isNotEmpty()) jumpToMatch(0)
     }
 
-    // 预览：命中数要等渲染文本回传才知道，拿到之后跳到第一个命中
     LaunchedEffect(viewModel.isPreview, query, renderedMatches.size) {
         if (viewModel.isPreview && query.isNotEmpty() && renderedMatches.isNotEmpty()) jumpToMatch(0)
     }
 
-    // 大纲跳转：预览态下滚动到对应标题（下标在渲染文本里），编辑器里则是移动光标
     val jumpToHeading: (Int) -> Unit = { offset ->
         if (viewModel.isPreview) {
             scrollTo = PreviewScroll(
@@ -292,9 +265,6 @@ fun EditorScreen(
         }
     }
 
-    // 预览里点文档内锚点（`[文字](#标题)`）：找到对应标题就走大纲跳转那条路
-    // （同一条滚动通道，所以落点行为与从大纲点进来完全一致）。
-    // 找不到就提示一句：静默无反应会被当成「链接坏了」。
     val onAnchorClick: (String) -> Unit = { anchor ->
         val heading = findHeadingByAnchor(parseOutline(viewModel.content.text), anchor)
         if (heading != null) {
@@ -304,24 +274,14 @@ fun EditorScreen(
         }
     }
 
-    // 编辑区是否持有焦点：Tab 只在编辑区里有意义。不判这一下的话，在搜索框里按 Tab
-    // 会去缩进正文、焦点也跳不出去（外接键盘上很别扭）
     var editorFocused by remember { mutableStateOf(false) }
 
-    // 快捷键复用的工具栏动作：与点按钮走同一条路，插入结果逐字一致
     val boldAction = markdownActionByLabel("B")
     val italicAction = markdownActionByLabel("I")
 
-    // 硬件键盘（平板外接键盘、桌面模式）：Tab / Shift+Tab 缩进，Ctrl+S/F/B/I 常用命令。
-    //
-    // 挂在编辑器根节点上、用 onPreviewKeyEvent：键事件在预览阶段从根往叶子走，
-    // 所以这里比文本框先拿到。⚠️ 软键盘**不发这些键**（它只发 IME 事件），
-    // 所以手机上的输入行为完全不受影响；这也正是 README 里说 Ctrl+Z 收不到的原因
-    // （字母键在文本框有焦点时被输入法截走，实测过三个层级都拿不到）。
     val onEditorKey: (KeyEvent) -> Boolean = keyHandler@{ event ->
         if (event.type != KeyEventType.KeyDown) return@keyHandler false
-        // 编辑类命令（缩进/加粗/保存）在预览态没有意义；查找在两种状态下都有用（v0.9.0 起
-        // 预览也能搜，跑在渲染结果上）
+
         val editing = !viewModel.isPreview
         if (event.key == Key.Tab) {
             if (!editing || !editorFocused) return@keyHandler false
@@ -333,7 +293,7 @@ fun EditorScreen(
                 outdent = event.isShiftPressed,
             )
             if (edit != null) viewModel.applyEdit(edit)
-            // 有没有变化都吃掉：否则 Tab 会把焦点移走，比「没缩进」更让人意外
+
             true
         } else if (event.isCtrlPressed) {
             when (event.key) {
@@ -356,7 +316,7 @@ fun EditorScreen(
                     italicAction?.let { viewModel.applyAction(it) }
                     true
                 }
-                // Ctrl+Z / Ctrl+Shift+Z（以及 Windows 习惯的 Ctrl+Y）
+
                 Key.Z -> {
                     if (!editing) return@keyHandler false
                     if (event.isShiftPressed) viewModel.redo() else viewModel.undo()
@@ -374,14 +334,17 @@ fun EditorScreen(
         }
     }
 
-    // 显示用的命中序号：内容变化后命中数可能变少，避免 n/m 里的 n 越界
     val clampedMatchIndex = matchIndex.coerceIn(0, (matches.size - 1).coerceAtLeast(0))
 
-    // 字数统计：每次重组都遍历全文太浪费（光标移动、搜索、滚动都会触发重组），按内容缓存
-    val (charCount, lineCount) = remember(viewModel.content.text) { viewModel.stats() }
+    var documentStats by remember(uriString) { mutableStateOf<Pair<Int, Int>?>(null) }
+    LaunchedEffect(sourceText) {
+        delay(documentWorkDelay(sourceText.length))
+        documentStats = withContext(Dispatchers.Default) { viewModel.stats(sourceText) }
+    }
+    val (charCount, lineCount) = documentStats ?: (0 to 0)
 
     Scaffold(
-        // 键盘事件要在最外层拦（预览阶段从根往下走），见 onEditorKey
+
         modifier = Modifier.onPreviewKeyEvent(onEditorKey),
         topBar = {
             TopAppBar(
@@ -402,7 +365,7 @@ fun EditorScreen(
                     }
                 },
                 navigationIcon = {
-                    IconButton(onClick = requestExit) {
+                    IconButton(onClick = { requestExit() }) {
                         Icon(
                             Icons.AutoMirrored.Outlined.ArrowBack,
                             contentDescription = stringResource(R.string.back),
@@ -410,12 +373,7 @@ fun EditorScreen(
                     }
                 },
                 actions = {
-                    // 撤销/重做只在编辑态出现：预览是只读视图，没有可撤销的操作；隐藏掉还能
-                    // 把顶栏宽度让给文件名（411dp 的机器上六个图标已经很挤）。
-                    //
-                    // 图标不指定 tint —— TopAppBar 通过 LocalContentColor 给的是
-                    // onSurfaceVariant，而 IconButton 在 disabled 时会把它降到 38% 透明度。
-                    // 一旦写死 tint，按钮就永远是同一个颜色，撤到底也看不出来。
+
                     if (usable && !viewModel.isPreview) {
                         IconButton(onClick = { viewModel.undo() }, enabled = viewModel.canUndo) {
                             Icon(
@@ -430,7 +388,7 @@ fun EditorScreen(
                             )
                         }
                     }
-                    // 手动保存：关闭自动保存时显示；有未保存修改时高亮（预览态无需保存）
+
                     if (usable && !viewModel.isPreview && !settings.autoSave) {
                         IconButton(onClick = { viewModel.save() }) {
                             Icon(
@@ -445,7 +403,7 @@ fun EditorScreen(
                         }
                     }
                     if (usable) {
-                        // 搜索与大纲在编辑、预览下都可用（预览是只读视图，同样需要查找与导航）
+
                         IconButton(onClick = {
                             searchOpen = !searchOpen
                             if (!searchOpen) { query = ""; replacement = "" }
@@ -490,7 +448,7 @@ fun EditorScreen(
                 .fillMaxSize()
                 .padding(padding),
         ) {
-        // 大屏限宽居中：内容最大 840dp，两侧留白
+
         Box(
             modifier = Modifier.weight(1f),
             contentAlignment = Alignment.TopCenter,
@@ -506,10 +464,10 @@ fun EditorScreen(
                 modifier = Modifier
                     .widthIn(max = 840.dp)
                     .fillMaxWidth()
-                    // 搜索时要弹键盘，预览没有底栏，得自己避让，否则命中被键盘挡住
+
                     .imePadding(),
             ) {
-                // 只读预览同样支持搜索：只找位置不改内容，所以不传替换回调（面板就不渲染替换行）
+
                 if (searchOpen) {
                     SearchPanel(
                         query = query,
@@ -528,8 +486,7 @@ fun EditorScreen(
                         },
                     )
                 }
-                // 文档含相对路径图片但尚未授权图片文件夹时，显示一次性引导条
-                // （imageTreeResolved 之前不显示：异步查询还没回来，先别急着让用户去授权）
+
                 if (imageTreeResolved && imageTree == null && hasRelativeImage(viewModel.content.text)) {
                     Surface(
                         color = MaterialTheme.colorScheme.secondaryContainer,
@@ -562,7 +519,7 @@ fun EditorScreen(
                     }
                 }
                 MarkdownPreview(
-                    markdown = viewModel.content.text,
+                    markdown = previewMarkdown,
                     textSizeSp = settings.previewFontSp,
                     docUri = uriString,
                     imageTree = imageTree,
@@ -582,12 +539,7 @@ fun EditorScreen(
                     .widthIn(max = 840.dp)
                     .fillMaxWidth(),
             ) {
-                // 三种该提醒的情况，一次只出一条 —— 优先级与理由见 editorNoticeOf
-                // （纯逻辑、可断言，别把 when 抄回这里）。
-                //
-                // ⚠️ NO_PERSISTED_ACCESS 那条不能省：外部打开时那个说明弹窗已经不提供
-                // 「重新授权」按钮，这里是唯一的长期授权入口。少了它，「可写但不可持久化」的
-                // 文件（FileProvider 带了写权限的那种）就既没有按钮也没有提示，只能干等它失效。
+
                 val notice = editorNoticeOf(
                     saveFailed = viewModel.saveFailed,
                     readOnly = viewModel.readOnly,
@@ -628,7 +580,7 @@ fun EditorScreen(
                                     start + query.length,
                                     replacement,
                                 )
-                                // 替换后文本已变，直接选中刚写入的新内容
+
                                 viewModel.selectRange(start, start + replacement.length)
                             }
                         },
@@ -642,15 +594,7 @@ fun EditorScreen(
                         },
                     )
                 }
-                // 纯源码编辑：等宽字体、无边框、全屏
-                //
-                // ⚠️ 键盘快捷键挂在**最外层**（Scaffold 的 onPreviewKeyEvent，见上面的
-                // onEditorKey），不挂在这个 TextField 上。区别是实测出来的：挂根节点时
-                // Ctrl+Z / Shift+Z / B / I / S / F 全都能收到（2026-09-19 用
-                // `input keycombination` 逐个验过，撤销/重做/加粗/保存/搜索都生效），
-                // 而挂文本框上时字母键会先交给输入法、应用拿不到 —— 老注释里那句
-                // 「Ctrl+Z 收不到」说的是后一种写法。软键盘不发这些组合键，
-                // 所以手机上仍然只有顶栏那两个按钮可点。
+
                 TextField(
                     value = viewModel.content,
                     onValueChange = viewModel::onContentChange,
@@ -675,7 +619,6 @@ fun EditorScreen(
         }
         }
 
-        // 宽屏：大纲以右侧面板呈现，与左侧文件列表栏风格一致（预览态也可调出）
         if (isExpanded && showOutline) {
             VerticalDivider()
             OutlinePanel(
@@ -693,7 +636,6 @@ fun EditorScreen(
         }
     }
 
-    // 窄屏：大纲从底部弹出（预览态也可调出）
     if (!isExpanded && showOutline) {
         OutlineSheet(
             outline = outline,
@@ -704,8 +646,7 @@ fun EditorScreen(
             onDismiss = { showOutline = false },
         )
     }
-    // 关闭自动保存时的离开确认。三个选项都是「让用户自己说」：
-    // 保存 / 不保存（改动只留在 ViewModel 里、不进文件）/ 留在编辑器。
+
     if (pendingExit) {
         AlertDialog(
             onDismissRequest = { pendingExit = false },
@@ -716,7 +657,9 @@ fun EditorScreen(
                     onClick = {
                         pendingExit = false
                         viewModel.save()
-                        onBack()
+                        pendingExitAction?.invoke()
+                        pendingExitAction = null
+                        pendingExit = false
                     },
                 ) { Text(stringResource(R.string.save)) }
             },
@@ -725,8 +668,9 @@ fun EditorScreen(
                     TextButton(
                         onClick = {
                             discardOnExit = true
+                            pendingExitAction?.invoke()
+                            pendingExitAction = null
                             pendingExit = false
-                            onBack()
                         },
                     ) { Text(stringResource(R.string.discard_changes)) }
                     TextButton(onClick = { pendingExit = false }) {
@@ -736,4 +680,16 @@ fun EditorScreen(
             },
         )
     }
+}
+
+private fun documentWorkDelay(length: Int): Long = when {
+    length >= 500_000 -> 160L
+    length >= 100_000 -> 80L
+    else -> 16L
+}
+
+private fun previewWorkDelay(length: Int): Long = when {
+    length >= 500_000 -> 400L
+    length >= 100_000 -> 250L
+    else -> 150L
 }

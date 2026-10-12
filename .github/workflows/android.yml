@@ -51,8 +51,16 @@ jobs:
             exit 1
           fi
 
-      - name: 构建 Debug APK
-        run: ./gradlew assembleDebug --no-daemon
+      - name: 构建 APK
+        run: |
+          set -euo pipefail
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            ./gradlew assembleRelease --no-daemon
+            cp app/build/outputs/apk/release/app-release.apk MarkNote.apk
+          else
+            ./gradlew assembleDebug --no-daemon
+            cp app/build/outputs/apk/debug/app-debug.apk MarkNote.apk
+          fi
 
       # 上面那道「密钥必须还原」的门禁挡不住「还原了但构建没用上」的情况，所以再核一次证书，
       # 免得哪天又悄悄退回随机签名（那正是 v0.8 → v1.0 → v1.1 全都装不上的原因）。
@@ -60,7 +68,7 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/v')
         run: |
           set -euo pipefail
-          APK="app/build/outputs/apk/debug/app-debug.apk"
+          APK="app/build/outputs/apk/release/app-release.apk"
           SDK="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
           BT="$(ls -d "$SDK"/build-tools/*/ | sort -V | tail -1)"
           CERT="$("$BT/apksigner" verify --print-certs "$APK" \
@@ -74,8 +82,8 @@ jobs:
       - name: 上传 APK 构件
         uses: actions/upload-artifact@v4
         with:
-          name: marknote-debug-apk
-          path: app/build/outputs/apk/debug/app-debug.apk
+          name: marknote-apk
+          path: MarkNote.apk
 
   release:
     # 仅打 v* tag 时发 Release，附带 APK
@@ -87,10 +95,10 @@ jobs:
     steps:
       - uses: actions/download-artifact@v4
         with:
-          name: marknote-debug-apk
+          name: marknote-apk
 
       - name: 重命名为带版本号的文件名
-        run: mv app-debug.apk "MarkNote-${{ github.ref_name }}.apk"
+        run: mv MarkNote.apk "MarkNote-${{ github.ref_name }}.apk"
 
       - name: 创建 Release
         uses: softprops/action-gh-release@v2

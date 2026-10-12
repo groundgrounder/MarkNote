@@ -1,16 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- 繁體中文。以 BCP 47 script 限定，zh-TW / zh-HK / zh-MO 皆命中 -->
 <resources>
     <string name="app_name">MarkNote</string>
 
-    <!-- 最近開啟的檔案 -->
-    <!-- 侧栏：最近文件 / 文件夹 -->
     <string name="browse_recent">最近檔案</string>
     <string name="browse_folder">資料夾</string>
     <string name="choose_folder">選擇資料夾</string>
     <string name="folder_empty">這個資料夾裡沒有可編輯的檔案</string>
     <string name="folder_empty_hint">選一個資料夾，之後就能直接在裡面開啟文件，不必每次都走系統選擇器</string>
     <string name="folder_access_lost">這個資料夾的授權已失效（例如解除安裝重裝後），請重新選擇一次</string>
+    <string name="folder_permission_failed">無法長期保存這個資料夾的授權，請重新選擇一次</string>
     <string name="up_one_level">上一層</string>
     <string name="name_field_label">名稱</string>
     <string name="new_folder">新增資料夾</string>
@@ -38,15 +36,11 @@
     <string name="empty_document">（空白文件）</string>
     <string name="empty_list_title">還沒有開啟過檔案</string>
     <string name="empty_list_hint">切到「資料夾」檔選一個，之後就能直接在裡面挑文件\n也可以在檔案管理器裡用 MarkNote 直接開啟 .md 檔案</string>
-
-    <!-- 空狀態與外部開啟 -->
     <string name="empty_editor_hint">從左側開啟最近檔案，或「開啟檔案」選擇文件</string>
     <string name="no_persistent_access_title">這個檔案無法長期存取</string>
     <string name="no_persistent_access_message">其他應用程式分享的檔案沒有長期權限，離開 MarkNote 後就無法開啟。需要長期編輯時，用編輯器裡的「重新授權」。</string>
     <string name="dont_show_again">不再提示</string>
     <string name="got_it">知道了</string>
-
-    <!-- 編輯器 -->
     <string name="back">返回</string>
     <string name="save">儲存</string>
     <string name="undo">復原</string>
@@ -69,16 +63,12 @@
     <string name="document_unavailable_title">無法開啟該檔案</string>
     <string name="document_unavailable_message">MarkNote 已經沒有這個檔案的存取權限，或者檔案已被移動、刪除。\n從其他應用程式（檔案管理員「開啟方式」、聊天記錄等）開啟的檔案，系統通常不會給予長期權限，離開應用程式後就會失效。\n用「重新授權」在系統檔案選擇器裡重新選一次同一個檔案，之後就能一直編輯。</string>
     <string name="retry">重試</string>
-
-    <!-- 搜尋與取代 -->
     <string name="previous_match">上一個</string>
     <string name="next_match">下一個</string>
     <string name="close_search">關閉搜尋</string>
     <string name="replace_placeholder">取代為</string>
     <string name="replace">取代</string>
     <string name="replace_all">全部</string>
-
-    <!-- Markdown 工具列 -->
     <string name="md_heading">標題</string>
     <string name="md_bold">粗體</string>
     <string name="md_italic">斜體</string>
@@ -90,8 +80,6 @@
     <string name="md_link_text">連結文字</string>
     <string name="md_code">程式碼</string>
     <string name="md_divider">分隔線</string>
-
-    <!-- 設定 -->
     <string name="appearance">外觀</string>
     <string name="theme_mode">主題模式</string>
     <string name="theme_system">跟隨系統</string>
@@ -125,8 +113,6 @@
     <string name="font_small">小</string>
     <string name="font_standard">標準</string>
     <string name="font_large">大</string>
-
-    <!-- 預覽中的圖片載入失敗提示 -->
     <string name="image_open_failed">無法開啟圖片：%1$s</string>
     <string name="image_decode_failed">無法解碼圖片：%1$s</string>
     <string name="image_invalid_data">無效的 data 圖片</string>

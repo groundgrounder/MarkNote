@@ -1,13 +1,4 @@
 #!/usr/bin/env bash
-#
-# 跑 tools/checks/ 下的纯逻辑 JVM 断言。不需要模拟器，秒级完成。
-#
-# 为什么这些断言不放在 app/src/test 里：那个源集要引入 JUnit，而引入就得联网拉包；
-# 而这里测的（差分边界、合并规则、双重上限、自救清栈）完全不需要 Android 运行时。
-# 所以走「复用 Gradle 已编译的 class + javac 现场编译断言」，零新依赖。
-#
-# 前置：无（脚本自己会先把 class 编出来）
-# 用法：tools/run_checks.sh
 set -uo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -15,8 +6,6 @@ CLASSES="$ROOT/app/build/tmp/kotlin-classes/debug"
 SRC="$ROOT/tools/checks"
 OUT="$ROOT/app/build/checks"
 
-# 断言测的是 Kotlin 产物，先把它刷出来——否则测的是上一次编译的旧字节码。
-# Gradle 的进度条会淹没断言输出，所以正常时只吞掉，失败时再整段打出来。
 GRADLE_LOG="$(mktemp -t mn_checks_gradle)"
 if ! (cd "$ROOT" && ./gradlew compileDebugKotlin --offline -q) >"$GRADLE_LOG" 2>&1; then
     printf 'compileDebugKotlin 失败：\n' >&2
@@ -32,11 +21,6 @@ if [ ! -d "$CLASSES" ]; then
     exit 1
 fi
 
-# 断言只需要 stdlib。从 Gradle 缓存里挑版本最高的那个；有多个 Kotlin 版本共存时
-# 可能与实际编译用的不一致，所以把选中的 jar 打出来，异常时好排查。
-#
-# 先在 kotlin 的窄目录里找（不到 1 秒）——直接 find 整个 caches 会扫 2.7G，
-# 慢到会被系统杀掉。窄路径找不到时才退回全量搜索。
 GRADLE_HOME="${GRADLE_USER_HOME:-$HOME/.gradle}"
 STDLIB=""
 for dir in "$GRADLE_HOME/caches/modules-2/files-2.1/org.jetbrains.kotlin" "$GRADLE_HOME/caches"; do
@@ -82,7 +66,6 @@ for src in "$SRC"/*.java; do
 
     printf '%-18s 通过 %-4s 失败 %s\n' "$name" "$p" "$f"
 
-    # 失败的条目单独打出来——只看汇总数字不足以定位
     if [ "$f" != "0" ] || [ "$code" != "0" ]; then
         printf '%s' "$out" | grep -E 'FAIL' | sed 's/^/    /'
     fi

@@ -5,17 +5,6 @@ import com.marknote.app.ui.editor.TaskBox;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * 「预览保真」四处改写的纯逻辑断言：脚注不吞行、裸链接成链、任务列表标记、标题锚点。
- *
- * 这些函数都在 android-free 的 MarkdownSyntax.kt 里，所以能在这里直接跑 —— 不用模拟器、不用 JUnit。
- * 每条断言背后都是实测过的坑：
- * - `[^1]: 脚注内容` 被 CommonMark 当成链接引用定义，**整行从预览里消失**（真机 dump 确认）
- * - 裸 URL 点了没反应（A/B 对照：标准链接能打开 Chrome）
- * - `- [x] 未完成` 在预览里是字面 `[x]`（Markwon 没装 tasklist 插件）
- *
- * 用法：tools/run_checks.sh
- */
 public class CheckMarkdownSyntax {
 
     static int pass = 0;
@@ -64,7 +53,7 @@ public class CheckMarkdownSyntax {
     }
 
     public static void main(String[] args) {
-        // ---------------- 脚注：不丢字 ----------------
+
         eq("脚注引用转义", escape("脚注引用[^1]"), "脚注引用\\[^1]");
         eq("脚注定义行转义（原来整行会消失）", escape("[^1]: 脚注内容"), "\\[^1]: 脚注内容");
         eq("没有脚注的文档原样返回", escape("# 标题\n正文"), "# 标题\n正文");
@@ -72,10 +61,8 @@ public class CheckMarkdownSyntax {
         eq("围栏代码块里的不动", escape("```\n[^1]: x\n```"), "```\n[^1]: x\n```");
         eq("两个脚注都转义", escape("a[^1]b[^2]"), "a\\[^1]b\\[^2]");
 
-        // ---------------- 裸链接：只包正文里的 http(s) ----------------
         eq("裸链接成链", autolink("见 https://example.com 吧"), "见 <https://example.com> 吧");
-        // GFM 的 url autolink 规则是「scheme:// + 域名 + 零个或多个非空格非 < 字符」，
-        // 所以紧跟的中日韩文字会被算进链接（GitHub 也是这个行为）。想断开就加个空格。
+
         eq("紧跟中文时中文算进链接（与 GitHub 一致）",
                 autolink("看https://a.cn/x页"), "看<https://a.cn/x页>");
         eq("紧跟空格时断开", autolink("看 https://a.cn/x 页"), "看 <https://a.cn/x> 页");
@@ -95,7 +82,7 @@ public class CheckMarkdownSyntax {
         eq("引用定义里的 URL 不动", autolink("[a]: https://a.com"), "[a]: https://a.com");
         eq("http 也认", autolink("http://a.com"), "<http://a.com>");
         eq("非 http 的裸串不包", autolink("www.a.com 和 a.com 都不包"), "www.a.com 和 a.com 都不包");
-        // GFM 的尾随标点集合是 `?!.,:*_~`：漏掉 * _ ~ 时，URL 紧邻的强调标记会被吃进链接里
+
         eq("被 ** 包住的 URL 不被吞", autolink("**https://a.com**"), "**<https://a.com>**");
         eq("被 _ 包住的 URL 不被吞", autolink("_https://a.com_"), "_<https://a.com>_");
         eq("URL 后面的 **加粗** 分开写正常", autolink("https://a.com **粗**"), "<https://a.com> **粗**");
@@ -105,7 +92,6 @@ public class CheckMarkdownSyntax {
                 autolink("<a href=\"https://a.com\">x</a>"), "<a href=\"https://a.com\">x</a>");
         eq("表格单元格里的 URL 成链", autolink("| https://a.com |"), "| <https://a.com> |");
 
-        // ---------------- 任务列表标记（按渲染后文本找） ----------------
         List<TaskBox> b = boxes("[ ] 未完成\n[x] 已完成\n[X] 大写也算");
         check("找到 3 个任务标记", b.size() == 3);
         check("第一个未勾选且区间正确",
@@ -119,7 +105,6 @@ public class CheckMarkdownSyntax {
         check("括号后没有空白不算任务项", boxes("[x]紧贴").isEmpty());
         check("普通正文没有标记", boxes("正文\n\n# 标题").isEmpty());
 
-        // ---------------- 标题锚点 ----------------
         eq("中文标题的 slug", MarkdownSyntaxKt.anchorSlug("更新余地（规划）"), "更新余地规划");
         eq("英文标题的 slug", MarkdownSyntaxKt.anchorSlug("Hello World"), "hello-world");
         eq("下划线与连字符保留", MarkdownSyntaxKt.anchorSlug("A_B-C"), "a_b-c");
@@ -143,7 +128,6 @@ public class CheckMarkdownSyntax {
                 MarkdownSyntaxKt.findHeadingByAnchor(hs, "#不存在的标题") == null);
         check("空锚点返回 null", MarkdownSyntaxKt.findHeadingByAnchor(hs, "#") == null);
 
-        // ---------------- 组合入口 ----------------
         eq("preparePreviewMarkdown 两处都生效",
                 MarkdownSyntaxKt.preparePreviewMarkdown("[^1]: 见 https://a.com"),
                 "\\[^1]: 见 <https://a.com>");

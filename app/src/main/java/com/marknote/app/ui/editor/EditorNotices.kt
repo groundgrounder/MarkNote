@@ -28,7 +28,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.marknote.app.R
 
-/** 顶部提示条：只读打开 / 保存失败时告知改动没有落盘，并给出重新授权入口 */
 @Composable
 internal fun DocumentNotice(
     message: String,
@@ -64,7 +63,6 @@ internal fun DocumentNotice(
     }
 }
 
-/** 读取失败时的整页提示：权限已失效，或文件被移动/删除 */
 @Composable
 internal fun DocumentUnavailable(
     onRegrant: () -> Unit,

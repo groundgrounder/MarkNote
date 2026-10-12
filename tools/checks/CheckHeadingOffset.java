@@ -1,21 +1,5 @@
 import com.marknote.app.ui.editor.MarkdownSyntaxKt;
 
-/**
- * 大纲跳转用的两个纯函数（plainTitle / renderedOffsetOfHeading）的断言，不需要模拟器。
- *
- * 守的是一条：**预览里从大纲跳标题，必须正好落在标题那一行**。
- *
- * 渲染后 Markdown 语法会消失（`# ` 前缀、`**加粗**` 的星号、链接语法、
- * 以及行内公式的 `$$`），所以源码偏移不能直接拿去滚动。renderedOffsetOfHeading
- * 的做法是「按长度比例估一个位置，再在渲染文本里找离它最近的标题文字」——
- * 于是**只要 plainTitle 算出来的标题跟渲染文本对不上，indexOf 就落空，
- * 跳转会静默退化成「大概位置」**（不报错、不崩，只是没对准）。
- *
- * 行内公式是新增的一种「渲染后源码会消失」的东西（`$$E = mc^2$$` 渲染成 `E = mc^2`，
- * 分隔符被剥掉），这个文件就是防它把标题文字算歪。
- *
- * 用法：tools/run_checks.sh
- */
 public class CheckHeadingOffset {
 
     static int pass = 0;
@@ -35,7 +19,6 @@ public class CheckHeadingOffset {
         return MarkdownSyntaxKt.plainTitle(s);
     }
 
-    /** 源码里的标题 → 渲染后应当出现的文字；断言返回的偏移正好指在这段文字上 */
     static void jumpLandsOnHeading(String name, String source, String rendered, String marker, String title) {
         int headingOffset = source.indexOf(marker);
         if (headingOffset < 0) {
@@ -49,8 +32,6 @@ public class CheckHeadingOffset {
             check(name + "：跳转落在标题上", rendered.startsWith(title, offset));
         }
     }
-
-    // ---------- plainTitle：源码标题 → 渲染后的标题 ----------
 
     static void plainTitleBasics() {
         check("裸标题不变", plainTitle("标题").equals("标题"));
@@ -73,8 +54,6 @@ public class CheckHeadingOffset {
         check("未闭合的 $$ 原样留下（找不到就退回估算，不崩）",
                 plainTitle("$$没闭合").equals("$$没闭合"));
     }
-
-    // ---------- renderedOffsetOfHeading：整条跳转链路 ----------
 
     static void jumpBasics() {
         String source = "# 标题一\n\n正文若干\n\n## 标题二\n";
@@ -119,8 +98,7 @@ public class CheckHeadingOffset {
     }
 
     static void jumpDegradesSafely() {
-        // 标题里带未闭合的 $$：plainTitle 算出来的文字跟渲染文本对不上，
-        // 于是退回「按比例估算」。这是可接受的降级——不崩、不越界。
+
         String source = "# 标题一\n\n垫一段正文。\n\n## $$没闭合\n";
         String rendered = "标题一\n垫一段正文。\n$$没闭合\n";
         int headingOffset = source.indexOf("## $$没闭合");

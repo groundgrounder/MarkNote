@@ -1,18 +1,6 @@
 import com.marknote.app.ui.editor.EditorNotice;
 import com.marknote.app.ui.editor.EditorNoticeStateKt;
 
-/**
- * 编辑器顶部提示的优先级断言。
- *
- * 这段逻辑只有三个布尔输入，但**八种组合里每一种都可能真实出现**：MediaStore 来源的文件
- * 既只读、又拿不到持久授权，保存失败之后三条全中。顺序弄反了不会报错，只会让用户看到
- * 一条与当前问题无关的提示（比如只读文件显示「退出应用后打不开」），然后照它去重新授权。
- *
- * 「当前这个文件」是否真的做过外部打开 / 文件夹授权，由设备验证覆盖；这里只管
- * 「给定三个标记，该报哪一条」。
- *
- * 用法：tools/run_checks.sh
- */
 public class CheckEditorNotice {
 
     static int pass = 0;
@@ -28,23 +16,21 @@ public class CheckEditorNotice {
         }
     }
 
-    /** 把期望写成字符串，失败时看得懂 */
     static String show(EditorNotice notice) {
         return notice == null ? "（不报）" : notice.name();
     }
 
     public static void main(String[] args) {
-        // ---------------- 八种组合全枚举 ----------------
-        // {saveFailed, readOnly, hasPersistedAccess, 期望}
+
         Object[][] cases = {
-                {false, false, true, null},                                  // 一切正常
-                {false, false, false, EditorNotice.NO_PERSISTED_ACCESS},      // 可写但没有持久授权
+                {false, false, true, null},
+                {false, false, false, EditorNotice.NO_PERSISTED_ACCESS},
                 {false, true, true, EditorNotice.READ_ONLY},
                 {false, true, false, EditorNotice.READ_ONLY},
                 {true, false, true, EditorNotice.SAVE_FAILED},
                 {true, false, false, EditorNotice.SAVE_FAILED},
                 {true, true, true, EditorNotice.SAVE_FAILED},
-                {true, true, false, EditorNotice.SAVE_FAILED},                // 三条全中
+                {true, true, false, EditorNotice.SAVE_FAILED},
         };
         for (Object[] c : cases) {
             boolean saveFailed = (Boolean) c[0];
@@ -57,9 +43,6 @@ public class CheckEditorNotice {
                     got == want);
         }
 
-        // ---------------- 优先级单独再钉一遍 ----------------
-        // 全枚举已经覆盖了这些，但单列出来是为了让「顺序被改反」这件事一眼可读：
-        // 反了之后红的会是这几条里最直观的那一两条。
         check("保存失败压过只读与无授权",
                 EditorNoticeStateKt.editorNoticeOf(true, true, false) == EditorNotice.SAVE_FAILED);
         check("只读压过无授权",

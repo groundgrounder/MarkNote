@@ -1,16 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Lingua Latina -->
 <resources>
     <string name="app_name">MarkNote</string>
 
-    <!-- Fasciculi recentes -->
-    <!-- 侧栏：最近文件 / 文件夹 -->
     <string name="browse_recent">Fasciculi recentes</string>
     <string name="browse_folder">Fasciculus</string>
     <string name="choose_folder">Elige fasciculum</string>
     <string name="folder_empty">In hac plica nulli fasciculi editabiles sunt</string>
     <string name="folder_empty_hint">Fasciculum semel elige; deinde documenta eius aperire potes, nec quoties per electorem systematis ire debes</string>
     <string name="folder_access_lost">Permissio fasciculi electi periit (exempli gratia post reinstallationem). Iterum elige</string>
+    <string name="folder_permission_failed">Permissio huius fasciculi diu servari non potest. Iterum elige.</string>
     <string name="up_one_level">Ad gradum superiorem</string>
     <string name="name_field_label">Nomen</string>
     <string name="new_folder">Nova plica</string>
@@ -38,15 +36,11 @@
     <string name="empty_document">(Fasciculus vacuus)</string>
     <string name="empty_list_title">Nondum ullus fasciculus apertus est</string>
     <string name="empty_list_hint">Sectionem «Plicae» aperi et plicam elige, deinde documenta in ea eligere potes\nPotes etiam fasciculos .md e ministro fasciculorum cum MarkNote aperire</string>
-
-    <!-- Status vacuus et aperitio externa -->
     <string name="empty_editor_hint">Aperi recentem fasciculum a sinistra, vel tange «Fasciculum aperire»</string>
     <string name="no_persistent_access_title">Hic fasciculus diu patere non potest</string>
     <string name="no_persistent_access_message">Fasciculi ab aliis programmatibus communicati permissionem diuturnam non habent; postquam MarkNote relinquis, aperiri non poterunt. Ad eos servandos, «Permitte iterum» in editore utere.</string>
     <string name="dont_show_again">Noli iterum ostendere</string>
     <string name="got_it">Intellexi</string>
-
-    <!-- Editor -->
     <string name="back">Redi</string>
     <string name="save">Serva</string>
     <string name="undo">Revoca</string>
@@ -69,16 +63,12 @@
     <string name="document_unavailable_title">Hic fasciculus aperiri non potest</string>
     <string name="document_unavailable_message">MarkNote iam ad hunc fasciculum non accedit, aut fasciculus motus vel deletus est.\nFasciculi ex aliis programmatibus aperti (per «Aperire cum» ministri fasciculorum, per colloquia, et cetera) plerumque permissionem diuturnam non accipiunt; ea, programmate relicto, perit.\nUtere «Permitte iterum» ut eundem fasciculum in selectore systematis iterum eligas: deinde semper recensere poteris.</string>
     <string name="retry">Iterum conare</string>
-
-    <!-- Quaerere et substituere -->
     <string name="previous_match">Superius</string>
     <string name="next_match">Inferius</string>
     <string name="close_search">Quaesitum claude</string>
     <string name="replace_placeholder">Substitue cum</string>
     <string name="replace">Substitue</string>
     <string name="replace_all">Omnia</string>
-
-    <!-- Instrumenta Markdown -->
     <string name="md_heading">Titulus</string>
     <string name="md_bold">Pingue</string>
     <string name="md_italic">Obliquum</string>
@@ -90,8 +80,6 @@
     <string name="md_link_text">Textus nexus</string>
     <string name="md_code">Codex</string>
     <string name="md_divider">Linea dividens</string>
-
-    <!-- Optiones -->
     <string name="appearance">Aspectus</string>
     <string name="theme_mode">Thema</string>
     <string name="theme_system">Systema sequi</string>
@@ -125,8 +113,6 @@
     <string name="font_small">Parva</string>
     <string name="font_standard">Media</string>
     <string name="font_large">Magna</string>
-
-    <!-- Errores imaginum in praeviso -->
     <string name="image_open_failed">Imago aperiri non potest: %1$s</string>
     <string name="image_decode_failed">Imago decodificari non potest: %1$s</string>
     <string name="image_invalid_data">Imago data invalida</string>

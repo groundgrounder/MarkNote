@@ -1,21 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!--
-  默认资源目录 = 英文，同时作为未匹配语言的兜底（例如韩语、葡语用户看到英文）。
-  简体中文简体见 values-b+zh+Hans，繁體中文见 values-b+zh+Hant，
-  英语另有一份显式声明见 values-en，拉丁语见 values-la。
-  键名必须与本文件完全一致；新增文案时请同步补全所有语言目录。
--->
 <resources>
     <string name="app_name">MarkNote</string>
 
-    <!-- Recent files -->
-    <!-- 侧栏：最近文件 / 文件夹 -->
     <string name="browse_recent">Recent files</string>
     <string name="browse_folder">Folder</string>
     <string name="choose_folder">Choose folder</string>
     <string name="folder_empty">No editable files in this folder</string>
     <string name="folder_empty_hint">Choose a folder once, then open its Markdown files without going through the system picker every time</string>
     <string name="folder_access_lost">Access to the chosen folder was lost (for example after reinstalling). Choose it again</string>
+    <string name="folder_permission_failed">Could not keep access to this folder. Choose it again.</string>
     <string name="up_one_level">Up one level</string>
     <string name="name_field_label">Name</string>
     <string name="new_folder">New folder</string>
@@ -43,15 +36,11 @@
     <string name="empty_document">(Empty document)</string>
     <string name="empty_list_title">No files opened yet</string>
     <string name="empty_list_hint">Switch to “Folder” and choose one, then pick documents inside it\nYou can also open .md files from a file manager with MarkNote</string>
-
-    <!-- Empty state and external open -->
     <string name="empty_editor_hint">Open a recent file on the left, or tap “Open file”</string>
     <string name="no_persistent_access_title">This file cannot be accessed long-term</string>
     <string name="no_persistent_access_message">Files shared from other apps have no long-term permission, so they cannot be opened after you quit MarkNote. Use “Grant access” in the editor when you need to keep them.</string>
     <string name="dont_show_again">Don’t show again</string>
     <string name="got_it">Got it</string>
-
-    <!-- Editor -->
     <string name="back">Back</string>
     <string name="save">Save</string>
     <string name="undo">Undo</string>
@@ -74,16 +63,12 @@
     <string name="document_unavailable_title">Cannot open this file</string>
     <string name="document_unavailable_message">MarkNote no longer has access to this file, or it was moved or deleted.\nFiles opened from other apps (a file manager’s “Open with”, a chat app, and so on) usually get no long-term permission, so access is lost after you quit the app.\nUse “Grant access” to pick the same file again in the system file picker, and you can keep editing it.</string>
     <string name="retry">Retry</string>
-
-    <!-- Search and replace -->
     <string name="previous_match">Previous</string>
     <string name="next_match">Next</string>
     <string name="close_search">Close search</string>
     <string name="replace_placeholder">Replace with</string>
     <string name="replace">Replace</string>
     <string name="replace_all">All</string>
-
-    <!-- Markdown toolbar -->
     <string name="md_heading">Heading</string>
     <string name="md_bold">Bold</string>
     <string name="md_italic">Italic</string>
@@ -95,8 +80,6 @@
     <string name="md_link_text">Link text</string>
     <string name="md_code">Code</string>
     <string name="md_divider">Divider</string>
-
-    <!-- Settings -->
     <string name="appearance">Appearance</string>
     <string name="theme_mode">Theme</string>
     <string name="theme_system">System</string>
@@ -130,8 +113,6 @@
     <string name="font_small">Small</string>
     <string name="font_standard">Default</string>
     <string name="font_large">Large</string>
-
-    <!-- Image loading errors shown in the preview -->
     <string name="image_open_failed">Cannot open image: %1$s</string>
     <string name="image_decode_failed">Cannot decode image: %1$s</string>
     <string name="image_invalid_data">Invalid data image</string>

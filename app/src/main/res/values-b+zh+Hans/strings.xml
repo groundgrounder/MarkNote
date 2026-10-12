@@ -1,20 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!--
-  简体中文（BCP 47: zh-Hans）。
-  以 script 限定，zh-CN / zh-SG / zh-Hans-* 皆命中，与 values-b+zh+Hant 对举。
-  注意：本目录**不是**默认目录 —— 未匹配语言的兜底是 values/ 的英文。
--->
 <resources>
     <string name="app_name">MarkNote</string>
 
-    <!-- 最近文件列表 -->
-    <!-- 侧栏：最近文件 / 文件夹 -->
     <string name="browse_recent">最近文件</string>
     <string name="browse_folder">文件夹</string>
     <string name="choose_folder">选择文件夹</string>
     <string name="folder_empty">这个文件夹里没有可编辑的文件</string>
     <string name="folder_empty_hint">选一个文件夹，之后就能直接在里面打开文档，不必每次都走系统选择器</string>
     <string name="folder_access_lost">这个文件夹的授权已失效（例如卸载重装后），请重新选择一次</string>
+    <string name="folder_permission_failed">无法长期保存这个文件夹的授权，请重新选择一次</string>
     <string name="up_one_level">上一级</string>
     <string name="name_field_label">名称</string>
     <string name="new_folder">新建文件夹</string>
@@ -42,15 +36,11 @@
     <string name="empty_document">（空文档）</string>
     <string name="empty_list_title">还没有打开过文件</string>
     <string name="empty_list_hint">切到「文件夹」档选一个，之后就能在里面挑文档\n也可以在文件管理器里用 MarkNote 直接打开 .md 文件</string>
-
-    <!-- 空状态与外部打开 -->
     <string name="empty_editor_hint">从左侧打开最近文件，或「打开文件」选择文档</string>
     <string name="no_persistent_access_title">这个文件无法长期访问</string>
     <string name="no_persistent_access_message">其他应用分享的文件没有长期权限，退出 MarkNote 后就打不开。需要长期编辑时，用编辑器里的「重新授权」。</string>
     <string name="dont_show_again">不再提示</string>
     <string name="got_it">知道了</string>
-
-    <!-- 编辑器 -->
     <string name="back">返回</string>
     <string name="save">保存</string>
     <string name="undo">撤销</string>
@@ -73,16 +63,12 @@
     <string name="document_unavailable_title">无法打开该文件</string>
     <string name="document_unavailable_message">MarkNote 已经没有这个文件的访问权限，或者文件已被移动、删除。\n从其他应用（文件管理器「打开方式」、聊天记录等）打开的文件，系统通常不会给出长期权限，退出应用后就会失效。\n用「重新授权」在系统文件选择器里重新选一次同一个文件，之后就能一直编辑。</string>
     <string name="retry">重试</string>
-
-    <!-- 搜索与替换 -->
     <string name="previous_match">上一个</string>
     <string name="next_match">下一个</string>
     <string name="close_search">关闭搜索</string>
     <string name="replace_placeholder">替换为</string>
     <string name="replace">替换</string>
     <string name="replace_all">全部</string>
-
-    <!-- Markdown 工具栏 -->
     <string name="md_heading">标题</string>
     <string name="md_bold">加粗</string>
     <string name="md_italic">斜体</string>
@@ -94,8 +80,6 @@
     <string name="md_link_text">链接文字</string>
     <string name="md_code">代码</string>
     <string name="md_divider">分割线</string>
-
-    <!-- 设置 -->
     <string name="appearance">外观</string>
     <string name="theme_mode">主题模式</string>
     <string name="theme_system">跟随系统</string>
@@ -129,8 +113,6 @@
     <string name="font_small">小</string>
     <string name="font_standard">标准</string>
     <string name="font_large">大</string>
-
-    <!-- 预览中的图片加载失败提示 -->
     <string name="image_open_failed">无法打开图片：%1$s</string>
     <string name="image_decode_failed">无法解码图片：%1$s</string>
     <string name="image_invalid_data">无效的 data 图片</string>

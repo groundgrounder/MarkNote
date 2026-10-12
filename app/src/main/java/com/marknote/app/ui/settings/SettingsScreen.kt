@@ -99,11 +99,7 @@ fun SettingsScreen(
                             onClick = {
                                 if (settings.themeMode != mode) {
                                     settings.updateThemeMode(mode)
-                                    // 与语言同理：深浅色是 attachBaseContext 阶段套到 Context 上的
-                                    // （`values-night` 与系统栏图标看的都是 Configuration 的 uiMode，
-                                    // 而不是 Compose 的配色），运行中改不了已经用出去的 Resources。
-                                    // 重建一次后窗口背景、系统栏图标与新配色才会一致生效；
-                                    // rememberSaveable 会保住停留在这页、以及正在编辑的文档。
+
                                     context.findActivity()?.recreate()
                                 }
                             },
@@ -133,7 +129,7 @@ fun SettingsScreen(
                 Column(Modifier.weight(1f)) {
                     Text(stringResource(R.string.language), style = MaterialTheme.typography.bodyLarge)
                     Text(
-                        // 跟随系统时直接说明「用的是系统语言」，比只显示「跟随系统」更清楚
+
                         text = if (settings.appLanguage == AppLanguage.SYSTEM) {
                             stringResource(R.string.language_system_detail)
                         } else {
@@ -189,8 +185,7 @@ fun SettingsScreen(
                 checked = settings.folderShowHiddenFiles,
                 onCheckedChange = settings::updateFolderShowHiddenFiles,
             )
-            // 外部打开的文件拿不到长期权限时的说明弹窗。弹窗上的「不再提示」会关掉它 ——
-            // 这里是唯一的撤销处（关掉之后那个弹窗就不会再出现了）
+
             SettingSwitchRow(
                 title = stringResource(R.string.show_no_access_notice),
                 detail = stringResource(
@@ -222,11 +217,7 @@ fun SettingsScreen(
                 showLanguagePicker = false
                 if (settings.appLanguage != language) {
                     settings.updateAppLanguage(language)
-                    // 语言是在 attachBaseContext 阶段套到 Context 上的，运行中改不了已经用出去的
-                    // Resources；重建 Activity 后新语言才会整体生效（rememberSaveable 会保住
-                    // 当前停留在设置页、以及正在编辑的文档）。
-                    // Android 13+ 还会把选择同步给系统「按应用语言」，系统那侧可能也重建一次；
-                    // 重复重建只是多闪一下，换来的是任何系统版本上都立刻生效。
+
                     context.findActivity()?.recreate()
                 }
             },
@@ -234,7 +225,6 @@ fun SettingsScreen(
     }
 }
 
-/** 语言单选弹窗：每种语言用**自称**展示，任何界面语言下都能一眼认出自己的语言 */
 @Composable
 private fun LanguagePickerDialog(
     current: AppLanguage,
@@ -300,10 +290,6 @@ private fun SettingGroup(
     }
 }
 
-/**
- * 一行「标题 + 说明 + 开关」。设置页里已经有几处一模一样的排版，抽出来免得再加一处时
- * 漏掉某处（比如忘了给说明文字上 onSurfaceVariant，几个开关的观感就不一致了）。
- */
 @Composable
 private fun SettingSwitchRow(
     title: String,

@@ -2,14 +2,6 @@ import com.marknote.app.ui.editor.MarkdownEditKt;
 import com.marknote.app.ui.editor.MarkdownSyntaxKt;
 import com.marknote.app.ui.editor.EditResult;
 
-/**
- * 编辑行为（回车续列表、Tab 缩进）的纯逻辑断言。
- *
- * 「按了回车之后光标该在哪、文本变成什么」是读代码最容易看走眼的一类逻辑，
- * 而这些函数都在 android-free 的 MarkdownEdit.kt 里，所以能在这里毫秒级跑一遍。
- *
- * 用法：tools/run_checks.sh
- */
 public class CheckMarkdownEdit {
 
     static int pass = 0;
@@ -25,7 +17,6 @@ public class CheckMarkdownEdit {
         }
     }
 
-    /** 模拟「在 lineBefore 末尾按回车」，返回续行结果（null 表示不处理） */
     static EditResult enter(String lineBefore) {
         String text = lineBefore + "\n";
         return MarkdownEditKt.continueListOnNewline(text, text.length());
@@ -57,7 +48,7 @@ public class CheckMarkdownEdit {
     }
 
     public static void main(String[] args) {
-        // ---------------- 回车续列表 ----------------
+
         eq("- foo 回车续上", enter("- foo"), "- foo\n- ");
         caret("- foo 续上后光标在标记之后", enter("- foo"), 8);
         eq("* foo 也认", enter("* foo"), "* foo\n* ");
@@ -69,18 +60,15 @@ public class CheckMarkdownEdit {
         eq("引用续上", enter("> foo"), "> foo\n> ");
         eq("嵌套引用续上", enter(">> foo"), ">> foo\n>> ");
 
-        // 复选框：新条目一律未勾选
         eq("- [ ] foo 回车续上复选框", enter("- [ ] foo"), "- [ ] foo\n- [ ] ");
         eq("- [x] foo 续出来是未勾选", enter("- [x] foo"), "- [x] foo\n- [ ] ");
         eq("- [X] 大写也续", enter("- [X] foo"), "- [X] foo\n- [ ] ");
 
-        // 空条目：再按一次回车结束列表（标记被删掉，新行留空）
         eq("空条目结束列表", enter("- "), "\n");
         caret("结束列表后光标在空行开头", enter("- "), 0);
         eq("空有序条目结束列表", enter("1. "), "\n");
         eq("空引用结束引用", enter("> "), "\n");
 
-        // 不该动的情况
         check("普通段落不处理", enter("正文一行") == null);
         check("标题不处理", enter("# 标题") == null);
         check("空行不处理", enter("") == null);
@@ -92,7 +80,6 @@ public class CheckMarkdownEdit {
         check("不在回车之后调用则不处理",
                 MarkdownEditKt.continueListOnNewline("- foo", 3) == null);
 
-        // ---------------- Tab 缩进 ----------------
         EditResult ind = MarkdownEditKt.indentLines("a\nb\nc", 0, 0, false);
         eq("光标处整行缩进", ind, "  a\nb\nc");
         caret("缩进后光标右移两格", ind, 2);
@@ -104,7 +91,6 @@ public class CheckMarkdownEdit {
         check("多行缩进后选区终点右移 6（0..5 → 2..11）",
                 multi != null && multi.getSelectionEnd() == 11);
 
-        // 选区正好停在行首：不该把下一行也缩进
         EditResult firstLineOnly = MarkdownEditKt.indentLines("a\nb", 0, 2, false);
         eq("选区停在行首时不含下一行", firstLineOnly, "  a\nb");
 

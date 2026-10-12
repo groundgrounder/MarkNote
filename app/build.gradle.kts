@@ -12,27 +12,13 @@ android {
         applicationId = "com.marknote.app"
         minSdk = 26
         targetSdk = 35
-        versionCode = 19
-        versionName = "1.5.2"
+        versionCode = 20
+        versionName = "1.6.0"
     }
 
-    /**
-     * 打包签名。
-     *
-     * 默认的 debug 签名是 AGP 在 `~/.android/debug.keystore` 不存在时**现场随机生成**的钥匙：
-     * CI 每换一台新机器就是一把新的，于是每个 Release 包签名都不同，用户覆盖安装会被系统拒绝
-     * （`INSTALL_FAILED_UPDATE_INCOMPATIBLE: signatures do not match`）。
-     *
-     * 所以这里固定用一把钥匙：`keystore/marknote.jks` 存在就用它（CI 从仓库 secret 还原，
-     * 本地有这个文件也用），不存在才退回默认 debug 签名 —— 这样刚 clone 的机器上开发环境
-     * 照样能构建，只是签出来的包不能与正式包互相覆盖。
-     *
-     * 这把钥匙只用于「sideload 用的 Debug 构建」，密码写在这里不成问题；将来若要上架商店，
-     * 得另起一对 release 签名，并且不能与它共用。
-     */
+    val keystoreFile = rootProject.file("keystore/marknote.jks")
     signingConfigs {
         getByName("debug") {
-            val keystoreFile = rootProject.file("keystore/marknote.jks")
             if (keystoreFile.exists()) {
                 storeFile = keystoreFile
                 storePassword = "marknote"
@@ -40,11 +26,23 @@ android {
                 keyPassword = "marknote"
             }
         }
+        create("release") {
+            if (keystoreFile.exists()) {
+                storeFile = keystoreFile
+                storePassword = providers.environmentVariable("MARKNOTE_KEYSTORE_PASSWORD")
+                    .orElse("marknote").get()
+                keyAlias = providers.environmentVariable("MARKNOTE_KEY_ALIAS")
+                    .orElse("marknote").get()
+                keyPassword = providers.environmentVariable("MARKNOTE_KEY_PASSWORD")
+                    .orElse("marknote").get()
+            }
+        }
     }
 
     buildTypes {
         release {
             isMinifyEnabled = false
+            if (keystoreFile.exists()) signingConfig = signingConfigs.getByName("release")
         }
     }
 
@@ -76,13 +74,11 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.5")
     implementation("androidx.documentfile:documentfile:1.0.1")
 
-    // Markdown 渲染（现成库，View 体系，经 AndroidView 嵌入 Compose）
     implementation("io.noties.markwon:core:4.6.2")
     implementation("io.noties.markwon:ext-strikethrough:4.6.2")
     implementation("io.noties.markwon:image:4.6.2")
     implementation("io.noties.markwon:ext-tables:4.6.2")
-    // LaTeX 公式（$$…$$ 行内、独占一行的 $$ 块级）。ext-latex 的行内公式是装在
-    // inline-parser 上的，所以 inline-parser 必须一起引入
+
     implementation("io.noties.markwon:inline-parser:4.6.2")
     implementation("io.noties.markwon:ext-latex:4.6.2")
 

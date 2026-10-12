@@ -82,6 +82,11 @@ Grab the latest APK (`MarkNote-vX.Y.Z.apk`) from [Releases](https://github.com/g
 <details>
 <summary><b>📜 Version History</b></summary>
 
+### v1.6.0
+* **Large Document Performance:** Moved syntax highlighting, outline parsing, statistics, and preview updates off the main thread with size-aware debouncing.
+* **Safer File Access:** Bounded document reads, preserved source encodings, and added stronger checks for external image data.
+* **Code Cleanup:** Simplified recent-document and time-formatting storage, removed unused artifacts, and standardized code comments in English.
+
 ### v1.5.2
 * **Folder Operations:** Create, rename, and delete files/folders directly within the workspace folder (via long-press menus).
 * **Smart "New" Action:** Adapts to current view. Creates inside the active directory in folder view, or asks where to place it in the recent list view.

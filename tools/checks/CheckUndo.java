@@ -2,15 +2,6 @@ import com.marknote.app.ui.editor.TextEdit;
 import com.marknote.app.ui.editor.UndoOutcome;
 import com.marknote.app.ui.editor.UndoStack;
 
-/**
- * UndoStack 的纯逻辑断言。不依赖 Android、不需要模拟器，秒级完成。
- *
- * 为什么走 JVM 而不是 app/src/test：那个源集要引 JUnit，引就得联网拉包；而这些断言测的
- * （差分边界、合并规则、双重上限、自救清栈、光标）完全不需要 Android 运行时。
- * UndoStack.kt 本身零 Android 依赖，把它编出来的 class 拿来跑就行。
- *
- * 前置：无（脚本自己会先 compileDebugKotlin，不必先 assembleDebug）。用法：tools/run_checks.sh
- */
 public class CheckUndo {
 
     static int pass = 0;
@@ -72,7 +63,6 @@ public class CheckUndo {
         TextEdit e = UndoStack.diff("hello", "");
         check("全删：删 hello", e.getRemoved().equals("hello") && e.getInserted().isEmpty());
 
-        // 公共前缀优先，所以是「在 3 处补 aaa」而不是「整段替换」
         TextEdit f = UndoStack.diff("aaa", "aaaaaa");
         check("重复文本按前缀切分", f.getStart() == 3 && f.getRemoved().isEmpty() && f.getInserted().equals("aaa"));
 
@@ -80,10 +70,6 @@ public class CheckUndo {
         check("完全不同的两字符整段替换", g.getStart() == 0 && g.getRemoved().equals("ab") && g.getInserted().equals("ba"));
     }
 
-    /**
-     * 前缀与后缀不能重叠，否则会算出负区间。
-     * 这几个用例是「短字符串 + 增删一个字符」，正是重叠最容易发生的地方。
-     */
     static void diffOverlapSafety() {
         TextEdit a = UndoStack.diff("a", "aa");
         check("a -> aa 不重叠", a.getStart() == 1 && a.getRemoved().isEmpty() && a.getInserted().equals("a"));
@@ -125,7 +111,6 @@ public class CheckUndo {
         check("新改动后仍可重做被清掉", !s.getCanRedo());
     }
 
-    /** 连打三个字应当只算一步——撤销一次退掉整段输入 */
     static void coalesceTyping() {
         UndoStack s = new UndoStack();
         s.record("", "a", 0L);
@@ -147,7 +132,6 @@ public class CheckUndo {
         check("一次撤销恢复整段删除", u != null && u.getText().equals("abc"));
     }
 
-    /** 删一个字再打一个字是两次意图，不能并成一步 */
     static void noCoalesceAcrossKinds() {
         UndoStack s = new UndoStack();
         s.record("abc", "ab", 0L);
@@ -172,21 +156,14 @@ public class CheckUndo {
         check("coalesce=false 不合并", s.getUndoDepth() == 2);
     }
 
-    /**
-     * coalesce=false 是双向屏障：它自己不与之前的输入合并，也要挡住紧随其后的输入。
-     *
-     * 真实场景：点工具栏 H1 插入「# 」后立刻打标题——若让后面的输入并进来，
-     * 撤销一次会把「# 」和刚打的标题一起退掉，与「工具栏插入各自单独成步」的意图相反。
-     * （这条曾经漏测：原断言只验了「不并进上一条」这一个方向。）
-     */
     static void noCoalesceBarrierForNext() {
         UndoStack s = new UndoStack();
         s.record("", "ab", 0L);
-        s.record("ab", "ab# ", 10L, false);   // 工具栏插入：独立一步
+        s.record("ab", "ab# ", 10L, false);
         int afterToolbar = s.getUndoDepth();
-        s.record("ab# ", "ab# x", 20L);        // 紧随其后的打字（远在合并阈值内）
+        s.record("ab# ", "ab# x", 20L);
         check("工具栏插入后紧接着打字不会并进去", s.getUndoDepth() == afterToolbar + 1);
-        // 而且撤销这一次只应退回刚打的字，工具栏那次还得留着
+
         UndoOutcome first = s.undo("ab# x");
         check("撤销一次只退掉刚打的字", first != null && first.getText().equals("ab# "));
         check("工具栏插入仍在栈上", s.getCanUndo());
@@ -203,20 +180,19 @@ public class CheckUndo {
 
     static void entryCap() {
         UndoStack s = new UndoStack(3, 1_000_000, 600L);
-        // 间隔拉大，避免被合并
+
         for (int i = 0; i < 6; i++) {
             s.record("x" + i, "x" + i + "y", i * 1000L);
         }
         check("条目数不超过上限 3", s.getUndoDepth() == 3);
         check("淘汰后仍可撤销", s.getCanUndo());
 
-        // 被淘汰的是最老的那条，所以只能退回最近 3 步
         UndoOutcome u1 = s.undo("x5y");
         check("最近一步可正常撤销", u1 != null && u1.getText().equals("x5"));
     }
 
     static void charCap() {
-        // 总字符预算 10，每次插入 4 字符（间隔大、不合并）
+
         UndoStack s = new UndoStack(100, 10, 600L);
         String text = "";
         for (int i = 0; i < 5; i++) {
@@ -228,17 +204,12 @@ public class CheckUndo {
         check("字符预算下仍可撤销", s.getCanUndo());
     }
 
-    /**
-     * 已知取舍：单次改动本身就超过字符预算时，trim() 会把它当场淘汰，
-     * 于是这次操作撤销不了。大文档上「替换全部」会撞上这个边界。
-     */
     static void oversizedSingleEdit() {
         UndoStack s = new UndoStack(100, 10, 600L);
-        s.record("", "0123456789ABCDEF", 0L, false); // 16 字符，超过预算 10
+        s.record("", "0123456789ABCDEF", 0L, false);
         check("单次改动超预算时无法撤销（已知取舍）", !s.getCanUndo());
     }
 
-    /** 文本与栈对不上时不能硬改，否则会静默损坏正文 */
     static void desyncClearsStack() {
         UndoStack s = new UndoStack();
         s.record("abc", "abcX", 0L);
@@ -251,7 +222,7 @@ public class CheckUndo {
         UndoStack s = new UndoStack();
         s.record("abc", "abcX", 0L);
         UndoOutcome u = s.undo("abcX");
-        // 插入起点是 3、删掉的是空串，撤销后光标回到 3
+
         check("撤销后光标在被恢复内容末尾", u != null && u.getCaret() == 3);
         UndoOutcome r = s.redo("abc");
         check("重做后光标在插入内容末尾", r != null && r.getCaret() == 4);
@@ -259,48 +230,42 @@ public class CheckUndo {
         UndoStack s2 = new UndoStack();
         s2.record("hello world", "hello", 0L);
         UndoOutcome u2 = s2.undo("hello");
-        // 删除起点 5、删掉 " world"（6 字符），撤销后光标应在 11
+
         check("撤销删除后光标在恢复内容末尾", u2 != null && u2.getCaret() == 11);
         check("撤销删除恢复了内容", u2 != null && u2.getText().equals("hello world"));
     }
 
-    /** MarkNote 实际的四个入口各自长什么样：工具栏包裹、单处替换、全部替换、外部整份替换 */
     static void markdownCases() {
-        // 工具栏加粗：在选区两侧插 **，应可一步撤销回原文
+
         UndoStack s = new UndoStack();
         s.record("hello", "**hello**", 0L, false);
         UndoOutcome u = s.undo("**hello**");
         check("工具栏包裹可一步撤销", u != null && u.getText().equals("hello"));
 
-        // 标题前缀插入（无选区时的 H1）
         UndoStack s2 = new UndoStack();
         s2.record("text", "# text", 0L, false);
         UndoOutcome u2 = s2.undo("# text");
         check("标题前缀可一步撤销", u2 != null && u2.getText().equals("text"));
 
-        // 单处替换：替换串比匹配串长，撤销要回到原文
         UndoStack s3 = new UndoStack();
         s3.record("a foo b", "a foobar b", 0L, false);
         UndoOutcome u3 = s3.undo("a foobar b");
         check("单处替换可一步撤销", u3 != null && u3.getText().equals("a foo b"));
 
-        // 全部替换：多处同时改动，仍是一个单段差分
         UndoStack s4 = new UndoStack();
         s4.record("x-x-x", "y-y-y", 0L, false);
         UndoOutcome u4 = s4.undo("y-y-y");
         check("全部替换可一步撤销", u4 != null && u4.getText().equals("x-x-x"));
 
-        // 重开文档重新读盘（syncFromDiskIfClean）会整份换掉正文，之后必须靠校验自救
         UndoStack s5 = new UndoStack();
         s5.record("local edit", "local edit!", 0L);
         s5.record("local edit!", "local edit!!", 20L);
         check("两次输入已合并", s5.getUndoDepth() == 1);
-        // 外部把文件改成了完全不同的内容，栈里的记忆失效
+
         UndoOutcome u5 = s5.undo("# 完全另一份文档\n\n正文");
         check("外部整份替换后撤销返回 null", u5 == null);
         check("外部整份替换后栈已清空", !s5.getCanUndo() && !s5.getCanRedo());
 
-        // 多行文本 + 换行的往返
         String before = "# 标题\n\n- 一\n- 二\n";
         String after = "# 标题\n\n- 一\n- 二\n- 三\n";
         UndoStack s6 = new UndoStack();

@@ -6,19 +6,6 @@ import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-/**
- * 单 `$` 行内公式的边界规则断言（纯逻辑，不需要模拟器）。
- *
- * 守的两条：
- * 1. **该认的要认**：$\\alpha$、$x^2 + y^2$ 这类要被识别成公式；
- * 2. **不该认的别认**：「$5 到 $10」这种金额、`$ x$`、`$x $`、`$x$1` 都不能被吃掉——
- *    误判的代价是用户正文里的字符消失，比「公式没渲染」严重得多。
- *
- * 还有一条守的是大纲跳转：标题里带单 `$` 公式时，plainTitle 必须跟渲染文本一样
- * 把分隔符剥掉，否则 indexOf 落空、跳转静默退化成「大概位置」。
- *
- * 用法：tools/run_checks.sh
- */
 public class CheckLatexMath {
 
     static int pass = 0;
@@ -42,15 +29,10 @@ public class CheckLatexMath {
         check(name, ok);
     }
 
-    // ---------- 从某个位置开始能否匹配（处理器的 matchAt 语义） ----------
-
     static boolean matchesAtStart(String s) {
-        // lookingAt() == Kotlin 的 Regex.matchAt(s, 0)：必须从当前位置开始算匹配，
-        // 不能像 find() 那样允许往后跳（那正是 ext-latex 自带处理器的毛病）
+
         return LatexMathKt.getInlineMathPattern().toPattern().matcher(s).lookingAt();
     }
-
-    // ---------- 整段里被识别为公式的内容（验证金额不被误判） ----------
 
     static List<String> formulasIn(String s) {
         List<String> out = new ArrayList<>();
@@ -71,9 +53,7 @@ public class CheckLatexMath {
                 "[\\alpha, \\beta]");
         eq("公式里可以有空格", formulasIn("$a b$").toString(), "[a b]");
         eq("公式后面紧跟中文标点仍识别", formulasIn("$x$，以及 $y$。").toString(), "[x, y]");
-        // 两个单美元公式紧贴属于畸形写法（真实文档不会这么写）。
-        // 这个位置与「金额紧挨 $$ 公式」同构，规则上选了后者，所以这里**记录**实际行为：
-        // 前者让位、后者照常识别，且不吞字符。断言这条是为了别让规则被无声改掉。
+
         eq("紧贴的两个单美元公式：前者让位（畸形输入，有意取舍）",
                 formulasIn("$x$$y$").toString(), "[y]");
     }
@@ -93,13 +73,10 @@ public class CheckLatexMath {
                 formulasIn("价格是 $5，另一个是 $10 元").toString(), "[]");
         eq("三个金额连写也不误判",
                 formulasIn("$10 到 $20 再到 $30").toString(), "[]");
-        // 闭 $ 落在后面那个 $$ 的第一个字符上：不挡的话会切出一个内容为「5，」的假公式，
-        // 顺带把真正的 $$…$$ 拆坏
+
         eq("紧挨着 $$ 的金额不被误判",
                 formulasIn("价格 $5，$$E=mc^2$$ 这一行").toString(), "[]");
     }
-
-    // ---------- 大纲跳转：标题里的单 $ 公式 ----------
 
     static String plainTitle(String s) {
         return MarkdownSyntaxKt.plainTitle(s);
