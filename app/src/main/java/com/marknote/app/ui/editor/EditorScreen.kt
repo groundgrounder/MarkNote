@@ -64,6 +64,7 @@ import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.input.OffsetMapping
 import androidx.compose.ui.text.input.TransformedText
 import androidx.compose.ui.text.input.VisualTransformation
@@ -162,7 +163,8 @@ fun EditorScreen(
     val colorScheme = MaterialTheme.colorScheme
     val highlighter = remember(colorScheme) { MarkdownHighlighter(colorScheme) }
     val sourceText = viewModel.content.text
-    var highlighted by remember(sourceText, highlighter) { mutableStateOf(highlighter.highlight("")) }
+    // Keep the transformed text the same length as the source until background highlighting finishes.
+    var highlighted by remember(sourceText) { mutableStateOf(AnnotatedString(sourceText)) }
     LaunchedEffect(sourceText, highlighter) {
         delay(documentWorkDelay(sourceText.length))
         val result = withContext(Dispatchers.Default) { highlighter.highlight(sourceText) }
