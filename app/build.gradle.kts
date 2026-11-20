@@ -17,13 +17,22 @@ android {
     }
 
     val keystoreFile = rootProject.file("keystore/marknote.jks")
+    val aiStudioDebugKeystore = rootProject.file("debug.keystore")
     signingConfigs {
         getByName("debug") {
-            if (keystoreFile.exists()) {
-                storeFile = keystoreFile
-                storePassword = "marknote"
-                keyAlias = "marknote"
-                keyPassword = "marknote"
+            when {
+                aiStudioDebugKeystore.exists() -> {
+                    storeFile = aiStudioDebugKeystore
+                    storePassword = "android"
+                    keyAlias = "androiddebugkey"
+                    keyPassword = "android"
+                }
+                keystoreFile.exists() -> {
+                    storeFile = keystoreFile
+                    storePassword = "marknote"
+                    keyAlias = "marknote"
+                    keyPassword = "marknote"
+                }
             }
         }
         create("release") {
@@ -40,6 +49,9 @@ android {
     }
 
     buildTypes {
+        debug {
+            signingConfig = signingConfigs.getByName("debug")
+        }
         release {
             isMinifyEnabled = false
             if (keystoreFile.exists()) signingConfig = signingConfigs.getByName("release")
