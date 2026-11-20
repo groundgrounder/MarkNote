@@ -119,4 +119,15 @@
     <string name="image_decode_data_failed">Imago data decodificari non potest</string>
     <string name="image_error_generic">Imago ostendi non potest</string>
     <string name="image_not_found">Haec imago in plica permissa non est: %1$s</string>
+    <string name="open_file">Fasciculum aperire</string>
+    <string name="filter_files">Fasciculos filtrare</string>
+    <string name="no_matching_files">Nulli fasciculi congruentes</string>
+    <string name="document_too_large_title">Fasciculus nimis magnus</string>
+    <string name="document_too_large_message">Ut recensio expedita maneat, MarkNote fasciculos usque ad %1$d MB tantum aperit.</string>
+    <string name="match_case">Litteras maiores distinguere</string>
+    <string name="replaced_count">Substituta: %1$d</string>
+    <string name="md_task">Pensum</string>
+    <string name="md_inline_code">Codex in linea</string>
+    <string name="md_indent">Inducere</string>
+    <string name="md_outdent">Reducere</string>
 </resources>

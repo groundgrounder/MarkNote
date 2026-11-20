@@ -44,10 +44,35 @@ class MarkdownHighlighter(private val colors: ColorScheme) {
         )
     }
 
-    fun highlight(text: String): AnnotatedString = buildAnnotatedString {
+    private val searchMatchStyle by lazy {
+        SpanStyle(background = colors.primaryContainer, color = colors.onPrimaryContainer)
+    }
+
+    private val currentMatchStyle by lazy {
+        SpanStyle(background = colors.primary, color = colors.onPrimary)
+    }
+
+    fun highlight(text: String): AnnotatedString = build(text, highlightRanges(text))
+
+    fun build(
+        text: String,
+        spans: List<HighlightSpan>,
+        searchMatches: List<IntRange> = emptyList(),
+        currentMatch: IntRange? = null,
+    ): AnnotatedString = buildAnnotatedString {
         append(text)
-        for (span in highlightRanges(text)) {
-            addStyle(styleOf.getValue(span.kind), span.start, span.endExclusive)
+        val len = text.length
+        for (span in spans) {
+            val start = span.start.coerceIn(0, len)
+            val end = span.endExclusive.coerceIn(start, len)
+            if (start < end) addStyle(styleOf.getValue(span.kind), start, end)
+        }
+        for (range in searchMatches) {
+            val start = range.first.coerceIn(0, len)
+            val end = (range.last + 1).coerceIn(start, len)
+            if (start >= end) continue
+            val isCurrent = currentMatch != null && currentMatch.first == range.first
+            addStyle(if (isCurrent) currentMatchStyle else searchMatchStyle, start, end)
         }
     }
 }

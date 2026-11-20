@@ -82,6 +82,11 @@ Grab the latest APK (`MarkNote-vX.Y.Z.apk`) from [Releases](https://github.com/g
 <details>
 <summary><b>📜 Version History</b></summary>
 
+### v1.6.1
+* **Editor & Preview Polish:** Added interactive task checkbox toggling in preview, search match highlighting in editor, case-sensitive search toggle (`Aa`), toolbar buttons for indent/outdent/task list/inline code, and faster off-main-thread preview parsing.
+* **File Browsing & Image Handling:** Added quick file filtering and direct file picker button in the file list, bounded parallel SAF probing, single-pass relative image lookup with EXIF rotation and automatic downsampling, and clearer loading / size-limit feedback.
+* **Architecture & Reliability:** Unified unsaved-changes navigation guard (including external intents and two-pane switching), moved file/folder/image-tree I/O into ViewModels with reactive updates, enabled R8 release shrinking, and fixed search cursor-jumping, rename/delete sync, and filename validation edge cases.
+
 ### v1.6.0
 * **Large Document Performance:** Moved syntax highlighting, outline parsing, statistics, and preview updates off the main thread with size-aware debouncing.
 * **Safer File Access:** Bounded document reads, preserved source encodings, and added stronger checks for external image data.

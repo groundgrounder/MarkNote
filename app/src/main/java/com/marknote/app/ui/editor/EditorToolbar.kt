@@ -7,7 +7,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.FormatIndentDecrease
+import androidx.compose.material.icons.automirrored.outlined.FormatIndentIncrease
 import androidx.compose.material.icons.automirrored.outlined.FormatListBulleted
+import androidx.compose.material.icons.outlined.CheckBox
 import androidx.compose.material.icons.outlined.Code
 import androidx.compose.material.icons.outlined.FormatQuote
 import androidx.compose.material.icons.outlined.HorizontalRule
@@ -19,8 +22,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
@@ -42,6 +43,7 @@ private fun markdownActions(): List<MarkdownAction> = listOf(
     MarkdownAction("B", "**", "**", stringResource(R.string.md_bold)),
     MarkdownAction("I", "*", "*", stringResource(R.string.md_italic)),
     MarkdownAction("S", "~~", "~~", stringResource(R.string.md_strikethrough)),
+    MarkdownAction("`", "`", "`", stringResource(R.string.md_inline_code)),
     MarkdownAction(
         stringResource(R.string.md_quote), "> ",
         placeholder = stringResource(R.string.md_quote),
@@ -51,6 +53,11 @@ private fun markdownActions(): List<MarkdownAction> = listOf(
         stringResource(R.string.md_list), "- ",
         placeholder = stringResource(R.string.md_list_item),
         icon = Icons.AutoMirrored.Outlined.FormatListBulleted,
+    ),
+    MarkdownAction(
+        stringResource(R.string.md_task), "- [ ] ",
+        placeholder = stringResource(R.string.md_list_item),
+        icon = Icons.Outlined.CheckBox,
     ),
     MarkdownAction(
         stringResource(R.string.md_link), "[", "](https://)",
@@ -75,18 +82,36 @@ internal fun markdownActionByLabel(label: String): MarkdownAction? =
 @Composable
 internal fun MarkdownToolbar(
     onAction: (MarkdownAction) -> Unit,
+    onIndent: (outdent: Boolean) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Surface(modifier = modifier.fillMaxWidth()) {
         Column {
             HorizontalDivider()
-
             val actions = markdownActions()
             LazyRow(
-                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp),
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
+                horizontalArrangement = Arrangement.spacedBy(2.dp),
             ) {
-                items(actions) { action ->
+                item(key = "outdent") {
+                    IconButton(onClick = { onIndent(true) }) {
+                        Icon(
+                            Icons.AutoMirrored.Outlined.FormatIndentDecrease,
+                            contentDescription = stringResource(R.string.md_outdent),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+                item(key = "indent") {
+                    IconButton(onClick = { onIndent(false) }) {
+                        Icon(
+                            Icons.AutoMirrored.Outlined.FormatIndentIncrease,
+                            contentDescription = stringResource(R.string.md_indent),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+                items(actions, key = { it.label }) { action ->
                     IconButton(onClick = { onAction(action) }) {
                         if (action.icon != null) {
                             Icon(

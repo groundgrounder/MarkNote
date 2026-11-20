@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="open_file">打开文件</string>
+    <string name="filter_files">筛选文件</string>
+    <string name="no_matching_files">没有匹配的文件</string>
+    <string name="document_too_large_title">文件过大</string>
+    <string name="document_too_large_message">为保证编辑流畅，MarkNote 仅支持打开不超过 %1$d MB 的文本文件。</string>
+    <string name="match_case">区分大小写</string>
+    <string name="replaced_count">已替换 %1$d 处</string>
+    <string name="md_task">任务</string>
+    <string name="md_inline_code">行内代码</string>
+    <string name="md_indent">缩进</string>
+    <string name="md_outdent">减少缩进</string>
+</resources>

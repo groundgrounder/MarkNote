@@ -30,6 +30,11 @@ internal fun NameInputDialog(
         mutableStateOf(TextFieldValue(initial, TextRange(initial.length)))
     }
     val trimmed = value.text.trim()
+    val isValidName = trimmed.isNotEmpty() &&
+        trimmed != "." &&
+        trimmed != ".." &&
+        '/' !in trimmed &&
+        '\u0000' !in trimmed
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -46,10 +51,9 @@ internal fun NameInputDialog(
             }
         },
         confirmButton = {
-
             TextButton(
                 onClick = { onConfirm(trimmed) },
-                enabled = trimmed.isNotEmpty(),
+                enabled = isValidName,
             ) { Text(confirmLabel) }
         },
         dismissButton = {

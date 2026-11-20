@@ -12,8 +12,8 @@ android {
         applicationId = "com.marknote.app"
         minSdk = 26
         targetSdk = 35
-        versionCode = 20
-        versionName = "1.6.0"
+        versionCode = 21
+        versionName = "1.6.1"
     }
 
     val keystoreFile = rootProject.file("keystore/marknote.jks")
@@ -53,7 +53,12 @@ android {
             signingConfig = signingConfigs.getByName("debug")
         }
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro",
+            )
             if (keystoreFile.exists()) signingConfig = signingConfigs.getByName("release")
         }
     }

@@ -1,7 +1,6 @@
 package com.marknote.app.ui.files
 
-import android.net.Uri
-import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
@@ -19,6 +18,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.InsertDriveFile
 import androidx.compose.material.icons.outlined.ArrowUpward
+import androidx.compose.material.icons.outlined.CreateNewFolder
 import androidx.compose.material.icons.outlined.Folder
 import androidx.compose.material.icons.outlined.FolderOpen
 import androidx.compose.material3.AlertDialog
@@ -30,85 +30,44 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.marknote.app.R
-import com.marknote.app.data.DocumentRepository
 import com.marknote.app.data.FolderEntry
 import com.marknote.app.ui.common.NameInputDialog
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
 @Composable
 fun FolderBrowser(
     viewModel: FileListViewModel,
-    repository: DocumentRepository,
     onOpenDocument: (uri: String, treeUri: String?) -> Unit,
     onOpenInNewWindow: (uri: String) -> Unit,
     onPickFolder: () -> Unit,
+    onCreateFolder: () -> Unit,
+    onDocumentRenamed: (oldUri: String, newUri: String, newName: String) -> Unit,
+    onDocumentDeleted: (uri: String) -> Unit,
     modifier: Modifier = Modifier,
-    refreshTick: Int = 0,
-    showHiddenFiles: Boolean = false,
+    filterQuery: String = "",
 ) {
-    val scope = rememberCoroutineScope()
-    val context = LocalContext.current
+    BackHandler(enabled = viewModel.canGoUp) { viewModel.goUp() }
+
     val treeUri = viewModel.folderTree
-
-    val everChosen = remember(treeUri) { treeUri == null && repository.folderTreeStored() != null }
-
-    var entries by remember { mutableStateOf<List<FolderEntry>>(emptyList()) }
-    var loading by remember { mutableStateOf(false) }
+    val entries = viewModel.folderEntries
+    val loading = viewModel.isFolderLoading
 
     var renameTarget by remember { mutableStateOf<FolderEntry?>(null) }
     var deleteTarget by remember { mutableStateOf<FolderEntry?>(null) }
 
-    val currentUri = viewModel.currentFolderUri
-    val currentName = viewModel.currentFolderName
-
-    LaunchedEffect(currentUri, refreshTick, showHiddenFiles, viewModel.folderRevision) {
-        val tree = treeUri ?: return@LaunchedEffect
-        val folder = currentUri ?: return@LaunchedEffect
-        loading = true
-        entries = repository.listFolder(Uri.parse(tree), Uri.parse(folder), showHiddenFiles)
-        loading = false
-    }
-
-    fun afterEdit(ok: Boolean, failMessage: Int) {
-        if (ok) {
-            viewModel.bumpFolderRevision()
-        } else {
-            Toast.makeText(context, failMessage, Toast.LENGTH_SHORT).show()
-        }
-    }
-
-    fun renameEntry(entry: FolderEntry, newName: String) {
-        scope.launch {
-            val ok = withContext(Dispatchers.IO) {
-                repository.renameDocument(Uri.parse(entry.uri), newName)
-            }
-            afterEdit(ok, R.string.rename_failed)
-        }
-    }
-
-    fun deleteEntry(entry: FolderEntry) {
-        scope.launch {
-            val ok = withContext(Dispatchers.IO) {
-                repository.deleteDocument(Uri.parse(entry.uri))
-            }
-            afterEdit(ok, R.string.delete_failed)
-        }
+    val visibleEntries = remember(entries, filterQuery) {
+        val q = filterQuery.trim()
+        if (q.isEmpty()) entries else entries.filter { it.name.contains(q, ignoreCase = true) }
     }
 
     Column(modifier.fillMaxSize()) {
@@ -116,11 +75,11 @@ fun FolderBrowser(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(start = 4.dp, end = 4.dp),
+                    .padding(horizontal = 4.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 IconButton(
-                    onClick = { viewModel.goUp() },
+                    onClick = viewModel::goUp,
                     enabled = viewModel.canGoUp,
                 ) {
                     Icon(
@@ -129,12 +88,18 @@ fun FolderBrowser(
                     )
                 }
                 Text(
-                    text = currentName,
+                    text = viewModel.currentFolderName,
                     style = MaterialTheme.typography.titleSmall,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f),
                 )
+                IconButton(onClick = onCreateFolder) {
+                    Icon(
+                        Icons.Outlined.CreateNewFolder,
+                        contentDescription = stringResource(R.string.new_folder),
+                    )
+                }
                 IconButton(onClick = onPickFolder) {
                     Icon(
                         Icons.Outlined.FolderOpen,
@@ -145,31 +110,20 @@ fun FolderBrowser(
         }
 
         when {
-
             !viewModel.folderResolved -> Unit
             treeUri == null -> FolderHint(
-                lostAccess = everChosen,
+                lostAccess = viewModel.folderEverChosen,
                 onPick = onPickFolder,
             )
-            entries.isEmpty() && !loading -> Box(
-                Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(
-                    text = stringResource(R.string.folder_empty),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.padding(24.dp),
-                )
-            }
+            entries.isEmpty() && !loading -> CenteredHint(stringResource(R.string.folder_empty))
+            visibleEntries.isEmpty() && !loading -> CenteredHint(stringResource(R.string.no_matching_files))
             else -> LazyColumn(
                 contentPadding = PaddingValues(
-                    start = 8.dp, end = 8.dp, top = 4.dp, bottom = 176.dp,
+                    start = 8.dp, end = 8.dp, top = 4.dp, bottom = 112.dp,
                 ),
                 verticalArrangement = Arrangement.spacedBy(2.dp),
             ) {
-                items(entries, key = { it.uri }) { entry ->
+                items(visibleEntries, key = { it.uri }) { entry ->
                     FolderRow(
                         entry = entry,
                         onClick = {
@@ -181,7 +135,6 @@ fun FolderBrowser(
                         },
                         onRename = { renameTarget = entry },
                         onDelete = { deleteTarget = entry },
-
                         onOpenInNewWindow = if (entry.isDirectory) {
                             null
                         } else {
@@ -201,8 +154,7 @@ fun FolderBrowser(
             onDismiss = { renameTarget = null },
             onConfirm = { name ->
                 renameTarget = null
-
-                if (name != entry.name) renameEntry(entry, name)
+                viewModel.renameEntry(entry, name, onDocumentRenamed)
             },
         )
     }
@@ -214,7 +166,6 @@ fun FolderBrowser(
             text = {
                 Text(
                     stringResource(
-
                         if (entry.isDirectory) {
                             R.string.delete_folder_message
                         } else {
@@ -228,7 +179,7 @@ fun FolderBrowser(
                 TextButton(
                     onClick = {
                         deleteTarget = null
-                        deleteEntry(entry)
+                        viewModel.deleteEntry(entry, onDocumentDeleted)
                     },
                 ) { Text(stringResource(R.string.delete)) }
             },
@@ -237,6 +188,19 @@ fun FolderBrowser(
                     Text(stringResource(R.string.cancel))
                 }
             },
+        )
+    }
+}
+
+@Composable
+private fun CenteredHint(message: String) {
+    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        Text(
+            text = message,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.padding(24.dp),
         )
     }
 }

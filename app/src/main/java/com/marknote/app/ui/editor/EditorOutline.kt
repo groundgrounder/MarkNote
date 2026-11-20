@@ -19,8 +19,6 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -95,9 +93,10 @@ private fun OutlineList(
         LazyColumn(
             contentPadding = PaddingValues(bottom = 32.dp),
         ) {
-            items(outline) { heading ->
+            items(outline, key = { it.offset }) { heading ->
+                val displayTitle = plainTitle(heading.title).ifEmpty { heading.title }
                 Text(
-                    text = heading.title,
+                    text = displayTitle,
                     style = if (heading.level <= 2) MaterialTheme.typography.titleSmall
                     else MaterialTheme.typography.bodyMedium,
                     fontWeight = if (heading.level <= 2) FontWeight.Bold else FontWeight.Normal,

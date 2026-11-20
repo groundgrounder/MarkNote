@@ -13,13 +13,17 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.ErrorOutline
 import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -27,6 +31,19 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.marknote.app.R
+import kotlinx.coroutines.delay
+
+@Composable
+internal fun DocumentLoading() {
+    var visible by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        delay(120)
+        visible = true
+    }
+    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        if (visible) CircularProgressIndicator()
+    }
+}
 
 @Composable
 internal fun DocumentNotice(
@@ -69,6 +86,35 @@ internal fun DocumentUnavailable(
     onRetry: () -> Unit,
     onBack: () -> Unit,
 ) {
+    ErrorPlaceholder(
+        title = stringResource(R.string.document_unavailable_title),
+        message = stringResource(R.string.document_unavailable_message),
+    ) {
+        Button(onClick = onRegrant) { Text(stringResource(R.string.regrant)) }
+        TextButton(onClick = onRetry) { Text(stringResource(R.string.retry)) }
+        TextButton(onClick = onBack) { Text(stringResource(R.string.back)) }
+    }
+}
+
+@Composable
+internal fun DocumentTooLarge(
+    limitMb: Int,
+    onBack: () -> Unit,
+) {
+    ErrorPlaceholder(
+        title = stringResource(R.string.document_too_large_title),
+        message = stringResource(R.string.document_too_large_message, limitMb),
+    ) {
+        Button(onClick = onBack) { Text(stringResource(R.string.back)) }
+    }
+}
+
+@Composable
+private fun ErrorPlaceholder(
+    title: String,
+    message: String,
+    actions: @Composable () -> Unit,
+) {
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -80,23 +126,16 @@ internal fun DocumentUnavailable(
                 tint = MaterialTheme.colorScheme.error,
             )
             Spacer(Modifier.height(12.dp))
-            Text(
-                stringResource(R.string.document_unavailable_title),
-                style = MaterialTheme.typography.titleMedium,
-            )
+            Text(title, style = MaterialTheme.typography.titleMedium)
             Spacer(Modifier.height(8.dp))
             Text(
-                text = stringResource(R.string.document_unavailable_message),
+                text = message,
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
             )
             Spacer(Modifier.height(20.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(onClick = onRegrant) { Text(stringResource(R.string.regrant)) }
-                TextButton(onClick = onRetry) { Text(stringResource(R.string.retry)) }
-                TextButton(onClick = onBack) { Text(stringResource(R.string.back)) }
-            }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) { actions() }
         }
     }
 }

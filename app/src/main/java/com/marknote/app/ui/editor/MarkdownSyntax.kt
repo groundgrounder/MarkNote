@@ -72,13 +72,18 @@ private fun fenceOf(line: String): Pair<Char, Int>? {
     return c to len
 }
 
-internal fun findMatches(text: String, query: String): List<IntRange> {
+@JvmOverloads
+internal fun findMatches(
+    text: String,
+    query: String,
+    ignoreCase: Boolean = false,
+): List<IntRange> {
     if (query.isEmpty() || text.isEmpty()) return emptyList()
     val result = mutableListOf<IntRange>()
-    var i = text.indexOf(query)
+    var i = text.indexOf(query, ignoreCase = ignoreCase)
     while (i >= 0) {
         result.add(i until i + query.length)
-        i = text.indexOf(query, i + query.length)
+        i = text.indexOf(query, i + query.length, ignoreCase = ignoreCase)
     }
     return result
 }
@@ -353,6 +358,44 @@ internal fun findHeadingByAnchor(headings: List<Heading>, anchor: String): Headi
         val slug = stripped.lowercase()
         headings.firstOrNull { anchorSlug(plainTitle(it.title)) == slug }?.let { return it }
         headings.firstOrNull { plainTitle(it.title).lowercase() == slug }?.let { return it }
+    }
+    return null
+}
+
+private val sourceTaskLinePattern = Regex("""^([ \t]*(?:>[ \t]*)*(?:[-*+]|\d+[.)])[ \t]+\[)([ xX])(\](?=\s|$))""")
+
+internal fun toggleTaskCheckbox(markdown: String, taskIndex: Int): EditResult? {
+    if (taskIndex < 0) return null
+    var offset = 0
+    var seen = 0
+    var fence: Pair<Char, Int>? = null
+    for (line in markdown.split("\n")) {
+        val trimmed = line.trimStart()
+        val mark = fenceOf(trimmed)
+        val current = fence
+        when {
+            current != null -> {
+                if (mark != null && mark.first == current.first && mark.second >= current.second &&
+                    trimmed.substring(mark.second).isBlank()
+                ) {
+                    fence = null
+                }
+            }
+            mark != null -> fence = mark
+            else -> {
+                val match = sourceTaskLinePattern.find(line)
+                if (match != null) {
+                    if (seen == taskIndex) {
+                        val statePos = offset + match.groupValues[1].length
+                        val nextChar = if (match.groupValues[2] == " ") "x" else " "
+                        val updated = markdown.replaceRange(statePos, statePos + 1, nextChar)
+                        return EditResult(updated, statePos + 1, statePos + 1)
+                    }
+                    seen++
+                }
+            }
+        }
+        offset += line.length + 1
     }
     return null
 }

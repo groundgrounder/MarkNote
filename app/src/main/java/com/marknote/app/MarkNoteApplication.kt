@@ -4,9 +4,14 @@ import android.app.Application
 import android.content.res.Configuration
 import android.content.res.Resources
 import com.marknote.app.data.AppLocaleStore
+import com.marknote.app.data.DocumentRepository
+import com.marknote.app.data.SettingsRepository
 import java.util.Locale
 
 class MarkNoteApplication : Application() {
+
+    val documentRepository: DocumentRepository by lazy { DocumentRepository(this) }
+    val settingsRepository: SettingsRepository by lazy { SettingsRepository(this) }
 
     private var localizedResources: Resources? = null
     private var localizedTag: String? = null

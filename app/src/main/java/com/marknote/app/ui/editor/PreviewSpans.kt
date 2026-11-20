@@ -85,3 +85,17 @@ internal class AnchorLinkSpan(
         ds.color = linkColor
     }
 }
+
+internal class TaskBoxClickSpan(
+    private val taskIndex: Int,
+    private val onToggle: (Int) -> Unit,
+) : ClickableSpan() {
+
+    override fun onClick(widget: View) {
+        onToggle(taskIndex)
+    }
+
+    override fun updateDrawState(ds: TextPaint) {
+        // Visual appearance is rendered by TaskBoxSpan.
+    }
+}

@@ -8,8 +8,21 @@ import android.os.Process
 import android.provider.DocumentsContract
 import android.provider.OpenableColumns
 import android.system.Os
+import android.util.Log
 import com.marknote.app.R
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import java.io.ByteArrayOutputStream
 import java.io.InputStream
@@ -22,22 +35,63 @@ data class DocumentMeta(
     val openedAt: Long,
 )
 
+sealed interface DocumentReadResult {
+    data class Success(val document: DecodedText) : DocumentReadResult
+    data class TooLarge(val limitMb: Int) : DocumentReadResult
+    data object Unavailable : DocumentReadResult
+}
+
+sealed interface DocumentEvent {
+    data class Renamed(val oldUri: String, val newUri: String, val newName: String) : DocumentEvent
+    data class Deleted(val uri: String) : DocumentEvent
+}
+
 class DocumentRepository(private val context: Context) {
 
     private val prefs = context.getSharedPreferences("recent_docs", Context.MODE_PRIVATE)
     private val recentStore = RecentDocumentsStore(prefs)
-
     private val timeFormatter = DocumentTimeFormatter(context)
 
-    suspend fun readDocument(uri: Uri): DecodedText? = withContext(Dispatchers.IO) {
-        runCatching {
-            context.contentResolver.openInputStream(uri)?.use { input ->
-                input.readBounded(MAX_DOCUMENT_BYTES)?.let(TextEncoding::decode)
-            }
-        }.getOrNull()
+    private val _recentsVersion = MutableStateFlow(0L)
+    val recentsVersion: StateFlow<Long> = _recentsVersion.asStateFlow()
+
+    private val _folderVersion = MutableStateFlow(0L)
+    val folderVersion: StateFlow<Long> = _folderVersion.asStateFlow()
+
+    private val _documentEvents = MutableSharedFlow<DocumentEvent>(extraBufferCapacity = 8)
+    val documentEvents: SharedFlow<DocumentEvent> = _documentEvents.asSharedFlow()
+
+    private fun notifyRecentsChanged() {
+        _recentsVersion.update { it + 1L }
     }
 
-    private fun InputStream.readBounded(limit: Int): ByteArray? {
+    private fun notifyFolderChanged() {
+        _folderVersion.update { it + 1L }
+    }
+
+    suspend fun readDocumentResult(uri: Uri): DocumentReadResult = withContext(Dispatchers.IO) {
+        val statSize = runCatching {
+            context.contentResolver.openFileDescriptor(uri, "r")?.use { it.statSize }
+        }.getOrNull()
+        if (statSize != null && statSize > MAX_DOCUMENT_BYTES) {
+            return@withContext DocumentReadResult.TooLarge(MAX_DOCUMENT_MB)
+        }
+        runCatching {
+            context.contentResolver.openInputStream(uri)?.use { input ->
+                when (val bounded = input.readBounded(MAX_DOCUMENT_BYTES)) {
+                    is BoundedRead.Ok -> DocumentReadResult.Success(TextEncoding.decode(bounded.bytes))
+                    BoundedRead.TooLarge -> DocumentReadResult.TooLarge(MAX_DOCUMENT_MB)
+                }
+            } ?: DocumentReadResult.Unavailable
+        }.getOrDefault(DocumentReadResult.Unavailable)
+    }
+
+    private sealed interface BoundedRead {
+        class Ok(val bytes: ByteArray) : BoundedRead
+        data object TooLarge : BoundedRead
+    }
+
+    private fun InputStream.readBounded(limit: Int): BoundedRead {
         val out = ByteArrayOutputStream(minOf(limit, 64 * 1024))
         val buffer = ByteArray(16 * 1024)
         var total = 0
@@ -46,10 +100,10 @@ class DocumentRepository(private val context: Context) {
             if (count < 0) break
             if (count == 0) continue
             total += count
-            if (total > limit) return null
+            if (total > limit) return BoundedRead.TooLarge
             out.write(buffer, 0, count)
         }
-        return out.toByteArray()
+        return BoundedRead.Ok(out.toByteArray())
     }
 
     fun probe(uri: Uri, limit: Int = 512): String? = runCatching {
@@ -67,8 +121,9 @@ class DocumentRepository(private val context: Context) {
                 if (!writeOnce(uri, "wt", bytes) && !writeOnce(uri, "w", bytes)) {
                     return@runCatching false
                 }
-
-                lengthMatches(uri, bytes)
+                val ok = lengthMatches(uri, bytes)
+                if (ok) notifyRecentsChanged()
+                ok
             }.getOrDefault(false)
         }
 
@@ -80,16 +135,20 @@ class DocumentRepository(private val context: Context) {
         val size = runCatching {
             context.contentResolver.openFileDescriptor(uri, "r")?.use { it.statSize }
         }.getOrNull()
-
         return size == null || size < 0 || size == bytes.size.toLong()
     }
 
     fun displayName(uri: Uri): String {
         runCatching {
-            context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
-                val idx = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
-                if (idx >= 0 && cursor.moveToFirst()) {
-                    cursor.getString(idx)?.takeIf { it.isNotBlank() }?.let { return it }
+            context.contentResolver.query(
+                uri,
+                arrayOf(OpenableColumns.DISPLAY_NAME),
+                null,
+                null,
+                null,
+            )?.use { cursor ->
+                if (cursor.moveToFirst()) {
+                    cursor.getString(0)?.takeIf { it.isNotBlank() }?.let { return it }
                 }
             }
         }
@@ -118,7 +177,6 @@ class DocumentRepository(private val context: Context) {
     fun persistPermission(uri: Uri): Boolean {
         if (hasPersistedPermission(uri)) return true
         val resolver = context.contentResolver
-
         runCatching {
             resolver.takePersistableUriPermission(
                 uri,
@@ -146,18 +204,18 @@ class DocumentRepository(private val context: Context) {
     @Synchronized
     fun addToRecents(uri: Uri, treeUriString: String? = null) {
         val key = uri.toString()
-        val oldName = recentStore.nameFor(key)
         recentStore.add(
             uri = key,
-            name = oldName?.ifBlank { null } ?: displayName(uri),
+            name = displayName(uri),
             tree = treeUriString,
             time = System.currentTimeMillis(),
         )
+        notifyRecentsChanged()
     }
 
     @Synchronized
-    fun replaceRecent(oldUriString: String, newUri: Uri) {
-        if (oldUriString == newUri.toString()) {
+    fun replaceRecent(oldUriString: String, newUri: Uri, newNameOverride: String? = null) {
+        if (oldUriString == newUri.toString() && newNameOverride == null) {
             addToRecents(newUri)
             return
         }
@@ -166,34 +224,46 @@ class DocumentRepository(private val context: Context) {
             oldUri = oldUriString,
             entry = RecentEntry(
                 uri = newUri.toString(),
-                name = displayName(newUri).ifBlank { old?.name.orEmpty() },
+                name = newNameOverride?.ifBlank { null }
+                    ?: displayName(newUri).ifBlank { old?.name.orEmpty() },
                 time = old?.time ?: System.currentTimeMillis(),
                 tree = old?.tree,
             ),
         )
+        notifyRecentsChanged()
     }
 
     @Synchronized
     fun removeFromRecents(uriString: String) {
         recentStore.remove(uriString)
+        notifyRecentsChanged()
     }
 
     suspend fun recentDocuments(): List<DocumentMeta> = withContext(Dispatchers.IO) {
-        recentStore.entries().sortedByDescending { it.time }.map { entry ->
-            val uri = Uri.parse(entry.uri)
-            val head = probe(uri)
-            DocumentMeta(
-                uri = entry.uri,
-                name = entry.name.ifBlank { displayName(uri) },
-                snippet = head.orEmpty().lineSequence()
-                    .map { it.trim() }
-                    .filter { it.isNotEmpty() }
-                    .take(2)
-                    .joinToString("  ")
-                    .take(80),
-                accessible = head != null,
-                openedAt = entry.time,
-            )
+        val entries = recentStore.entries().sortedByDescending { it.time }
+        if (entries.isEmpty()) return@withContext emptyList()
+        val semaphore = Semaphore(RECENT_PROBE_CONCURRENCY)
+        coroutineScope {
+            entries.map { entry ->
+                async {
+                    semaphore.withPermit {
+                        val uri = Uri.parse(entry.uri)
+                        val head = probe(uri)
+                        DocumentMeta(
+                            uri = entry.uri,
+                            name = entry.name.ifBlank { displayName(uri) },
+                            snippet = head.orEmpty().lineSequence()
+                                .map { it.trim() }
+                                .filter { it.isNotEmpty() }
+                                .take(2)
+                                .joinToString("  ")
+                                .take(80),
+                            accessible = head != null,
+                            openedAt = entry.time,
+                        )
+                    }
+                }
+            }.awaitAll()
         }
     }
 
@@ -242,7 +312,7 @@ class DocumentRepository(private val context: Context) {
                 }
             }
         }.onFailure {
-            android.util.Log.w(TAG, "列文件夹失败：$folderUri", it)
+            Log.w(TAG, "Failed to list folder: $folderUri", it)
         }
         sortFolderEntries(entries)
     }
@@ -257,29 +327,56 @@ class DocumentRepository(private val context: Context) {
             val parentId = runCatching { DocumentsContract.getDocumentId(parentUri) }
                 .getOrElse { DocumentsContract.getTreeDocumentId(parentUri) }
             val parentDocUri = DocumentsContract.buildDocumentUriUsingTree(treeUri, parentId)
-
             val created = DocumentsContract.createDocument(
                 context.contentResolver,
                 parentDocUri,
                 mimeType,
                 displayName,
             ) ?: return@runCatching null
-            DocumentsContract.buildDocumentUriUsingTree(
+            val uri = DocumentsContract.buildDocumentUriUsingTree(
                 treeUri,
                 DocumentsContract.getDocumentId(created),
             )
+            notifyFolderChanged()
+            uri
         }.getOrNull()
     }
 
-    suspend fun renameDocument(uri: Uri, newName: String): Boolean = withContext(Dispatchers.IO) {
-        runCatching {
-            DocumentsContract.renameDocument(context.contentResolver, uri, newName) != null
-        }.getOrDefault(false)
-    }
+    suspend fun renameDocument(treeUri: Uri?, uri: Uri, newName: String): Uri? =
+        withContext(Dispatchers.IO) {
+            runCatching {
+                val renamed = DocumentsContract.renameDocument(context.contentResolver, uri, newName)
+                    ?: return@runCatching null
+                val resolved = if (treeUri != null) {
+                    runCatching {
+                        DocumentsContract.buildDocumentUriUsingTree(
+                            treeUri,
+                            DocumentsContract.getDocumentId(renamed),
+                        )
+                    }.getOrDefault(renamed)
+                } else {
+                    renamed
+                }
+                val oldKey = uri.toString()
+                if (recentStore.nameFor(oldKey) != null) {
+                    replaceRecent(oldKey, resolved, newNameOverride = newName)
+                }
+                _documentEvents.tryEmit(DocumentEvent.Renamed(oldKey, resolved.toString(), newName))
+                notifyFolderChanged()
+                resolved
+            }.getOrNull()
+        }
 
     suspend fun deleteDocument(uri: Uri): Boolean = withContext(Dispatchers.IO) {
         runCatching {
-            DocumentsContract.deleteDocument(context.contentResolver, uri)
+            val deleted = DocumentsContract.deleteDocument(context.contentResolver, uri)
+            if (deleted) {
+                val key = uri.toString()
+                removeFromRecents(key)
+                _documentEvents.tryEmit(DocumentEvent.Deleted(key))
+                notifyFolderChanged()
+            }
+            deleted
         }.getOrDefault(false)
     }
 
@@ -294,9 +391,9 @@ class DocumentRepository(private val context: Context) {
 
     private companion object {
         const val TAG = "MarkNote-documents"
-
-        const val MAX_DOCUMENT_BYTES = 8 * 1024 * 1024
-
+        const val MAX_DOCUMENT_MB = 8
+        const val MAX_DOCUMENT_BYTES = MAX_DOCUMENT_MB * 1024 * 1024
+        const val RECENT_PROBE_CONCURRENCY = 6
         const val KEY_FOLDER_TREE = "folder_tree"
     }
 }

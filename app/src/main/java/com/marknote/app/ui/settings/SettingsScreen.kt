@@ -2,6 +2,7 @@ package com.marknote.app.ui.settings
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -11,6 +12,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.verticalScroll
@@ -77,39 +79,41 @@ fun SettingsScreen(
             )
         },
     ) { padding ->
-        Column(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(padding)
-                .verticalScroll(rememberScrollState())
-                .navigationBarsPadding()
-                .padding(horizontal = 24.dp),
+                .padding(padding),
+            contentAlignment = Alignment.TopCenter,
         ) {
-            SectionLabel(stringResource(R.string.appearance))
-            SettingGroup(label = stringResource(R.string.theme_mode)) {
-                SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
-                    val items = listOf(
-                        ThemeMode.SYSTEM to stringResource(R.string.theme_system),
-                        ThemeMode.LIGHT to stringResource(R.string.theme_light),
-                        ThemeMode.DARK to stringResource(R.string.theme_dark),
-                    )
-                    items.forEachIndexed { index, (mode, label) ->
-                        SegmentedButton(
-                            selected = settings.themeMode == mode,
-                            onClick = {
-                                if (settings.themeMode != mode) {
-                                    settings.updateThemeMode(mode)
-
-                                    context.findActivity()?.recreate()
-                                }
-                            },
-                            shape = SegmentedButtonDefaults.itemShape(
-                                index = index, count = items.size,
-                            ),
-                        ) { Text(label) }
+            Column(
+                modifier = Modifier
+                    .widthIn(max = 640.dp)
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState())
+                    .navigationBarsPadding()
+                    .padding(horizontal = 24.dp),
+            ) {
+                SectionLabel(stringResource(R.string.appearance))
+                SettingGroup(label = stringResource(R.string.theme_mode)) {
+                    SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+                        val items = listOf(
+                            ThemeMode.SYSTEM to stringResource(R.string.theme_system),
+                            ThemeMode.LIGHT to stringResource(R.string.theme_light),
+                            ThemeMode.DARK to stringResource(R.string.theme_dark),
+                        )
+                        items.forEachIndexed { index, (mode, label) ->
+                            SegmentedButton(
+                                selected = settings.themeMode == mode,
+                                onClick = {
+                                    if (settings.themeMode != mode) settings.updateThemeMode(mode)
+                                },
+                                shape = SegmentedButtonDefaults.itemShape(
+                                    index = index, count = items.size,
+                                ),
+                            ) { Text(label) }
+                        }
                     }
                 }
-            }
 
             SectionLabel(stringResource(R.string.language_section))
             Row(
@@ -206,6 +210,7 @@ fun SettingsScreen(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Spacer(Modifier.height(32.dp))
+            }
         }
     }
 

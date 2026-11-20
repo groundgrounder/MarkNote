@@ -14,11 +14,16 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.viewinterop.AndroidView
 import io.noties.markwon.Markwon
 import io.noties.markwon.core.spans.BulletListItemSpan
@@ -30,6 +35,8 @@ import io.noties.markwon.ext.tables.TablePlugin
 import io.noties.markwon.image.ImagesPlugin
 import io.noties.markwon.inlineparser.InlineProcessor
 import io.noties.markwon.inlineparser.MarkwonInlineParserPlugin
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import org.commonmark.node.Node
 
 @Composable
@@ -44,14 +51,12 @@ fun MarkdownPreview(
     scrollTo: PreviewScroll? = null,
     onRenderedText: (String) -> Unit = {},
     onAnchorClick: (String) -> Unit = {},
+    onToggleTask: ((Int) -> Unit)? = null,
 ) {
     val context = LocalContext.current
+    val density = LocalDensity.current.density
     val textColor = MaterialTheme.colorScheme.onSurface.toArgb()
     val errorColor = MaterialTheme.colorScheme.error.toArgb()
-
-    val markwon = remember(textSizeSp, textColor, errorColor) {
-        buildMarkwon(context, textSizeSp, textColor, errorColor)
-    }
     val linkColor = MaterialTheme.colorScheme.primary.toArgb()
     val matchColor = MaterialTheme.colorScheme.primaryContainer.toArgb()
     val currentMatchColor = MaterialTheme.colorScheme.primary.toArgb()
@@ -60,14 +65,49 @@ fun MarkdownPreview(
     val boxFillColor = MaterialTheme.colorScheme.primary.toArgb()
     val boxTickColor = MaterialTheme.colorScheme.onPrimary.toArgb()
 
+    val markwon = remember(textSizeSp, textColor, errorColor) {
+        buildMarkwon(context, textSizeSp, textColor, errorColor)
+    }
+
+    val latestOnRenderedText by rememberUpdatedState(onRenderedText)
+    val latestOnAnchorClick by rememberUpdatedState(onAnchorClick)
+    val latestOnToggleTask by rememberUpdatedState(onToggleTask)
+
+    var parsedSpanned by remember(docUri) { mutableStateOf<Spanned?>(null) }
+    LaunchedEffect(
+        markdown,
+        imageTree,
+        docUri,
+        markwon,
+        textSizeSp,
+        linkColor,
+        boxOutlineColor,
+        boxFillColor,
+        boxTickColor,
+    ) {
+        val result = withContext(Dispatchers.Default) {
+            val prepared = preparePreviewMarkdown(
+                rewriteRelativeImages(markdown, imageTree, docDirInTree(docUri, imageTree)),
+            )
+            val spanned = markwon.toMarkdown(prepared)
+            decoratePreviewSpanned(
+                spanned = spanned,
+                boxSizePx = textSizeSp * density * 0.9f,
+                linkColor = linkColor,
+                boxOutlineColor = boxOutlineColor,
+                boxFillColor = boxFillColor,
+                boxTickColor = boxTickColor,
+                onAnchorClick = { latestOnAnchorClick(it) },
+                onToggleTask = { index -> latestOnToggleTask?.invoke(index) },
+            )
+            spanned
+        }
+        parsedSpanned = result
+        latestOnRenderedText(result.toString())
+    }
+
     val scrollState = rememberScrollState()
     val holder = remember { PreviewHolder() }
-
-    val preparedMarkdown = remember(markdown, imageTree, docUri) {
-        preparePreviewMarkdown(
-            rewriteRelativeImages(markdown, imageTree, docDirInTree(docUri, imageTree)),
-        )
-    }
 
     AndroidView(
         modifier = modifier.verticalScroll(scrollState),
@@ -77,7 +117,6 @@ fun MarkdownPreview(
                 setLinkTextColor(linkColor)
                 textSize = textSizeSp.toFloat()
                 setLineSpacing(0f, 1.35f)
-
                 movementMethod = LinkMovementMethod.getInstance()
                 holder.textView = this
             }
@@ -87,26 +126,13 @@ fun MarkdownPreview(
             textView.setLinkTextColor(linkColor)
             textView.textSize = textSizeSp.toFloat()
 
-            val rendered = preparedMarkdown
-            if (rendered != holder.markdown || holder.markwon !== markwon) {
+            val spanned = parsedSpanned
+            if (spanned != null && (spanned !== holder.spanned || holder.markwon !== markwon)) {
                 holder.markwon = markwon
-                holder.markdown = rendered
+                holder.spanned = spanned
                 holder.spans.clear()
                 holder.highlightKey = null
-
-                val spanned = markwon.toMarkdown(rendered)
-                decoratePreviewSpanned(
-                    spanned = spanned,
-                    boxSizePx = textSizeSp * textView.resources.displayMetrics.density * 0.9f,
-                    linkColor = linkColor,
-                    boxOutlineColor = boxOutlineColor,
-                    boxFillColor = boxFillColor,
-                    boxTickColor = boxTickColor,
-                    onAnchorClick = onAnchorClick,
-                )
                 markwon.setParsedMarkdown(textView, spanned)
-                val plain = textView.text.toString()
-                textView.post { onRenderedText(plain) }
             }
             applyHighlights(
                 textView = textView,
@@ -132,7 +158,6 @@ fun MarkdownPreview(
         val layout = textView.layout ?: return@LaunchedEffect
         val offset = request.offset.coerceIn(0, textView.text.length)
         val line = layout.getLineForOffset(offset)
-
         scrollState.animateScrollTo(layout.getLineTop(line) + textView.totalPaddingTop)
     }
 }
@@ -142,7 +167,7 @@ data class PreviewScroll(val offset: Int, val nonce: Int)
 private class PreviewHolder {
     var textView: TextView? = null
     var markwon: Markwon? = null
-    var markdown: String? = null
+    var spanned: Spanned? = null
     val spans = mutableListOf<Any>()
     var highlightKey: HighlightKey? = null
 }
@@ -203,6 +228,7 @@ private fun decoratePreviewSpanned(
     boxFillColor: Int,
     boxTickColor: Int,
     onAnchorClick: (String) -> Unit,
+    onToggleTask: ((Int) -> Unit)?,
 ) {
     val spannable = spanned as? Spannable ?: return
 
@@ -216,13 +242,21 @@ private fun decoratePreviewSpanned(
                 spannable.getSpanStart(span) <= box.start && box.end <= spannable.getSpanEnd(span)
             }
         }
-        .forEach { box ->
+        .forEachIndexed { index, box ->
             spannable.setSpan(
                 TaskBoxSpan(boxSizePx, box.checked, boxOutlineColor, boxFillColor, boxTickColor),
                 box.start,
                 box.end,
                 Spanned.SPAN_EXCLUSIVE_EXCLUSIVE,
             )
+            if (onToggleTask != null) {
+                spannable.setSpan(
+                    TaskBoxClickSpan(index, onToggleTask),
+                    box.start,
+                    box.end,
+                    Spanned.SPAN_EXCLUSIVE_EXCLUSIVE,
+                )
+            }
         }
 
     spannable.getSpans(0, spannable.length, URLSpan::class.java).forEach { span ->
@@ -238,7 +272,6 @@ private fun decoratePreviewSpanned(
 
 private fun buildMarkwon(context: Context, textSizeSp: Int, textColor: Int, errorColor: Int): Markwon {
     val appContext = context.applicationContext
-
     val mathTextPx = TypedValue.applyDimension(
         TypedValue.COMPLEX_UNIT_SP,
         textSizeSp.toFloat(),
@@ -247,7 +280,6 @@ private fun buildMarkwon(context: Context, textSizeSp: Int, textColor: Int, erro
     return Markwon.builder(context)
         .usePlugin(StrikethroughPlugin.create())
         .usePlugin(TablePlugin.create(context))
-
         .usePlugin(
             MarkwonInlineParserPlugin.create { builder ->
                 builder.addInlineProcessor(DollarMathInlineProcessor())
@@ -255,19 +287,13 @@ private fun buildMarkwon(context: Context, textSizeSp: Int, textColor: Int, erro
         )
         .usePlugin(
             JLatexMathPlugin.create(mathTextPx) { plugin ->
-
                 plugin.inlinesEnabled(true)
-
                 plugin.theme()
                     .textColor(textColor)
                     .inlineTextColor(textColor)
                     .blockTextColor(textColor)
-
                 plugin.errorHandler { rawLatex, error ->
-
                     val latex = rawLatex.trim()
-
-                    //   adb logcat -d | grep "Error displaying latex" | sed 's/.*E JLatexMathPlugin: //' | sort -u
                     val onOneLine = latex.replace("\n", "\\n")
                     android.util.Log.e("JLatexMathPlugin", "Error displaying latex: `$onOneLine`", error)
                     latexErrorDrawable(appContext, errorColor, textSizeSp, latex)
@@ -276,7 +302,6 @@ private fun buildMarkwon(context: Context, textSizeSp: Int, textColor: Int, erro
         )
         .usePlugin(ImagesPlugin.create { plugin ->
             plugin.addSchemeHandler(LocalImageSchemeHandler(appContext))
-
             plugin.errorHandler { _, error -> imageErrorDrawable(appContext, errorColor, error) }
         })
         .build()
@@ -287,12 +312,10 @@ private class DollarMathInlineProcessor : InlineProcessor() {
     override fun specialCharacter(): Char = '$'
 
     override fun parse(): Node? {
-
         val match = doubleDollarMathPattern.matchAt(input, index)
             ?: inlineMathPattern.matchAt(input, index)
             ?: return consumeLoneDollar()
         index = match.range.last + 1
-
         return JLatexMathNode().apply { latex(match.groupValues[1]) }
     }
 

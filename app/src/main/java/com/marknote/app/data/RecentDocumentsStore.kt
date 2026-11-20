@@ -14,6 +14,8 @@ internal data class RecentEntry(
 
 internal class RecentDocumentsStore(private val prefs: SharedPreferences) {
 
+    private var cached: List<RecentEntry>? = null
+
     @Synchronized
     fun entries(): List<RecentEntry> = load()
 
@@ -43,7 +45,9 @@ internal class RecentDocumentsStore(private val prefs: SharedPreferences) {
 
     @Synchronized
     fun remove(uri: String) {
-        save(load().filterNot { it.uri == uri })
+        val current = load()
+        val next = current.filterNot { it.uri == uri }
+        if (next.size != current.size) save(next)
     }
 
     @Synchronized
@@ -53,17 +57,22 @@ internal class RecentDocumentsStore(private val prefs: SharedPreferences) {
 
     @Synchronized
     private fun load(): List<RecentEntry> {
-        val raw = prefs.getString(KEY_DOCS, null) ?: return migrateLegacy()
-        parseEntries(raw)?.let { return it }
+        cached?.let { return it }
+        val raw = prefs.getString(KEY_DOCS, null) ?: return migrateLegacy().also { cached = it }
+        parseEntries(raw)?.let {
+            cached = it
+            return it
+        }
 
         val salvaged = salvageEntries(raw)
-        Log.w(TAG, "最近列表损坏，已恢复 ${salvaged.size} 条记录")
+        Log.w(TAG, "Recent list corrupted; salvaged ${salvaged.size} entries")
         runCatching {
             prefs.edit()
                 .putString(KEY_DOCS_BACKUP, raw)
                 .putString(KEY_DOCS, encode(salvaged))
                 .apply()
         }
+        cached = salvaged
         return salvaged
     }
 
@@ -93,6 +102,7 @@ internal class RecentDocumentsStore(private val prefs: SharedPreferences) {
         val kept = entries
             .sortedByDescending { it.time }
             .take(MAX_ENTRIES)
+        cached = kept
         prefs.edit().putString(KEY_DOCS, encode(kept)).apply()
     }
 

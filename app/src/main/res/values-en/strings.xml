@@ -119,5 +119,16 @@
     <string name="image_decode_data_failed">Cannot decode data image</string>
     <string name="image_error_generic">Image failed to load</string>
     <string name="image_not_found">Not in the granted folder: %1$s</string>
+    <string name="open_file">Open file</string>
+    <string name="filter_files">Filter files</string>
+    <string name="no_matching_files">No matching files</string>
+    <string name="document_too_large_title">File is too large</string>
+    <string name="document_too_large_message">MarkNote supports files up to %1$d MB to keep editing responsive.</string>
+    <string name="match_case">Match case</string>
+    <string name="replaced_count">Replaced %1$d</string>
+    <string name="md_task">Task</string>
+    <string name="md_inline_code">Inline code</string>
+    <string name="md_indent">Indent</string>
+    <string name="md_outdent">Outdent</string>
 </resources>
 
